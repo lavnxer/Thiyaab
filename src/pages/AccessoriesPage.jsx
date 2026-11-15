@@ -3,14 +3,16 @@ import { motion } from 'framer-motion';
 import { SlidersHorizontal } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import FilterSidebar from '../components/FilterSidebar';
-import ProductCard from '../components/ProductCard';
+import ProductCard, { ProductGridSkeleton } from '../components/ProductCard';
 import { productsApi } from '../lib/api';
+
+const CACHE_KEY = 'thyiaab_cache_products_unisex';
 
 const stagger = {
     hidden: { opacity: 0, y: 20 },
     visible: (i) => ({
         opacity: 1, y: 0,
-        transition: { delay: i * 0.12, duration: 0.5, ease: 'easeOut' }
+        transition: { delay: i * 0.08, duration: 0.4, ease: 'easeOut' }
     })
 };
 
@@ -26,8 +28,19 @@ export default function AccessoriesPage() {
     const [sideFilters, setSideFilters] = useState({ colors: [], sizes: [], priceMin: 0, priceMax: PRICE_MAX });
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    // Instant SWR state: Load from localStorage immediately so products appear in 0 ms!
+    const [products, setProducts] = useState(() => {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch {}
+        return [];
+    });
+    const [loading, setLoading] = useState(() => products.length === 0);
 
     useEffect(() => {
         let isMounted = true;
@@ -43,9 +56,12 @@ export default function AccessoriesPage() {
                     images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []),
                     badge: p.is_new ? 'جديد' : (p.is_featured ? 'مميز' : null),
                     category: p.category?.name || 'إكسسوارات',
-                    inStock: p.in_stock !== false
+                    inStock: p.in_stock !== false && (p.stock_qty === null || p.stock_qty === undefined || p.stock_qty > 0)
                 }));
                 setProducts(mapped);
+                try {
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(mapped));
+                } catch {}
             } catch (err) {
                 console.error('Error fetching accessory products from Supabase:', err);
             } finally {
@@ -151,7 +167,9 @@ export default function AccessoriesPage() {
 
             {/* Products Grid */}
             <div className="container mx-auto px-2.5 sm:px-8 py-4 sm:py-10 pb-24">
-                {filtered.length === 0 ? (
+                {loading && products.length === 0 ? (
+                    <ProductGridSkeleton count={10} />
+                ) : filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-[#800020]/40 gap-4">
                         <p className="text-xl sm:text-2xl font-black">لا توجد منتجات</p>
                         <p className="text-xs sm:text-sm font-medium">جرّب تغيير الفلاتر المحددة</p>
@@ -160,7 +178,7 @@ export default function AccessoriesPage() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-6">
                         {filtered.map((p, i) => (
                             <motion.div key={p.id} custom={i} initial="hidden" whileInView="visible" viewport={{once:true}} variants={stagger}>
-                                <ProductCard p={p} />
+                                <ProductCard p={p} index={i} />
                             </motion.div>
                         ))}
                     </div>

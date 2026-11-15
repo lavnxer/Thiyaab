@@ -1,51 +1,93 @@
 import { supabase } from '../lib/supabase';
 
+// In-memory query cache & deduplication to eliminate latency and redundant DB roundtrips
+const productsQueryCache = new Map();
+const inFlightProductRequests = new Map();
+
+export const clearProductsCache = () => {
+    productsQueryCache.clear();
+    try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.removeItem('thyiaab_cache_products_men');
+            localStorage.removeItem('thyiaab_cache_products_women');
+            localStorage.removeItem('thyiaab_cache_products_unisex');
+            localStorage.removeItem('thyiaab_cache_products_all');
+        }
+    } catch {}
+};
+
 // ============================================
 // PRODUCTS API
 // ============================================
 export const productsApi = {
-    // Get all products with colors and sizes
-    async getAll(filters = {}) {
-        let query = supabase
-            .from('products')
-            .select(`
-                *,
-                category:categories(id, name, slug),
-                colors:product_colors(id, name, hex, image_url),
-                sizes:product_sizes(id, size, in_stock, stock_qty)
-            `)
-            .order('created_at', { ascending: false });
+    // Get all products with colors and sizes (optimized with in-memory caching & in-flight deduplication)
+    async getAll(filters = {}, options = { skipCache: false }) {
+        const cacheKey = JSON.stringify(filters);
+        const now = Date.now();
 
-        if (filters.category_id) {
-            query = query.eq('category_id', filters.category_id);
-        }
-        if (filters.gender) {
-            query = query.eq('gender', filters.gender);
-        }
-        if (filters.in_stock !== undefined) {
-            query = query.eq('in_stock', filters.in_stock);
-        }
-        if (filters.is_new) {
-            query = query.eq('is_new', true);
-        }
-        if (filters.is_featured) {
-            query = query.eq('is_featured', true);
-        }
-        if (filters.search) {
-            query = query.ilike('name', `%${filters.search}%`);
-        }
-        if (filters.minPrice) {
-            query = query.gte('price', filters.minPrice);
-        }
-        if (filters.maxPrice) {
-            query = query.lte('price', filters.maxPrice);
-        }
-        if (filters.categoryName) {
-            query = query.eq('category.name', filters.categoryName);
+        if (!options.skipCache && productsQueryCache.has(cacheKey)) {
+            const entry = productsQueryCache.get(cacheKey);
+            if (now - entry.timestamp < 60000) { // 60 seconds memory TTL
+                return { data: entry.data, error: null };
+            }
         }
 
-        const { data, error } = await query;
-        return { data, error };
+        if (inFlightProductRequests.has(cacheKey)) {
+            return inFlightProductRequests.get(cacheKey);
+        }
+
+        const requestPromise = (async () => {
+            try {
+                let query = supabase
+                    .from('products')
+                    .select(`
+                        *,
+                        category:categories(id, name, slug),
+                        colors:product_colors(id, name, hex, image_url),
+                        sizes:product_sizes(id, size, in_stock, stock_qty)
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (filters.category_id) {
+                    query = query.eq('category_id', filters.category_id);
+                }
+                if (filters.gender) {
+                    query = query.eq('gender', filters.gender);
+                }
+                if (filters.in_stock !== undefined) {
+                    query = query.eq('in_stock', filters.in_stock);
+                }
+                if (filters.is_new) {
+                    query = query.eq('is_new', true);
+                }
+                if (filters.is_featured) {
+                    query = query.eq('is_featured', true);
+                }
+                if (filters.search) {
+                    query = query.ilike('name', `%${filters.search}%`);
+                }
+                if (filters.minPrice) {
+                    query = query.gte('price', filters.minPrice);
+                }
+                if (filters.maxPrice) {
+                    query = query.lte('price', filters.maxPrice);
+                }
+                if (filters.categoryName) {
+                    query = query.eq('category.name', filters.categoryName);
+                }
+
+                const { data, error } = await query;
+                if (!error && data) {
+                    productsQueryCache.set(cacheKey, { data, timestamp: Date.now() });
+                }
+                return { data, error };
+            } finally {
+                inFlightProductRequests.delete(cacheKey);
+            }
+        })();
+
+        inFlightProductRequests.set(cacheKey, requestPromise);
+        return requestPromise;
     },
 
     // Get single product by ID
@@ -130,6 +172,7 @@ export const productsApi = {
             await supabase.from('product_sizes').insert(sizeRows);
         }
 
+        clearProductsCache();
         return this.getById(newProduct.id);
     },
 
@@ -237,11 +280,13 @@ export const productsApi = {
             }
         }
 
+        clearProductsCache();
         return this.getById(id);
     },
 
     // Admin: Delete product
     async delete(id) {
+        clearProductsCache();
         const { error } = await supabase
             .from('products')
             .delete()

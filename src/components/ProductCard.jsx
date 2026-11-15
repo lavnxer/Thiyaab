@@ -6,6 +6,24 @@ import RiyalIcon from './RiyalIcon';
 import { useToast } from '../context/ToastContext';
 import { useShop } from '../context/ShopContext';
 
+export function ProductGridSkeleton({ count = 10 }) {
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-6 animate-pulse" dir="rtl">
+            {Array.from({ length: count }).map((_, i) => (
+                <div key={i} className="flex flex-col">
+                    <div className="aspect-[3/4] rounded-sm bg-white/40 overflow-hidden relative flex items-center justify-center p-4">
+                        <div className="w-2/3 h-2/3 rounded-xl bg-[#800020]/10" />
+                    </div>
+                    <div className="mt-2.5 space-y-1.5 px-1">
+                        <div className="h-4 bg-[#800020]/15 rounded-sm w-3/4" />
+                        <div className="h-3.5 bg-[#800020]/20 rounded-sm w-1/3" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function ToggleIcon({ Icon, isActive, onClick, className = "", fillOnActive = false, activeFillColor = "currentColor", baseClass = "absolute z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-brand-cream shadow-xs sm:shadow-sm" }) {
     const controls = useAnimation();
 
@@ -52,7 +70,7 @@ export function ToggleIcon({ Icon, isActive, onClick, className = "", fillOnActi
     );
 }
 
-export default function ProductCard({ p }) {
+export default function ProductCard({ p, index = 0 }) {
     const navigate = useNavigate();
     const { isWishlisted, toggleWishlist, addToCart, removeFromCart, cartItems } = useShop();
     const isLiked = isWishlisted(p.id);
@@ -155,6 +173,8 @@ export default function ProductCard({ p }) {
                 <img
                     src={p.img}
                     alt={p.name}
+                    loading={index < 4 ? 'eager' : 'lazy'}
+                    decoding="async"
                     className={`relative z-10 ${
                         p.cover
                             ? 'w-full h-full object-cover'
@@ -171,6 +191,8 @@ export default function ProductCard({ p }) {
                     <img
                         src={p.images[1]}
                         alt={p.name}
+                        loading="lazy"
+                        decoding="async"
                         className={`absolute inset-0 z-10 m-auto ${
                             p.cover
                                 ? 'w-full h-full object-cover'

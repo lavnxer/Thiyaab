@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
+import { productsApi } from '../lib/api';
 
 export default function Navbar() {
     const location = useLocation();
@@ -24,6 +25,16 @@ export default function Navbar() {
                     <Link
                         key={l.to}
                         to={l.to}
+                        onMouseEnter={() => {
+                            if (l.to === '/men') productsApi.getAll({ gender: 'men' });
+                            if (l.to === '/women') productsApi.getAll({ gender: 'women' });
+                            if (l.to === '/accessories') productsApi.getAll({ gender: 'unisex' });
+                        }}
+                        onTouchStart={() => {
+                            if (l.to === '/men') productsApi.getAll({ gender: 'men' });
+                            if (l.to === '/women') productsApi.getAll({ gender: 'women' });
+                            if (l.to === '/accessories') productsApi.getAll({ gender: 'unisex' });
+                        }}
                         className={`text-[9.5px] min-[390px]:text-[10.5px] sm:text-sm lg:text-base font-bold transition hover:text-[#800020] whitespace-nowrap ${
                             location.pathname === l.to ? 'text-[#800020]' : 'text-[#800020]/70'
                         }`}
