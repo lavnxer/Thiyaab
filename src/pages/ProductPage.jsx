@@ -221,6 +221,16 @@ export default function ProductPage() {
                name.includes('أقراط') || name.includes('حلق');
     }, [product]);
 
+    const isWatch = useMemo(() => {
+        if (!product) return false;
+        const cat = String(product.category?.name || product.category || '').toLowerCase();
+        const subCat = String(product.subCategory || '').toLowerCase();
+        const name = String(product.name || '').toLowerCase();
+        return cat.includes('ساعات') || cat.includes('ساعة') ||
+               subCat.includes('ساعات') || subCat.includes('ساعة') ||
+               name.includes('ساعة') || name.includes('ساعات');
+    }, [product]);
+
     const handleAddToCart = () => {
         if (!product) return;
 
@@ -431,7 +441,13 @@ export default function ProductPage() {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3 }}
-                                className={`${isRing ? 'max-h-[60%] max-w-[60%]' : 'w-full h-full'} object-contain drop-shadow-md select-none pointer-events-none`}
+                                className={`${
+                                    isRing
+                                        ? 'max-h-[60%] max-w-[60%]'
+                                        : (isWatch
+                                            ? 'max-h-[72%] max-w-[72%]'
+                                            : 'w-full h-full')
+                                } object-contain drop-shadow-md select-none pointer-events-none`}
                             />
                         </AnimatePresence>
                     </div>
@@ -887,7 +903,9 @@ export default function ProductPage() {
                                                     ? 'h-[75%] max-w-[80%]'
                                                     : (item.name?.includes('خاتم') || item.category === 'خواتم' || item.category?.name === 'خواتم'
                                                         ? 'h-[56%] max-w-[56%]'
-                                                        : 'w-full h-full')
+                                                        : (item.name?.includes('ساعة') || item.category === 'ساعات' || item.category?.name === 'ساعات'
+                                                            ? 'h-[70%] max-w-[70%]'
+                                                            : 'w-full h-full'))
                                             }`}
                                         />
                                     </div>

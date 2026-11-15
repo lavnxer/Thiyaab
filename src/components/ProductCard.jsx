@@ -69,6 +69,15 @@ export default function ProductCard({ p }) {
                name.includes('أقراط') || name.includes('حلق');
     }, [p.category, p.subCategory, p.name]);
 
+    const isWatch = useMemo(() => {
+        const cat = String(p.category?.name || p.category || '').toLowerCase();
+        const subCat = String(p.subCategory || '').toLowerCase();
+        const name = String(p.name || '').toLowerCase();
+        return cat.includes('ساعات') || cat.includes('ساعة') ||
+               subCat.includes('ساعات') || subCat.includes('ساعة') ||
+               name.includes('ساعة') || name.includes('ساعات');
+    }, [p.category, p.subCategory, p.name]);
+
     const handleToggleLike = (val) => {
         const added = toggleWishlist(p.id, p);
         showToast(added ? `تمت إضافة "${p.name}" إلى قائمة المفضلة` : `تمت إزالة "${p.name}" من المفضلة`);
@@ -130,7 +139,11 @@ export default function ProductCard({ p }) {
                     className={`relative z-10 ${
                         p.cover
                             ? 'w-full h-full object-cover'
-                            : (isRing ? 'max-h-[56%] max-w-[56%] object-contain' : 'w-full h-full object-contain')
+                            : (isRing
+                                ? 'max-h-[56%] max-w-[56%] object-contain'
+                                : (isWatch
+                                    ? 'max-h-[70%] max-w-[70%] object-contain'
+                                    : 'w-full h-full object-contain'))
                     } transition-all duration-500 ${
                         p.images && p.images.length > 1 && p.images[1] !== p.img ? 'group-hover:opacity-0' : 'group-hover:scale-110'
                     } drop-shadow-lg pointer-events-none`}
@@ -142,7 +155,11 @@ export default function ProductCard({ p }) {
                         className={`absolute inset-0 z-10 m-auto ${
                             p.cover
                                 ? 'w-full h-full object-cover'
-                                : (isRing ? 'max-h-[56%] max-w-[56%] object-contain' : 'p-2 sm:p-3.5 w-full h-full object-contain')
+                                : (isRing
+                                    ? 'max-h-[56%] max-w-[56%] object-contain'
+                                    : (isWatch
+                                        ? 'max-h-[70%] max-w-[70%] object-contain'
+                                        : 'p-2 sm:p-3.5 w-full h-full object-contain'))
                         } transition-all duration-500 opacity-0 group-hover:opacity-100 group-hover:scale-110 drop-shadow-lg pointer-events-none`}
                     />
                 )}

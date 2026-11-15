@@ -3290,11 +3290,12 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                         <div className="relative aspect-square w-full bg-[#fcfaf7] p-6 flex items-center justify-center overflow-hidden">
                                             {(() => {
                                                 const isAddRing = String(productForm.category || '').includes('خاتم') || String(productForm.category || '').includes('خواتم') || String(productForm.name || '').includes('خاتم') || String(productForm.name || '').includes('خواتم');
+                                                const isAddWatch = String(productForm.category || '').includes('ساعة') || String(productForm.category || '').includes('ساعات') || String(productForm.name || '').includes('ساعة') || String(productForm.name || '').includes('ساعات');
                                                 return (
                                                     <img
                                                         src={productForm.image || '/images/coat_transparent.png'}
                                                         alt={productForm.name || 'معاينة المنتج'}
-                                                        className={`${isAddRing ? 'max-h-[58%] max-w-[58%]' : 'w-full h-full'} object-contain transform group-hover:scale-105 transition duration-500`}
+                                                        className={`${isAddRing ? 'max-h-[58%] max-w-[58%]' : (isAddWatch ? 'max-h-[70%] max-w-[70%]' : 'w-full h-full')} object-contain transform group-hover:scale-105 transition duration-500`}
                                                     />
                                                 );
                                             })()}
@@ -4092,11 +4093,12 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                         <div className="relative aspect-3/4 rounded-xl overflow-hidden bg-[#e8d5c0]/40 flex items-center justify-center">
                                             {(() => {
                                                 const isRingPreview = String(editForm.category || '').includes('خاتم') || String(editForm.category || '').includes('خواتم') || String(editForm.name || '').includes('خاتم') || String(editForm.name || '').includes('خواتم');
+                                                const isWatchPreview = String(editForm.category || '').includes('ساعة') || String(editForm.category || '').includes('ساعات') || String(editForm.name || '').includes('ساعة') || String(editForm.name || '').includes('ساعات');
                                                 return (
                                                     <img
                                                         src={editForm.image}
                                                         alt={editForm.name}
-                                                        className={`${isRingPreview ? 'max-h-[58%] max-w-[58%]' : 'w-full h-full p-2'} object-contain`}
+                                                        className={`${isRingPreview ? 'max-h-[58%] max-w-[58%]' : (isWatchPreview ? 'max-h-[70%] max-w-[70%]' : 'w-full h-full p-2')} object-contain`}
                                                         onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
                                                     />
                                                 );
