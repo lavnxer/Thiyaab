@@ -3288,11 +3288,16 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                                         {/* Image & Badges */}
                                         <div className="relative aspect-square w-full bg-[#fcfaf7] p-6 flex items-center justify-center overflow-hidden">
-                                            <img
-                                                src={productForm.image || '/images/coat_transparent.png'}
-                                                alt={productForm.name || 'معاينة المنتج'}
-                                                className="w-full h-full object-contain transform group-hover:scale-105 transition duration-500"
-                                            />
+                                            {(() => {
+                                                const isAddRing = String(productForm.category || '').includes('خاتم') || String(productForm.category || '').includes('خواتم') || String(productForm.name || '').includes('خاتم') || String(productForm.name || '').includes('خواتم');
+                                                return (
+                                                    <img
+                                                        src={productForm.image || '/images/coat_transparent.png'}
+                                                        alt={productForm.name || 'معاينة المنتج'}
+                                                        className={`${isAddRing ? 'max-h-[58%] max-w-[58%]' : 'w-full h-full'} object-contain transform group-hover:scale-105 transition duration-500`}
+                                                    />
+                                                );
+                                            })()}
 
                                             {/* Badge */}
                                             {productForm.badge && (
@@ -4085,12 +4090,17 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     <div className="bg-white/25 rounded-2xl p-4 border border-[#800020]/15 shadow-sm space-y-3">
                                         {/* Preview Image Container */}
                                         <div className="relative aspect-3/4 rounded-xl overflow-hidden bg-[#e8d5c0]/40 flex items-center justify-center">
-                                            <img
-                                                src={editForm.image}
-                                                alt={editForm.name}
-                                                className="w-full h-full object-contain p-2"
-                                                onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
-                                            />
+                                            {(() => {
+                                                const isRingPreview = String(editForm.category || '').includes('خاتم') || String(editForm.category || '').includes('خواتم') || String(editForm.name || '').includes('خاتم') || String(editForm.name || '').includes('خواتم');
+                                                return (
+                                                    <img
+                                                        src={editForm.image}
+                                                        alt={editForm.name}
+                                                        className={`${isRingPreview ? 'max-h-[58%] max-w-[58%]' : 'w-full h-full p-2'} object-contain`}
+                                                        onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
+                                                    />
+                                                );
+                                            })()}
                                             {editForm.badge && (
                                                 <span className="absolute top-3 right-3 bg-[#800020] text-[#F0DFCD] text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow">
                                                     {editForm.badge}

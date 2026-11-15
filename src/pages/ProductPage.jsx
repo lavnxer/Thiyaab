@@ -210,6 +210,17 @@ export default function ProductPage() {
         setRelatedIndex(0);
     }, [product?.id]);
 
+    const isRing = useMemo(() => {
+        if (!product) return false;
+        const cat = String(product.category?.name || product.category || '').toLowerCase();
+        const subCat = String(product.subCategory || '').toLowerCase();
+        const name = String(product.name || '').toLowerCase();
+        return cat.includes('خواتم') || cat.includes('خاتم') ||
+               subCat.includes('خواتم') || subCat.includes('خاتم') ||
+               name.includes('خاتم') || name.includes('خواتم') || name.includes('دبلة') ||
+               name.includes('أقراط') || name.includes('حلق');
+    }, [product]);
+
     const handleAddToCart = () => {
         if (!product) return;
 
@@ -420,7 +431,7 @@ export default function ProductPage() {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3 }}
-                                className="w-full h-full object-contain drop-shadow-md select-none pointer-events-none"
+                                className={`${isRing ? 'max-h-[60%] max-w-[60%]' : 'w-full h-full'} object-contain drop-shadow-md select-none pointer-events-none`}
                             />
                         </AnimatePresence>
                     </div>
@@ -871,10 +882,13 @@ export default function ProductPage() {
                                         <img
                                             src={item.imgs?.[0] || item.image || '/images/coat_transparent.png'}
                                             alt={item.name}
-                                            className={`object-contain transition-transform duration-500 group-hover:scale-105 drop-shadow-md ${item.category === 'أحذية' || item.name.includes('حذاء')
+                                            className={`object-contain transition-transform duration-500 group-hover:scale-105 drop-shadow-md ${
+                                                item.category === 'أحذية' || item.name?.includes('حذاء')
                                                     ? 'h-[75%] max-w-[80%]'
-                                                    : 'w-full h-full'
-                                                }`}
+                                                    : (item.name?.includes('خاتم') || item.category === 'خواتم' || item.category?.name === 'خواتم'
+                                                        ? 'h-[56%] max-w-[56%]'
+                                                        : 'w-full h-full')
+                                            }`}
                                         />
                                     </div>
                                     <h4 className="font-bold text-xs sm:text-sm lg:text-base mb-1.5 line-clamp-1 text-[#800020] group-hover:opacity-80 transition-opacity">
