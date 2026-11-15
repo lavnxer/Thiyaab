@@ -78,12 +78,18 @@ export default function ProductCard({ p }) {
                name.includes('ساعة') || name.includes('ساعات');
     }, [p.category, p.subCategory, p.name]);
 
+    const isOutOfStock = p.inStock === false || (p.stock_qty !== undefined && p.stock_qty !== null && Number(p.stock_qty) <= 0) || (p.stock !== undefined && p.stock !== null && Number(p.stock) <= 0);
+
     const handleToggleLike = (val) => {
         const added = toggleWishlist(p.id, p);
         showToast(added ? `تمت إضافة "${p.name}" إلى قائمة المفضلة` : `تمت إزالة "${p.name}" من المفضلة`);
     };
 
     const handleToggleCart = (val) => {
+        if (isOutOfStock) {
+            showToast(`عذراً، منتج "${p.name}" نفذت كميته حالياً`, 'error');
+            return;
+        }
         if (val) {
             // Must choose size & color before adding to cart
             showToast(`يرجى اختيار المقاس واللون المناسب لـ "${p.name}" أولاً`, 'info');
@@ -100,16 +106,20 @@ export default function ProductCard({ p }) {
     return (
         <Link to={`/product/${p.id || 1}`} className="group cursor-pointer block">
             <div
-                style={{ backgroundColor: p.inStock === false ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)' }}
-                className={`relative ${p.inStock === false ? 'bg-black/10' : 'bg-white/20'} rounded-sm overflow-hidden aspect-[3/4] flex items-center justify-center p-2 sm:p-3.5 transition-colors duration-300`}
+                style={{ backgroundColor: isOutOfStock ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.2)' }}
+                className={`relative ${isOutOfStock ? 'bg-black/10' : 'bg-white/20'} rounded-sm overflow-hidden aspect-[3/4] flex items-center justify-center p-2 sm:p-3.5 transition-colors duration-300`}
             >
 
                 {/* Badge (Top Right) */}
-                {p.badge && (
+                {isOutOfStock ? (
+                    <span className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30 bg-[#490015] text-[#F0DFCD] text-[10px] sm:text-xs font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-sm shadow-md pointer-events-none border border-[#F0DFCD]/20">
+                        نفذت الكمية
+                    </span>
+                ) : p.badge ? (
                     <span className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 bg-[#800020] text-[#F0DFCD] text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-sm pointer-events-none">
                         {p.badge}
                     </span>
-                )}
+                ) : null}
 
                 {/* Heart Icon (Top Left) */}
                 <ToggleIcon
@@ -129,6 +139,15 @@ export default function ProductCard({ p }) {
                     className="bottom-2 right-2 sm:bottom-3 sm:right-3"
                 />
 
+                {/* Out of Stock Center Overlay */}
+                {isOutOfStock && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none bg-black/20 backdrop-blur-[0.5px]">
+                        <span className="bg-[#490015]/95 text-[#F0DFCD] text-xs sm:text-sm font-black px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full shadow-lg border border-[#F0DFCD]/30 tracking-wide">
+                            نفذت الكمية
+                        </span>
+                    </div>
+                )}
+
                 {/* Background Overlay */}
                 <div className="absolute inset-0 bg-transparent group-hover:bg-[#d8c3ae]/40 transition-all duration-500 z-0 pointer-events-none" />
 
@@ -144,7 +163,7 @@ export default function ProductCard({ p }) {
                                 : (isWatch
                                     ? 'max-h-[70%] max-w-[70%] object-contain'
                                     : 'w-full h-full object-contain'))
-                    } transition-all duration-500 ${
+                    } ${isOutOfStock ? 'opacity-70 grayscale-[20%]' : ''} transition-all duration-500 ${
                         p.images && p.images.length > 1 && p.images[1] !== p.img ? 'group-hover:opacity-0' : 'group-hover:scale-110'
                     } drop-shadow-lg pointer-events-none`}
                 />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ShoppingBag, ArrowLeft, ChevronRight, ChevronLeft, Star, Truck, RotateCcw, ShieldCheck, Droplet, Maximize, Scissors, Users, Sparkles, CheckCircle2, Edit3, Check, AlertCircle } from 'lucide-react';
@@ -471,11 +471,15 @@ export default function ProductPage() {
                         </div>
                     )}
 
-                    {product.badge && (
+                    {product.inStock === false ? (
+                        <span className="bg-[#490015] text-[#F0DFCD] text-xs font-black px-3 py-1 rounded-full w-fit mb-3 shadow-sm border border-[#F0DFCD]/20">
+                            نفذت الكمية
+                        </span>
+                    ) : product.badge ? (
                         <span className="bg-brand-burgundy text-brand-cream text-xs font-bold px-3 py-1 rounded-full w-fit mb-3">
                             {product.badge}
                         </span>
-                    )}
+                    ) : null}
 
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black mb-3 sm:mb-4 tracking-tight break-words">{product.name}</h1>
 
@@ -648,7 +652,7 @@ export default function ProductPage() {
                                 >
                                     <ShoppingBag className="w-5 h-5 relative z-10" />
                                     <span className="relative z-10">
-                                        {isAllOut ? 'نفد من المخزون' : isSelectedSizeOut ? 'المقاس غير متوفر' : 'أضف للسلة'}
+                                        {isAllOut ? 'نفذت الكمية' : isSelectedSizeOut ? 'المقاس غير متوفر' : 'أضف للسلة'}
                                     </span>
                                 </button>
                             );
@@ -895,6 +899,11 @@ export default function ProductPage() {
                                     }}
                                 >
                                     <div className="relative w-full h-[160px] sm:h-[190px] lg:h-[240px] flex items-center justify-center mb-4">
+                                        {item.inStock === false && (
+                                            <span className="absolute top-1 right-1 z-10 bg-[#490015] text-[#F0DFCD] text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm pointer-events-none">
+                                                نفذت الكمية
+                                            </span>
+                                        )}
                                         <img
                                             src={item.imgs?.[0] || item.image || '/images/coat_transparent.png'}
                                             alt={item.name}
