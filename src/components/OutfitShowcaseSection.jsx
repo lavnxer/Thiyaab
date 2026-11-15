@@ -477,10 +477,10 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                         </div>
 
                         {/* ─── Desktop & Tablet View (>= 640px) ─── */}
-                        <div className={`hidden sm:grid gap-4 md:gap-5 lg:gap-8 origin-center items-stretch sm:px-6 md:px-8 lg:px-20 ${
+                        <div className={`hidden sm:grid gap-4 md:gap-6 lg:gap-8 origin-center items-stretch sm:px-14 md:px-14 lg:px-20 ${
                             isWomen || currentOutfit.mainImage?.includes('women')
-                                ? 'grid-cols-[1fr_2.1fr_1fr] md:grid-cols-[1fr_2.4fr_1fr] lg:grid-cols-[1fr_1.85fr_1fr]'
-                                : 'grid-cols-[1fr_1.8fr_1fr] md:grid-cols-[1fr_2.1fr_1fr] lg:grid-cols-[1fr_1.5fr_1fr]'
+                                ? 'grid-cols-[1fr_1.6fr_1fr] md:grid-cols-[1fr_1.85fr_1fr] lg:grid-cols-[1fr_1.75fr_1fr]'
+                                : 'grid-cols-3 md:grid-cols-[1fr_1.4fr_1fr] lg:grid-cols-3'
                         }`}>
                             {/* Right Items */}
                             <div className="flex flex-col justify-between gap-2 sm:gap-8 h-full">
@@ -539,13 +539,13 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                             >
                                 <div className={`relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm flex-1 flex items-center justify-center ${
                                     isWomen || currentOutfit.mainImage?.includes('women')
-                                        ? 'min-h-[260px] sm:min-h-[500px] md:min-h-[550px] lg:min-h-[560px]'
-                                        : 'min-h-[220px] sm:min-h-[460px] md:min-h-[500px] lg:min-h-[520px]'
+                                        ? 'min-h-[260px] sm:min-h-[460px] md:min-h-[530px] lg:min-h-[520px]'
+                                        : 'min-h-[220px] sm:min-h-[420px] md:min-h-[530px] lg:min-h-[420px]'
                                 }`}>
-                                    <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 md:top-3 md:left-3 lg:top-4 lg:left-4 z-20 shadow-md">
+                                    <div className="absolute top-1.5 left-1.5 sm:top-2.5 sm:left-2.5 md:top-3 md:left-3 lg:top-4 lg:left-4 z-20 shadow-md">
                                         <InteractiveButton 
-                                            padding="px-2 py-1 sm:px-3 sm:py-1.5 md:px-3.5 md:py-2 lg:px-5 lg:py-2.5"
-                                            className="text-[10px] sm:text-xs md:text-xs lg:text-sm whitespace-nowrap"
+                                            padding="px-2.5 py-1 sm:px-3 sm:py-1.5 md:px-3 md:py-1.5 lg:px-5 lg:py-2.5"
+                                            className="text-[10px] sm:text-xs md:text-xs lg:text-base whitespace-nowrap"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 navigate(`/product/${currentOutfit.mainProductId}`);
@@ -559,8 +559,8 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                                         alt={currentOutfit.title}
                                         className={`transition-transform duration-500 group-hover:scale-105 ${
                                             isWomen || currentOutfit.mainImage?.includes('women')
-                                                ? 'w-full h-full max-h-full object-contain object-bottom p-2 sm:p-2.5 md:p-3 lg:p-4 sm:scale-105 md:scale-115 lg:scale-100 origin-bottom'
-                                                : 'w-[92%] h-[92%] object-contain sm:object-cover translate-y-2 sm:translate-y-6 sm:scale-100 md:scale-102 lg:scale-100 origin-bottom'
+                                                ? 'w-full h-full max-h-full object-contain object-bottom p-2 sm:p-4 md:scale-[1.20] lg:scale-100 origin-bottom md:group-hover:scale-[1.25] lg:group-hover:scale-105'
+                                                : 'w-[92%] h-[92%] object-contain object-bottom lg:object-cover translate-y-2 sm:translate-y-4 md:translate-y-0 lg:translate-y-8 md:scale-[1.20] lg:scale-100 origin-bottom md:group-hover:scale-[1.25] lg:group-hover:scale-105'
                                         }`}
                                     />
                                 </div>
