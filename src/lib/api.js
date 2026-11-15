@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uploadProductImageDirect } from './imageUploader';
 
 // In-memory query cache & deduplication to eliminate latency and redundant DB roundtrips
 const productsQueryCache = new Map();
@@ -294,22 +295,14 @@ export const productsApi = {
         return { error };
     },
 
-    // Upload product image
-    async uploadImage(file) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-
-        const { data, error } = await supabase.storage
-            .from('product-images')
-            .upload(fileName, file);
-
-        if (error) return { url: null, error };
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('product-images')
-            .getPublicUrl(fileName);
-
-        return { url: publicUrl, error: null };
+    // Direct client-side compressed upload to Supabase Storage
+    async uploadImage(file, callbacks = {}) {
+        try {
+            const result = await uploadProductImageDirect(file, callbacks);
+            return { url: result.url, fileName: result.fileName, error: null };
+        } catch (error) {
+            return { url: null, error };
+        }
     }
 };
 

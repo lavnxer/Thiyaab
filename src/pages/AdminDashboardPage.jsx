@@ -738,18 +738,12 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                     const uploadRes = await productsApi.uploadImage(fileToUpload);
                     if (uploadRes?.url) {
                         finalImageUrl = uploadRes.url;
+                    } else if (uploadRes?.error) {
+                        showToast(uploadRes.error.message || 'فشل رفع الصورة', 'error');
                     }
                 } catch (uploadErr) {
-                    console.warn('Storage upload error, using local data URL', uploadErr);
-                }
-
-                if (!finalImageUrl) {
-                    finalImageUrl = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(fileToUpload);
-                    });
+                    console.error('Storage direct upload error:', uploadErr);
+                    showToast('حدث خطأ أثناء رفع الصورة إلى التخزين', 'error');
                 }
 
                 if (finalImageUrl) {
