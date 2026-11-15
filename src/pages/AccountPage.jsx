@@ -1943,8 +1943,8 @@ export default function AccountPage() {
                 {/* Main 2-Column Grid */}
                 <div className="grid grid-cols-12 gap-2 sm:gap-4 md:gap-6 lg:gap-8 items-start">
                     
-                    {/* Sidebar Navigation (4 cols on mobile, 4 on tablet, 3 on desktop) */}
-                    <div className="col-span-4 sm:col-span-4 lg:col-span-3 flex flex-col gap-2.5 sm:gap-4 lg:gap-6">
+                    {/* Sidebar Navigation (4 cols on mobile, 3 on tablet/desktop) */}
+                    <div className="col-span-4 sm:col-span-4 md:col-span-3 lg:col-span-3 flex flex-col gap-2.5 sm:gap-4 lg:gap-6">
                         <nav className="flex flex-col gap-0.5 sm:gap-1 text-sm font-semibold">
                             {/* My orders */}
                             <button
@@ -2045,8 +2045,8 @@ export default function AccountPage() {
                         </nav>
                     </div>
 
-                    {/* Main Content Area (8 cols on mobile, 8 on tablet, 9 on desktop) */}
-                    <div className="col-span-8 sm:col-span-8 lg:col-span-9 flex flex-col gap-3 sm:gap-4 lg:gap-6">
+                    {/* Main Content Area (8 cols on mobile, 9 on tablet/desktop) */}
+                    <div className="col-span-8 sm:col-span-8 md:col-span-9 lg:col-span-9 flex flex-col gap-3 sm:gap-4 lg:gap-6">
 
                         {/* Orders Tab */}
                         {activeTab === 'orders' && (
@@ -2128,11 +2128,11 @@ export default function AccountPage() {
                                                         </p>
                                                     </div>
 
-                                                    <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 self-start sm:self-center flex-wrap">
+                                                    <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-1.5 md:gap-2 self-start sm:self-center shrink-0 flex-nowrap">
                                                         {order.statusType === 'current' && (
                                                             <Link
                                                                 to={`/track-order/${order.id}`}
-                                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 sm:px-3 sm:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer"
+                                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 xs:px-2.5 xs:py-1 sm:px-2.5 sm:py-1.5 md:px-3 md:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-[10px] md:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                                                             >
                                                                 <Truck className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                                                 <span className="relative z-10">تتبع الطلب</span>
@@ -2142,18 +2142,18 @@ export default function AccountPage() {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDownloadInvoice(order.id)}
-                                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 sm:px-3 sm:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer"
+                                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 xs:px-2.5 xs:py-1 sm:px-2.5 sm:py-1.5 md:px-3 md:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-[10px] md:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                                                         >
                                                             <Download className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                                             <span className="relative z-10">تحميل الفاتورة</span>
                                                         </button>
 
                                                         {order.statusType === 'current' && (
-                                                            <div className="relative">
+                                                            <div className="relative shrink-0">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setOpenMenuOrderId(openMenuOrderId === order.id ? null : order.id)}
-                                                                    className="shine-button bg-[#800020] text-[#F0DFCD] p-1 sm:p-1.5 rounded-md sm:rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                                                                    className="shine-button bg-[#800020] text-[#F0DFCD] p-1 sm:p-1.5 rounded-md sm:rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center justify-center cursor-pointer shrink-0"
                                                                 >
                                                                     <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 relative z-10 text-[#F0DFCD]" />
                                                                 </button>
