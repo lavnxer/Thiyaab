@@ -208,6 +208,18 @@ const validateExpiryDate = (expiryStr) => {
     return { valid: true, error: null };
 };
 
+// Sanitizes address inputs to only allow Arabic/English letters, numbers, spaces, hyphens (-), and commas (,, ،)
+const sanitizeAddressText = (text) => {
+    if (!text) return '';
+    return text.replace(/[^a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\-,،]/g, '');
+};
+
+// Sanitizes address title/label to only allow Arabic/English letters, numbers, and spaces (max 20)
+const sanitizeTitleText = (text) => {
+    if (!text) return '';
+    return text.replace(/[^a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g, '').slice(0, 20);
+};
+
 export default function CheckoutPage() {
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -388,8 +400,8 @@ const defaultGuestCards = [
             showToast('يرجى إدخال الرمز البريدي', 'error');
             return;
         }
-        if (!/^\d{5,6}$/.test(cleanPostal)) {
-            showToast('الرمز البريدي يجب أن يتكون من 5 أو 6 أرقام (مثال: 21289)', 'error');
+        if (!/^\d{5,7}$/.test(cleanPostal)) {
+            showToast('الرمز البريدي يجب أن يتكون من 5 إلى 7 أرقام (مثال: 21289)', 'error');
             return;
         }
 
@@ -525,7 +537,11 @@ const defaultGuestCards = [
     };
 
     const handleHolderChange = (e) => {
-        const val = e.target.value.replace(/[^a-zA-Z\s]/g, '').toUpperCase().slice(0, 30);
+        const val = e.target.value
+            .replace(/[0-9\u0660-\u0669\u06F0-\u06F9]/g, '')
+            .replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g, '')
+            .toUpperCase()
+            .slice(0, 60);
         setCardDetails(prev => ({ ...prev, holder: val }));
         if (cardErrors.holder) setCardErrors(prev => ({ ...prev, holder: null }));
     };
@@ -536,12 +552,8 @@ const defaultGuestCards = [
         const detected = getDetectedBrandKey(cleanNum);
         const newErrors = {};
 
-        if (cleanNum.length < 15 || cleanNum.length > 16) {
-            newErrors.number = 'رقم البطاقة غير مكتمل (16 رقماً)';
-        } else if (!detected) {
-            newErrors.number = 'نوع البطاقة غير معتمد (مدعوم فقط مدى / فيزا / ماستركارد)';
-        } else if (!isValidLuhn(cleanNum)) {
-            newErrors.number = 'رقم البطاقة غير صحيح (لم يجتز فحص خوارزمية لُوهن Luhn Check)';
+        if (cleanNum.length < 15 || cleanNum.length > 16 || !detected || !isValidLuhn(cleanNum)) {
+            newErrors.number = 'البطاقة غير صالحة أو مرفوضة';
         }
 
         const expiryCheck = validateExpiryDate(cardDetails.expiry);
@@ -640,8 +652,8 @@ const defaultGuestCards = [
             const cleanNum = cardDetails.number.replace(/\D/g, '');
             const detected = getDetectedBrandKey(cleanNum);
             if (cleanNum.length < 15 || cleanNum.length > 16 || !detected || !isValidLuhn(cleanNum)) {
-                showToast('بيانات البطاقة غير سليمة: رقم البطاقة غير صالح ولا يطابق معايير التحقق البنكية', 'error');
-                setCardErrors(prev => ({ ...prev, number: 'رقم البطاقة غير سليم' }));
+                showToast('البطاقة غير صالحة أو مرفوضة', 'error');
+                setCardErrors(prev => ({ ...prev, number: 'البطاقة غير صالحة أو مرفوضة' }));
                 return;
             }
             const expiryCheck = validateExpiryDate(cardDetails.expiry);
@@ -678,7 +690,7 @@ const defaultGuestCards = [
             };
 
             const itemsPayload = cartItems.map(i => ({
-                product_id: i.productId || '1fe2999b-3b5f-4e89-a994-f6b5fb9ea961',
+                product_id: i.productId || (typeof i.id === 'string' && !i.id.startsWith('cart-') ? i.id : '1fe2999b-3b5f-4e89-a994-f6b5fb9ea961'),
                 product_name: i.name,
                 product_image: i.img,
                 price: Number(i.price) || 0,
@@ -696,8 +708,9 @@ const defaultGuestCards = [
                 }
             } else {
                 // Decrement stock directly for guest checkout
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                 for (const item of itemsPayload) {
-                    if (item.product_id) {
+                    if (item.product_id && uuidRegex.test(item.product_id)) {
                         try {
                             await supabase.rpc('decrement_product_stock', {
                                 p_product_id: item.product_id,
@@ -887,7 +900,8 @@ const defaultGuestCards = [
                                                 <input
                                                     type="text"
                                                     value={newAddressForm.label}
-                                                    onChange={e => setNewAddressForm({ ...newAddressForm, label: e.target.value })}
+                                                    maxLength={20}
+                                                    onChange={e => setNewAddressForm({ ...newAddressForm, label: sanitizeTitleText(e.target.value) })}
                                                     placeholder="مثال: المنزل، العمل..."
                                                     className="bg-white/60 border border-[#800020]/20 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold outline-none focus:border-[#800020]"
                                                     required
@@ -941,8 +955,9 @@ const defaultGuestCards = [
                                             {newAddressForm.district === 'حي آخر (كتابة يدوية)' && (
                                                 <input
                                                     type="text"
+                                                    maxLength={200}
                                                     value={newAddressForm.customDistrict}
-                                                    onChange={e => setNewAddressForm({ ...newAddressForm, customDistrict: e.target.value })}
+                                                    onChange={e => setNewAddressForm({ ...newAddressForm, customDistrict: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                                     placeholder="اكتب اسم الحي هنا..."
                                                     className="mt-1 bg-white/60 border border-[#800020]/20 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold outline-none focus:border-[#800020]"
                                                     required
@@ -955,8 +970,9 @@ const defaultGuestCards = [
                                                 <label className="text-xs font-bold text-[#800020]">الشارع / رقم المبنى</label>
                                                 <input
                                                     type="text"
+                                                    maxLength={200}
                                                     value={newAddressForm.street}
-                                                    onChange={e => setNewAddressForm({ ...newAddressForm, street: e.target.value })}
+                                                    onChange={e => setNewAddressForm({ ...newAddressForm, street: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                                     placeholder="اسم الشارع، رقم العمارة..."
                                                     className="bg-white/60 border border-[#800020]/20 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold outline-none focus:border-[#800020]"
                                                     required
@@ -971,14 +987,14 @@ const defaultGuestCards = [
                                                     type="text"
                                                     inputMode="numeric"
                                                     pattern="[0-9]*"
-                                                    maxLength={6}
+                                                    maxLength={7}
                                                     value={newAddressForm.postalCode || ''}
                                                     onKeyDown={(e) => {
                                                         if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey) return;
                                                         if (!/^\d$/.test(e.key)) e.preventDefault();
                                                     }}
                                                     onChange={e => {
-                                                        const digits = e.target.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '').slice(0, 6);
+                                                        const digits = e.target.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '').slice(0, 7);
                                                         setNewAddressForm({ ...newAddressForm, postalCode: digits });
                                                     }}
                                                     placeholder="مثال: 21289"
@@ -993,8 +1009,9 @@ const defaultGuestCards = [
                                             <label className="text-xs font-bold text-[#800020]">رقم الشقة / تفاصيل إضافية</label>
                                             <input
                                                 type="text"
+                                                maxLength={200}
                                                 value={newAddressForm.building}
-                                                onChange={e => setNewAddressForm({ ...newAddressForm, building: e.target.value })}
+                                                onChange={e => setNewAddressForm({ ...newAddressForm, building: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                                 placeholder="اختياري (شقة 4، الدور الثاني...)"
                                                 className="bg-white/60 border border-[#800020]/20 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold outline-none focus:border-[#800020]"
                                             />
@@ -1323,6 +1340,7 @@ const defaultGuestCards = [
                                                 <label className="text-xs font-bold text-[#800020]">اسم حامل البطاقة (بالإنجليزية كما يظهر على البطاقة)</label>
                                                 <input
                                                     type="text"
+                                                    maxLength={60}
                                                     value={cardDetails.holder}
                                                     onChange={handleHolderChange}
                                                     placeholder="AHMED MOHAMED"

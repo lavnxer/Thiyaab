@@ -26,13 +26,22 @@ export default function InteractiveButton({
     const isDefaultIcon = icon === undefined;
     const finalIconPosition = iconPosition || (isDefaultIcon ? 'end' : 'start');
 
-    const renderIcon = () => {
+    const renderIcon = (isHoverState = false) => {
         if (icon === null) return null;
-        if (icon) return icon;
+        if (icon) {
+            return React.isValidElement(icon)
+                ? React.cloneElement(icon, {
+                    className: `${icon.props.className || ''} transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:rotate-45 group-hover:-translate-y-0.5 group-hover:translate-x-0.5`
+                })
+                : icon;
+        }
         return (
-            <ArrowUpRight className="w-5 h-5 transition-transform duration-[800ms] ease-in-out group-hover:rotate-45" />
+            <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:rotate-45 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 shrink-0" />
         );
     };
+
+    const hasCustomPadding = className.includes('py-') || className.includes('p-') || className.includes('px-');
+    const finalPadding = hasCustomPadding ? '' : padding;
 
     if (variant === 'outline-to-burgundy') {
         const finalBorder = border || 'border border-[#800020]/25';
@@ -42,74 +51,90 @@ export default function InteractiveButton({
             <Tag
                 {...tagProps}
                 onClick={onClick}
-                className={`relative inline-flex items-center justify-center overflow-hidden ${rounded} ${finalBorder} ${finalBg} group cursor-pointer transition-all duration-300 ${className}`}
+                className={`relative inline-flex items-center justify-center overflow-hidden ${rounded} ${finalBorder} ${finalBg} ${finalPadding} group cursor-pointer transition-all duration-300 ${className}`}
             >
-                <div className={`relative flex items-center justify-center ${padding} w-full h-full`}>
-                    {/* 1. Base State: Burgundy Text & Icon on background matching surroundings */}
-                    <div className="flex items-center justify-center gap-2 text-[#800020] transition-opacity duration-300 group-hover:opacity-0 z-0">
-                        {finalIconPosition === 'start' && renderIcon()}
-                        {children && <span className="font-bold">{children}</span>}
-                        {finalIconPosition === 'end' && renderIcon()}
-                    </div>
+                {/* 1. Full-Button Sliding Burgundy Sheet: Covers 100% of button area including padding */}
+                <span className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[35deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0" />
+                </span>
 
-                    {/* 2. Sliding Burgundy Sheet: sweeps across at skew to fill button with solid burgundy */}
-                    <span className="absolute inset-0 overflow-hidden pointer-events-none z-10">
-                        <span className="absolute -inset-x-8 -inset-y-4 bg-[#800020] -translate-x-[140%] skew-x-[35deg] transition-transform duration-500 ease-in-out group-hover:translate-x-0" />
-                    </span>
+                {/* 2. Base State: Burgundy Text & Icon */}
+                <span className="relative z-10 flex items-center justify-center gap-2 text-[#800020] font-bold w-full h-full whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:-translate-y-[150%] group-hover:opacity-0">
+                    {finalIconPosition === 'start' && renderIcon(false)}
+                    {children && <span>{children}</span>}
+                    {finalIconPosition === 'end' && renderIcon(false)}
+                </span>
 
-                    {/* 3. Hover State: Cream Text & Icon on Burgundy background */}
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 text-[#F0DFCD] z-20 pointer-events-none transition-all duration-500 ease-in-out opacity-0 group-hover:opacity-100">
-                        {finalIconPosition === 'start' && renderIcon()}
-                        {children && <span className="font-bold">{children}</span>}
-                        {finalIconPosition === 'end' && renderIcon()}
-                    </div>
-                </div>
+                {/* 3. Hover State: Cream Text & Icon in identical padded layout */}
+                <span className={`absolute inset-0 z-20 flex items-center justify-center gap-2 text-[#F0DFCD] font-bold w-full h-full whitespace-nowrap pointer-events-none ${finalPadding} transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100`}>
+                    {finalIconPosition === 'start' && renderIcon(true)}
+                    {children && <span>{children}</span>}
+                    {finalIconPosition === 'end' && renderIcon(true)}
+                </span>
+
+                {/* Subtle luxury shine overlay */}
+                <span className="shine-effect z-30" />
             </Tag>
         );
     }
 
-    // Default 'hero' variant
-    const baseBg = inverse ? 'bg-[#800020]' : 'bg-[#F0DFCD]';
-    const revealedText = inverse 
-        ? (glow ? 'text-[#F0DFCD] group-hover:animate-beige-glow' : 'text-[#F0DFCD]')
-        : (glow ? 'text-[#800020] group-hover:animate-beige-glow' : 'text-[#800020]');
-    const coverBg = inverse ? 'bg-[#F0DFCD]' : 'bg-[#800020]';
-    const coverText = inverse ? 'text-[#800020]' : 'text-[#F0DFCD]';
+    // Default 'hero' / solid interactive variant:
+    // When inverse is false: Base is Solid Burgundy (#800020) + Cream text (#F0DFCD).
+    //                       Sweep sheet is Cream (#F0DFCD) + Burgundy text (#800020).
+    // When inverse is true:  Base is Solid Cream (#F0DFCD) + Burgundy text (#800020).
+    //                       Sweep sheet is Burgundy (#800020) + Cream text (#F0DFCD).
+    const resolvedBg = bg
+        ? bg
+        : inverse
+            ? 'bg-[#F0DFCD]'
+            : 'bg-[#800020]';
 
-    const renderHeroContent = (textColor, isSpacer = false) => (
-        <div className={`flex items-center justify-center gap-2 ${textColor} ${isSpacer ? 'opacity-0 pointer-events-none' : ''}`}>
-            {finalIconPosition === 'start' && renderIcon()}
-            {children && <span className="font-bold">{children}</span>}
-            {finalIconPosition === 'end' && renderIcon()}
-        </div>
-    );
+    const sweepBg = inverse
+        ? 'bg-[#800020]'
+        : 'bg-[#F0DFCD]';
+
+    const resolvedBaseText = inverse
+        ? 'text-[#800020]'
+        : 'text-[#F0DFCD]';
+
+    const resolvedHoverText = inverse
+        ? 'text-[#F0DFCD]'
+        : 'text-[#800020]';
+
+    const resolvedShadow = glow
+        ? (inverse
+            ? 'shadow-[0_0_25px_rgba(240,223,205,0.45)] hover:shadow-[0_0_35px_rgba(240,223,205,0.7)]'
+            : 'shadow-[0_0_25px_rgba(128,0,32,0.45)] hover:shadow-[0_0_35px_rgba(128,0,32,0.7)]')
+        : 'shadow-md hover:shadow-xl';
 
     return (
         <Tag
             {...tagProps}
             onClick={onClick}
-            className={`relative inline-flex items-center justify-center overflow-hidden ${rounded} ${border} ${baseBg} group cursor-pointer ${className}`}
+            title={title}
+            className={`relative inline-flex items-center justify-center overflow-hidden ${rounded} ${border} ${resolvedBg} ${resolvedShadow} active:scale-95 transition-all duration-300 group cursor-pointer ${finalPadding} ${className}`}
         >
-            <div className={`relative flex items-center justify-center ${padding} w-full h-full`}>
-                {/* 1. Revealed Text - Sits underneath, revealed as the cover slides */}
-                <div className="absolute inset-0 flex items-center justify-center z-0">
-                    {renderHeroContent(revealedText)}
-                </div>
+            {/* 1. Full-Button Sliding Sweep Sheet: Co-extensive with 100% of the button, covering all edges and padding */}
+            <span className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <span className={`absolute -inset-x-24 -inset-y-16 ${sweepBg} -translate-x-[160%] skew-x-[35deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0`} />
+            </span>
 
-                {/* 2. Cover Background - Slides away to the right gradually */}
-                <div className={`absolute inset-y-0 -left-[100%] w-[300%] ${coverBg} skew-x-[45deg] transition-transform duration-[800ms] ease-in-out group-hover:translate-x-[100%] z-10 pointer-events-none`}></div>
+            {/* 2. Base Layer: Natural flow, establishes button size */}
+            <span className={`relative z-10 flex items-center justify-center gap-2 font-bold w-full h-full whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:-translate-y-[150%] group-hover:opacity-0 ${resolvedBaseText}`}>
+                {finalIconPosition === 'start' && renderIcon(false)}
+                {children && <span>{children}</span>}
+                {finalIconPosition === 'end' && renderIcon(false)}
+            </span>
 
-                {/* 3. Cover Text - Slides away perfectly glued to the Cover */}
-                <div className="absolute inset-0 flex items-center justify-center transition-transform duration-[800ms] ease-in-out group-hover:translate-x-[300%] z-20 pointer-events-none">
-                    {renderHeroContent(coverText)}
-                </div>
+            {/* 3. Hover Layer: Exact same padding & alignment, rolls in from bottom */}
+            <span className={`absolute inset-0 z-20 flex items-center justify-center gap-2 font-bold w-full h-full whitespace-nowrap pointer-events-none ${finalPadding} transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 ${resolvedHoverText}`}>
+                {finalIconPosition === 'start' && renderIcon(true)}
+                {children && <span>{children}</span>}
+                {finalIconPosition === 'end' && renderIcon(true)}
+            </span>
 
-                {/* 4. Optional luxury sweep shine */}
-                {glow && <span className="shine-effect z-30" />}
-
-                {/* Invisible spacer to maintain correct button dimensions */}
-                {renderHeroContent('', true)}
-            </div>
+            {/* Subtle luxury shine overlay */}
+            <span className="shine-effect z-30" />
         </Tag>
     );
 }

@@ -11,7 +11,7 @@ export const productsApi = {
             .select(`
                 *,
                 category:categories(id, name, slug),
-                colors:product_colors(id, name, hex),
+                colors:product_colors(id, name, hex, image_url),
                 sizes:product_sizes(id, size, in_stock, stock_qty)
             `)
             .order('created_at', { ascending: false });
@@ -55,7 +55,7 @@ export const productsApi = {
             .select(`
                 *,
                 category:categories(id, name, slug),
-                colors:product_colors(id, name, hex),
+                colors:product_colors(id, name, hex, image_url),
                 sizes:product_sizes(id, size, in_stock, stock_qty)
             `)
             .eq('id', id)
@@ -83,7 +83,7 @@ export const productsApi = {
             .select(`
                 *,
                 category:categories(id, name, slug),
-                colors:product_colors(id, name, hex),
+                colors:product_colors(id, name, hex, image_url),
                 sizes:product_sizes(id, size, in_stock, stock_qty)
             `)
             .not('original_price', 'is', null)
@@ -94,6 +94,10 @@ export const productsApi = {
     // Admin: Create product
     async create(product) {
         const { colors, sizes, ...productData } = product;
+
+        if (productData.stock !== undefined && productData.stock_qty === undefined) {
+            productData.stock_qty = Number(productData.stock);
+        }
 
         // Insert product
         const { data: newProduct, error: productError } = await supabase
@@ -109,7 +113,8 @@ export const productsApi = {
             const colorRows = colors.map(c => ({
                 product_id: newProduct.id,
                 name: c.name,
-                hex: c.hex
+                hex: c.hex,
+                image_url: c.image || c.image_url || null
             }));
             await supabase.from('product_colors').insert(colorRows);
         }
@@ -136,13 +141,19 @@ export const productsApi = {
         const allowedFields = [
             'name', 'description', 'price', 'original_price', 'category_id',
             'image_url', 'images', 'in_stock', 'is_new', 'is_featured',
-            'rating', 'reviews_count', 'tags', 'gender'
+            'rating', 'reviews_count', 'tags', 'gender', 'stock_qty'
         ];
         const updatePayload = {};
         for (const key of allowedFields) {
             if (productData[key] !== undefined) {
                 updatePayload[key] = productData[key];
             }
+        }
+        if (productData.stock !== undefined && updatePayload.stock_qty === undefined) {
+            updatePayload.stock_qty = Number(productData.stock);
+        }
+        if (productData.stockQty !== undefined && updatePayload.stock_qty === undefined) {
+            updatePayload.stock_qty = Number(productData.stockQty);
         }
         if (productData.categoryId && !updatePayload.category_id) {
             updatePayload.category_id = productData.categoryId;
@@ -181,7 +192,8 @@ export const productsApi = {
                 const colorRows = colors.map(c => ({
                     product_id: id,
                     name: c.name,
-                    hex: c.hex
+                    hex: c.hex,
+                    image_url: c.image || c.image_url || null
                 }));
                 await supabase.from('product_colors').insert(colorRows);
             }
@@ -194,10 +206,34 @@ export const productsApi = {
                 const sizeRows = sizes.map(s => ({
                     product_id: id,
                     size: s.size || s,
-                    in_stock: s.in_stock !== undefined ? s.in_stock : true,
-                    stock_qty: s.stock_qty || 0
+                    in_stock: s.in_stock !== undefined ? s.in_stock : ((s.stock_qty !== undefined ? s.stock_qty > 0 : true)),
+                    stock_qty: s.stock_qty !== undefined ? Number(s.stock_qty) : 0
                 }));
                 await supabase.from('product_sizes').insert(sizeRows);
+            }
+        } else if (updatePayload.stock_qty !== undefined) {
+            // Keep product_sizes in sync with the new total stock
+            const { data: existingSizes } = await supabase
+                .from('product_sizes')
+                .select('id, size, stock_qty')
+                .eq('product_id', id);
+
+            if (existingSizes && existingSizes.length > 0) {
+                const count = existingSizes.length;
+                const totalStock = Number(updatePayload.stock_qty);
+                const perSize = Math.floor(totalStock / count);
+                const remainder = totalStock % count;
+
+                for (let i = 0; i < count; i++) {
+                    const allocated = perSize + (i === 0 ? remainder : 0);
+                    await supabase
+                        .from('product_sizes')
+                        .update({
+                            stock_qty: allocated,
+                            in_stock: allocated > 0
+                        })
+                        .eq('id', existingSizes[i].id);
+                }
             }
         }
 
@@ -266,7 +302,7 @@ export const cartApi = {
                 product:products(
                     id, name, price, original_price, image_url, in_stock,
                     category:categories(id, name, slug),
-                    colors:product_colors(id, name, hex),
+                    colors:product_colors(id, name, hex, image_url),
                     sizes:product_sizes(id, size, in_stock, stock_qty)
                 )
             `)
@@ -368,7 +404,7 @@ export const wishlistApi = {
                 product:products(
                     *,
                     category:categories(id, name),
-                    colors:product_colors(id, name, hex),
+                    colors:product_colors(id, name, hex, image_url),
                     sizes:product_sizes(id, size, in_stock)
                 )
             `)
@@ -642,20 +678,32 @@ export const ordersApi = {
 
         if (itemsError) return { data: order, error: itemsError };
 
-        // Automatically decrement product stock for each purchased item
+        // Automatically decrement product stock in Supabase for each purchased item
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         for (const item of items) {
             const prodId = item.product_id || item.productId || item.id;
-            if (prodId) {
+            if (prodId && uuidRegex.test(prodId)) {
                 try {
-                    await supabase.rpc('decrement_product_stock', {
+                    const qty = Math.max(1, Number(item.quantity || item.qty) || 1);
+                    const { data: decRes, error: decErr } = await supabase.rpc('decrement_product_stock', {
                         p_product_id: prodId,
                         p_size: item.size || '',
-                        p_quantity: Number(item.quantity || item.qty) || 1
+                        p_quantity: qty
                     });
+                    if (decErr) {
+                        console.error(`Failed to decrement stock for item ${prodId}:`, decErr);
+                    } else {
+                        console.log(`Stock successfully decremented for item ${prodId}:`, decRes);
+                    }
                 } catch (stockErr) {
                     console.error('Failed to decrement stock for item:', prodId, stockErr);
                 }
             }
+        }
+
+        // Notify client app about real-time stock reduction
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('thyiaab_stock_updated'));
         }
 
         // Clear cart after successful order
@@ -824,5 +872,40 @@ export const reviewsApi = {
             .delete()
             .eq('id', reviewId);
         return { error };
+    }
+};
+
+// ============================================
+// STORE SETTINGS API (Home offers, hero showcase, home sections)
+// ============================================
+export const settingsApi = {
+    async get(key) {
+        const { data, error } = await supabase
+            .from('store_settings')
+            .select('value')
+            .eq('key', key)
+            .maybeSingle();
+        return { data: data?.value ?? null, error };
+    },
+
+    async set(key, value) {
+        const { data, error } = await supabase
+            .from('store_settings')
+            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+            .select()
+            .single();
+        return { data: data?.value ?? data, error };
+    },
+
+    async getAll() {
+        const { data, error } = await supabase
+            .from('store_settings')
+            .select('*');
+        if (error || !data) return { data: {}, error };
+        const map = {};
+        data.forEach(row => {
+            map[row.key] = row.value;
+        });
+        return { data: map, error: null };
     }
 };

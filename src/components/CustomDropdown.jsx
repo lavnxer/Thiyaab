@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -26,10 +27,14 @@ export default function CustomDropdown({
     maxHeight = 'max-h-60',
     disabled = false,
     renderTrigger,
+    usePortal = false,
+    direction = 'auto', // 'auto' | 'down' | 'up'
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [openUpwards, setOpenUpwards] = useState(false);
+    const [coords, setCoords] = useState(null);
     const containerRef = useRef(null);
+    const menuRef = useRef(null);
 
     // Normalize options into { value, label, colorHex }
     const normalizedOptions = options.map(opt => {
@@ -51,21 +56,76 @@ export default function CustomDropdown({
     const displayLabel = selectedOption ? selectedOption.label : placeholder;
     const selectedColor = selectedOption?.colorHex;
 
-    useEffect(() => {
-        if (isOpen && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < 220 && rect.top > 220) {
-                setOpenUpwards(true);
-            } else {
-                setOpenUpwards(false);
-            }
+    const updateCoords = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        let isUp = false;
+        if (direction === 'up') {
+            isUp = true;
+        } else if (direction === 'down') {
+            isUp = false;
+        } else {
+            isUp = spaceBelow < 220 && spaceAbove > spaceBelow;
         }
-    }, [isOpen]);
+
+        setOpenUpwards(isUp);
+
+        if (usePortal) {
+            setCoords({
+                top: isUp ? undefined : rect.bottom + 6,
+                bottom: isUp ? (window.innerHeight - rect.top + 6) : undefined,
+                left: align === 'left' ? Math.max(8, rect.left) : undefined,
+                right: align === 'right' ? Math.max(8, window.innerWidth - rect.right) : undefined,
+                minWidth: rect.width,
+                maxHeight: Math.max(140, Math.min(280, isUp ? (spaceAbove - 16) : (spaceBelow - 16)))
+            });
+        }
+    };
+
+    const toggleDropdown = (e) => {
+        if (disabled) return;
+        if (e && e.stopPropagation) {
+            e.stopPropagation();
+        }
+        if (!isOpen) {
+            updateCoords();
+        }
+        setIsOpen(prev => !prev);
+    };
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        updateCoords();
+
+        const handleScrollOrResize = () => {
+            if (!containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                setIsOpen(false);
+                return;
+            }
+            updateCoords();
+        };
+
+        window.addEventListener('scroll', handleScrollOrResize, true);
+        window.addEventListener('resize', handleScrollOrResize);
+
+        return () => {
+            window.removeEventListener('scroll', handleScrollOrResize, true);
+            window.removeEventListener('resize', handleScrollOrResize);
+        };
+    }, [isOpen, direction, usePortal, align]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) {
+            if (
+                containerRef.current && !containerRef.current.contains(e.target) &&
+                (!menuRef.current || !menuRef.current.contains(e.target))
+            ) {
                 setIsOpen(false);
             }
         };
@@ -81,12 +141,74 @@ export default function CustomDropdown({
         };
     }, [isOpen]);
 
+    const menuContent = (
+        <AnimatePresence>
+            {isOpen && (!usePortal || coords) && (
+                <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
+                    transition={{ duration: 0.16, ease: 'easeOut' }}
+                    className={`${
+                        usePortal
+                            ? 'fixed z-[99999]'
+                            : `absolute ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${align === 'left' ? 'left-0' : 'right-0'} z-50 min-w-full`
+                    } bg-[#F0DFCD] border border-[#800020]/20 rounded-2xl shadow-2xl py-2 ${maxHeight} overflow-y-auto select-none ${menuClassName || 'w-max max-w-[280px]'}`}
+                    style={{
+                        ...(usePortal && coords ? {
+                            top: coords.top,
+                            bottom: coords.bottom,
+                            left: coords.left,
+                            right: coords.right,
+                            minWidth: coords.minWidth,
+                            maxHeight: coords.maxHeight ? `${coords.maxHeight}px` : undefined,
+                        } : {}),
+                        boxShadow: '0 20px 40px -15px rgba(128, 0, 32, 0.25), 0 0 15px 0 rgba(128, 0, 32, 0.08)'
+                    }}
+                >
+                    {normalizedOptions.map((opt) => {
+                        const isSelected = String(opt.value) === String(value);
+                        const optColor = opt.colorHex;
+
+                        return (
+                            <div
+                                key={String(opt.value)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onChange?.(opt.value);
+                                    setIsOpen(false);
+                                }}
+                                className={`px-4 py-2 hover:bg-[#800020]/10 cursor-pointer text-xs sm:text-sm font-bold flex items-center justify-between gap-3 transition-colors text-[#800020] ${
+                                    isSelected ? 'bg-[#800020]/15 font-black' : ''
+                                }`}
+                            >
+                                <div className="flex items-center gap-2.5 whitespace-nowrap">
+                                    {optColor && (
+                                        <div
+                                            className="w-3.5 h-3.5 rounded-full border border-[#800020]/20 shrink-0"
+                                            style={{ backgroundColor: optColor }}
+                                        />
+                                    )}
+                                    <span className="whitespace-nowrap">{opt.label}</span>
+                                </div>
+                                {isSelected && !optColor && (
+                                    <Check className="w-3.5 h-3.5 text-[#800020] shrink-0" strokeWidth={2.5} />
+                                )}
+                            </div>
+                        );
+                    })}
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+
     return (
         <div ref={containerRef} className={`relative ${className}`}>
             {/* Trigger Button or Custom Render Trigger */}
             {renderTrigger ? (
                 <div
-                    onClick={() => !disabled && setIsOpen(prev => !prev)}
+                    onClick={toggleDropdown}
                     className="cursor-pointer select-none"
                 >
                     {renderTrigger({ isOpen, selectedOption, displayLabel, selectedColor })}
@@ -95,7 +217,7 @@ export default function CustomDropdown({
                 <button
                     type="button"
                     disabled={disabled}
-                    onClick={() => !disabled && setIsOpen(prev => !prev)}
+                    onClick={toggleDropdown}
                     className={`w-full min-h-[38px] px-3.5 py-2.5 bg-white/25 hover:bg-white/40 border border-[#800020]/25 hover:border-[#800020]/50 text-[#800020] rounded-xl flex items-center justify-between gap-2.5 transition-all cursor-pointer outline-none focus:border-[#800020] shadow-xs select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${triggerClassName}`}
                 >
                     <div className="flex items-center gap-2.5 truncate">
@@ -116,52 +238,10 @@ export default function CustomDropdown({
                 </button>
             )}
 
-            {/* Dropdown Menu Popup */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className={`absolute ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${align === 'left' ? 'left-0' : 'right-0'} min-w-full bg-[#F0DFCD] border border-[#800020]/20 rounded-2xl shadow-2xl py-2 z-50 ${maxHeight} overflow-y-auto select-none ${menuClassName || 'w-max max-w-[280px]'}`}
-                        style={{
-                            boxShadow: '0 20px 40px -15px rgba(128, 0, 32, 0.25), 0 0 15px 0 rgba(128, 0, 32, 0.08)'
-                        }}
-                    >
-                        {normalizedOptions.map((opt) => {
-                            const isSelected = String(opt.value) === String(value);
-                            const optColor = opt.colorHex;
-
-                            return (
-                                <div
-                                    key={String(opt.value)}
-                                    onClick={() => {
-                                        onChange?.(opt.value);
-                                        setIsOpen(false);
-                                    }}
-                                    className={`px-4 py-2 hover:bg-[#800020]/10 cursor-pointer text-xs sm:text-sm font-bold flex items-center justify-between gap-3 transition-colors text-[#800020] ${
-                                        isSelected ? 'bg-[#800020]/15 font-black' : ''
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3 truncate">
-                                        {optColor && (
-                                            <div
-                                                className="w-3.5 h-3.5 rounded-full border border-[#800020]/20 shrink-0"
-                                                style={{ backgroundColor: optColor }}
-                                            />
-                                        )}
-                                        <span className="truncate">{opt.label}</span>
-                                    </div>
-                                    {isSelected && !optColor && (
-                                        <Check className="w-3.5 h-3.5 text-[#800020] shrink-0" strokeWidth={2.5} />
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Dropdown Menu Popup (Portal or Local) */}
+            {usePortal && typeof document !== 'undefined'
+                ? createPortal(menuContent, document.body)
+                : menuContent}
         </div>
     );
 }

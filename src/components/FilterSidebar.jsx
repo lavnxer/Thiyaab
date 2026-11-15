@@ -197,13 +197,13 @@ export default function FilterSidebar({ filters, setFilters, totalProducts, isMe
                             <motion.div variants={childVariants}>
                                 <Section title="السعر">
                                     <div className="flex flex-col gap-5">
-                                        <div className="flex items-center justify-between text-sm font-black text-[#800020]">
+                                        <div className="flex items-center justify-between text-sm font-black text-[#800020] px-1">
                                             <span className="flex items-center gap-1 font-sans font-bold">{filters.priceMin} <RiyalIcon /></span>
                                             <span className="flex items-center gap-1 font-sans font-bold">{filters.priceMax} <RiyalIcon /></span>
                                         </div>
 
                                         {/* Custom Range Slider (One-Sided) */}
-                                        <div className="relative pt-2 pb-2" dir="ltr">
+                                        <div className="relative px-3 py-3" dir="ltr">
                                             <div className="h-1.5 bg-[#800020]/15 rounded-full relative">
                                                 <div
                                                     className="absolute h-full bg-[#800020] rounded-full shadow-[0_0_10px_rgba(128,0,32,0.3)] transition-all duration-75"
@@ -222,7 +222,7 @@ export default function FilterSidebar({ filters, setFilters, totalProducts, isMe
                                                     const mappedValue = PRICE_MAX - Number(e.target.value);
                                                     setFilters(f => ({ ...f, priceMax: Math.max(f.priceMin, mappedValue) }));
                                                 }}
-                                                className="absolute inset-0 w-full opacity-0 cursor-pointer h-8 -top-3 z-30"
+                                                className="absolute inset-0 w-full opacity-0 cursor-pointer h-full z-30"
                                             />
                                         </div>
 

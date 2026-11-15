@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Layers,
@@ -28,7 +28,7 @@ import { useShop } from '../context/ShopContext';
 import { useToast } from '../context/ToastContext';
 import { storeQuickImages } from '../data/mockAdminData';
 
-export default function HomeSectionsManagement({ productsList = [] }) {
+export default function HomeSectionsManagement({ productsList = [], initialSectionTab }) {
     const {
         homeSections,
         updateHomeSection,
@@ -43,7 +43,13 @@ export default function HomeSectionsManagement({ productsList = [] }) {
     const { showToast } = useToast();
 
     // Active sub-tab: 'menOutfit' | 'bestSellers' | 'womenOutfit' | 'offer'
-    const [activeSectionTab, setActiveSectionTab] = useState('menOutfit');
+    const [activeSectionTab, setActiveSectionTab] = useState(initialSectionTab || 'menOutfit');
+
+    useEffect(() => {
+        if (initialSectionTab) {
+            setActiveSectionTab(initialSectionTab);
+        }
+    }, [initialSectionTab]);
 
     // Men outfit selected index
     const [selectedMenOutfitIdx, setSelectedMenOutfitIdx] = useState(0);
@@ -53,6 +59,10 @@ export default function HomeSectionsManagement({ productsList = [] }) {
 
     // Best sellers custom search
     const [productSearchQuery, setProductSearchQuery] = useState('');
+    const [showMenMainQuickImgs, setShowMenMainQuickImgs] = useState(false);
+    const [showWomenMainQuickImgs, setShowWomenMainQuickImgs] = useState(false);
+    const [isChoosingMenMainProduct, setIsChoosingMenMainProduct] = useState(false);
+    const [isChoosingWomenMainProduct, setIsChoosingWomenMainProduct] = useState(false);
 
     // Safe getters
     const menOutfitSection = homeSections?.menOutfit || {};
@@ -64,6 +74,18 @@ export default function HomeSectionsManagement({ productsList = [] }) {
 
     const currentMenOutfit = menOutfits[selectedMenOutfitIdx] || menOutfits[0] || {};
     const currentWomenOutfit = womenOutfits[selectedWomenOutfitIdx] || womenOutfits[0] || {};
+
+    const linkedMenMainProduct = useMemo(() => {
+        if (!currentMenOutfit?.mainProductId && !currentMenOutfit?.title) return null;
+        return (productsList || []).find(p => p.id === currentMenOutfit.mainProductId) ||
+               (productsList || []).find(p => p.name === currentMenOutfit.title) || null;
+    }, [productsList, currentMenOutfit?.mainProductId, currentMenOutfit?.title]);
+
+    const linkedWomenMainProduct = useMemo(() => {
+        if (!currentWomenOutfit?.mainProductId && !currentWomenOutfit?.title) return null;
+        return (productsList || []).find(p => p.id === currentWomenOutfit.mainProductId) ||
+               (productsList || []).find(p => p.name === currentWomenOutfit.title) || null;
+    }, [productsList, currentWomenOutfit?.mainProductId, currentWomenOutfit?.title]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Handlers for Men & Women Outfits
@@ -111,6 +133,25 @@ export default function HomeSectionsManagement({ productsList = [] }) {
             price: Number(product.price),
             image: product.image_url || product.image || '/images/coat_transparent.png'
         });
+    };
+
+    const handleSelectProductForMainModel = (sectionKey, outfitIndex, product) => {
+        updateHomeSection(sectionKey, prev => {
+            const currentOutfits = [...(prev.outfits || [])];
+            if (!currentOutfits[outfitIndex]) return prev;
+            currentOutfits[outfitIndex] = {
+                ...currentOutfits[outfitIndex],
+                title: product.name,
+                price: Number(product.price),
+                mainImage: product.image_url || product.image || currentOutfits[outfitIndex].mainImage,
+                mainProductId: product.id
+            };
+            return {
+                ...prev,
+                outfits: currentOutfits
+            };
+        });
+        showToast(`تم ربط المودل بمنتج "${product.name}" بنجاح`, 'sparkle');
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -254,7 +295,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                         }`}
                     >
                         <div className="flex items-center justify-between">
-                            <span className="font-black text-xs sm:text-sm">بانر العرض الترويجي</span>
+                            <span className="font-black text-xs sm:text-sm">عرض وتوقيت الصفحة الرئيسية</span>
                             <span className={`w-2 h-2 rounded-full ${homeOffer?.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'}`} />
                         </div>
                         <span className="text-[11px] opacity-70 truncate">{homeOffer?.productName || 'حذاء جلدي فاخر'}</span>
@@ -306,7 +347,10 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                         {menOutfits.map((outfit, idx) => (
                             <button
                                 key={idx}
-                                onClick={() => setSelectedMenOutfitIdx(idx)}
+                                onClick={() => {
+                                    setSelectedMenOutfitIdx(idx);
+                                    setIsChoosingMenMainProduct(false);
+                                }}
                                 className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                                     selectedMenOutfitIdx === idx
                                         ? 'bg-[#800020] text-[#F0DFCD] shadow-md scale-102'
@@ -385,10 +429,92 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                             
                             {/* Main Outfit Settings */}
                             <div className="p-4 rounded-2xl bg-white border border-[#800020]/15 space-y-4">
-                                <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
-                                    <Sparkles className="w-4 h-4 text-amber-500" />
-                                    <span>بيانات المودل الأساسي للطقم (الوسط)</span>
-                                </h3>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
+                                        <Sparkles className="w-4 h-4 text-amber-500" />
+                                        <span>بيانات المودل الأساسي للطقم (الوسط)</span>
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsChoosingMenMainProduct(!isChoosingMenMainProduct);
+                                            if (!isChoosingMenMainProduct) setShowMenMainQuickImgs(false);
+                                        }}
+                                        className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                                            isChoosingMenMainProduct
+                                                ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
+                                                : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
+                                        }`}
+                                    >
+                                        <Search className="w-3.5 h-3.5" />
+                                        <span>{isChoosingMenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
+                                    </button>
+                                </div>
+
+                                {isChoosingMenMainProduct && (
+                                    <ProductChooserPanel
+                                        productsList={productsList}
+                                        defaultGender="looks"
+                                        selectedProductId={currentMenOutfit.mainProductId}
+                                        onSelectProduct={(p) => handleSelectProductForMainModel('menOutfit', selectedMenOutfitIdx, p)}
+                                        onClose={() => setIsChoosingMenMainProduct(false)}
+                                    />
+                                )}
+
+                                {currentMenOutfit.mainProductId && (
+                                    <div className="text-[10px] text-[#800020]/80 bg-[#800020]/5 px-3 py-1.5 rounded-xl flex items-center justify-between border border-[#800020]/10">
+                                        <span className="flex items-center gap-1.5">
+                                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentMenOutfit.title}</strong></span>
+                                        </span>
+                                        <span className="font-mono text-[9px] opacity-60">ID: {currentMenOutfit.mainProductId.slice(0, 8)}...</span>
+                                    </div>
+                                )}
+
+                                {linkedMenMainProduct?.colors && linkedMenMainProduct.colors.length > 0 && (
+                                    <div className="p-2.5 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1.5 animate-fadeIn">
+                                        <div className="flex items-center justify-between text-xs font-bold text-[#800020]">
+                                            <span className="flex items-center gap-1.5">
+                                                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                                <span>لون عرض المودل في الطقم (من ألوان المنتج):</span>
+                                            </span>
+                                            <span className="text-[11px] font-bold text-[#800020]/80 bg-white px-2 py-0.5 rounded-md border border-[#800020]/10">
+                                                {currentMenOutfit.selectedColor || linkedMenMainProduct.colors.find(c => c.image === currentMenOutfit.mainImage || c.image_url === currentMenOutfit.mainImage)?.name || linkedMenMainProduct.colors[0]?.name}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                            {linkedMenMainProduct.colors.map((c, cIdx) => {
+                                                const isSelected = (currentMenOutfit.mainImage && (currentMenOutfit.mainImage === c.image || currentMenOutfit.mainImage === c.image_url)) || (currentMenOutfit.selectedColor === c.name);
+                                                return (
+                                                    <button
+                                                        key={cIdx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (c.image || c.image_url) {
+                                                                handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', c.image || c.image_url);
+                                                            }
+                                                            handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'selectedColor', c.name);
+                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`, 'sparkle');
+                                                        }}
+                                                        className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition cursor-pointer border ${
+                                                            isSelected
+                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                                : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
+                                                        }`}
+                                                        title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
+                                                    >
+                                                        <span
+                                                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-inner"
+                                                            style={{ backgroundColor: c.hex }}
+                                                        />
+                                                        <span className="text-[11px] font-bold">{c.name}</span>
+                                                        {isSelected && <Check className="w-3 h-3 text-[#F0DFCD]" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                     <div>
@@ -412,13 +538,44 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-[#800020] mb-1 text-xs">رابط صورة المودل الأساسي:</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block font-bold text-[#800020] text-xs">رابط صورة المودل الأساسي:</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMenMainQuickImgs(!showMenMainQuickImgs)}
+                                            className="text-[10px] text-[#800020] hover:underline font-bold cursor-pointer"
+                                        >
+                                            {showMenMainQuickImgs ? 'إغلاق الكتالوج' : 'اختر من صور الكتالوج'}
+                                        </button>
+                                    </div>
                                     <input
                                         type="text"
                                         value={currentMenOutfit.mainImage || ''}
                                         onChange={(e) => handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-mono text-xs text-[#800020]"
+                                        placeholder="/images/winter_outfit_transparent.png أو رابط صورة"
                                     />
+                                    {showMenMainQuickImgs && (
+                                        <div className="mt-2 p-2.5 bg-[#f0dfcd]/30 rounded-xl border border-[#800020]/15 space-y-1.5 animate-fadeIn">
+                                            <span className="text-[10px] font-bold text-[#800020]">انقر لاختيار صورة المودل:</span>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-36 overflow-y-auto p-1 custom-scrollbar">
+                                                {storeQuickImages.map((qi, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', qi.url);
+                                                            setShowMenMainQuickImgs(false);
+                                                        }}
+                                                        className="p-1.5 rounded-xl bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-1 transition cursor-pointer"
+                                                    >
+                                                        <img src={qi.url} alt="" className="w-9 h-9 object-contain" />
+                                                        <span className="text-[9px] text-[#800020] truncate w-full text-center font-bold">{qi.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -432,6 +589,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أعلى اليمين"
                                         item={currentMenOutfit.rightTop}
                                         productsList={productsList}
+                                        defaultGender="men"
                                         onSelectProduct={(p) => handleSelectProductForCorner('menOutfit', selectedMenOutfitIdx, 'rightTop', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('menOutfit', selectedMenOutfitIdx, 'rightTop', { [f]: v })}
                                     />
@@ -441,6 +599,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أسفل اليمين"
                                         item={currentMenOutfit.rightBottom}
                                         productsList={productsList}
+                                        defaultGender="men"
                                         onSelectProduct={(p) => handleSelectProductForCorner('menOutfit', selectedMenOutfitIdx, 'rightBottom', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('menOutfit', selectedMenOutfitIdx, 'rightBottom', { [f]: v })}
                                     />
@@ -450,6 +609,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أعلى اليسار"
                                         item={currentMenOutfit.leftTop}
                                         productsList={productsList}
+                                        defaultGender="men"
                                         onSelectProduct={(p) => handleSelectProductForCorner('menOutfit', selectedMenOutfitIdx, 'leftTop', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('menOutfit', selectedMenOutfitIdx, 'leftTop', { [f]: v })}
                                     />
@@ -459,6 +619,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أسفل اليسار"
                                         item={currentMenOutfit.leftBottom}
                                         productsList={productsList}
+                                        defaultGender="men"
                                         onSelectProduct={(p) => handleSelectProductForCorner('menOutfit', selectedMenOutfitIdx, 'leftBottom', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('menOutfit', selectedMenOutfitIdx, 'leftBottom', { [f]: v })}
                                     />
@@ -727,7 +888,10 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                         {womenOutfits.map((outfit, idx) => (
                             <button
                                 key={idx}
-                                onClick={() => setSelectedWomenOutfitIdx(idx)}
+                                onClick={() => {
+                                    setSelectedWomenOutfitIdx(idx);
+                                    setIsChoosingWomenMainProduct(false);
+                                }}
                                 className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                                     selectedWomenOutfitIdx === idx
                                         ? 'bg-[#800020] text-[#F0DFCD] shadow-md scale-102'
@@ -802,10 +966,92 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                             
                             {/* Main Outfit Settings */}
                             <div className="p-4 rounded-2xl bg-white border border-[#800020]/15 space-y-4">
-                                <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
-                                    <Sparkles className="w-4 h-4 text-pink-600" />
-                                    <span>بيانات المودل الأساسي للطقم النسائي (الوسط)</span>
-                                </h3>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
+                                        <Sparkles className="w-4 h-4 text-pink-600" />
+                                        <span>بيانات المودل الأساسي للطقم النسائي (الوسط)</span>
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsChoosingWomenMainProduct(!isChoosingWomenMainProduct);
+                                            if (!isChoosingWomenMainProduct) setShowWomenMainQuickImgs(false);
+                                        }}
+                                        className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                                            isChoosingWomenMainProduct
+                                                ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
+                                                : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
+                                        }`}
+                                    >
+                                        <Search className="w-3.5 h-3.5" />
+                                        <span>{isChoosingWomenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
+                                    </button>
+                                </div>
+
+                                {isChoosingWomenMainProduct && (
+                                    <ProductChooserPanel
+                                        productsList={productsList}
+                                        defaultGender="looks"
+                                        selectedProductId={currentWomenOutfit.mainProductId}
+                                        onSelectProduct={(p) => handleSelectProductForMainModel('womenOutfit', selectedWomenOutfitIdx, p)}
+                                        onClose={() => setIsChoosingWomenMainProduct(false)}
+                                    />
+                                )}
+
+                                {currentWomenOutfit.mainProductId && (
+                                    <div className="text-[10px] text-[#800020]/80 bg-[#800020]/5 px-3 py-1.5 rounded-xl flex items-center justify-between border border-[#800020]/10">
+                                        <span className="flex items-center gap-1.5">
+                                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentWomenOutfit.title}</strong></span>
+                                        </span>
+                                        <span className="font-mono text-[9px] opacity-60">ID: {currentWomenOutfit.mainProductId.slice(0, 8)}...</span>
+                                    </div>
+                                )}
+
+                                {linkedWomenMainProduct?.colors && linkedWomenMainProduct.colors.length > 0 && (
+                                    <div className="p-2.5 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1.5 animate-fadeIn">
+                                        <div className="flex items-center justify-between text-xs font-bold text-[#800020]">
+                                            <span className="flex items-center gap-1.5">
+                                                <Sparkles className="w-3.5 h-3.5 text-pink-600" />
+                                                <span>لون عرض المودل في الطقم (من ألوان المنتج):</span>
+                                            </span>
+                                            <span className="text-[11px] font-bold text-[#800020]/80 bg-white px-2 py-0.5 rounded-md border border-[#800020]/10">
+                                                {currentWomenOutfit.selectedColor || linkedWomenMainProduct.colors.find(c => c.image === currentWomenOutfit.mainImage || c.image_url === currentWomenOutfit.mainImage)?.name || linkedWomenMainProduct.colors[0]?.name}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                            {linkedWomenMainProduct.colors.map((c, cIdx) => {
+                                                const isSelected = (currentWomenOutfit.mainImage && (currentWomenOutfit.mainImage === c.image || currentWomenOutfit.mainImage === c.image_url)) || (currentWomenOutfit.selectedColor === c.name);
+                                                return (
+                                                    <button
+                                                        key={cIdx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (c.image || c.image_url) {
+                                                                handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', c.image || c.image_url);
+                                                            }
+                                                            handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'selectedColor', c.name);
+                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`, 'sparkle');
+                                                        }}
+                                                        className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition cursor-pointer border ${
+                                                            isSelected
+                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                                : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
+                                                        }`}
+                                                        title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
+                                                    >
+                                                        <span
+                                                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-inner"
+                                                            style={{ backgroundColor: c.hex }}
+                                                        />
+                                                        <span className="text-[11px] font-bold">{c.name}</span>
+                                                        {isSelected && <Check className="w-3 h-3 text-[#F0DFCD]" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                     <div>
@@ -829,13 +1075,44 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                 </div>
 
                                 <div>
-                                    <label className="block font-bold text-[#800020] mb-1 text-xs">رابط صورة المودل الأساسي:</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block font-bold text-[#800020] text-xs">رابط صورة المودل الأساسي:</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowWomenMainQuickImgs(!showWomenMainQuickImgs)}
+                                            className="text-[10px] text-[#800020] hover:underline font-bold cursor-pointer"
+                                        >
+                                            {showWomenMainQuickImgs ? 'إغلاق الكتالوج' : 'اختر من صور الكتالوج'}
+                                        </button>
+                                    </div>
                                     <input
                                         type="text"
                                         value={currentWomenOutfit.mainImage || ''}
                                         onChange={(e) => handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', e.target.value)}
                                         className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-mono text-xs text-[#800020]"
+                                        placeholder="/images/women_new_bg_removed.png أو رابط صورة"
                                     />
+                                    {showWomenMainQuickImgs && (
+                                        <div className="mt-2 p-2.5 bg-[#f0dfcd]/30 rounded-xl border border-[#800020]/15 space-y-1.5 animate-fadeIn">
+                                            <span className="text-[10px] font-bold text-[#800020]">انقر لاختيار صورة المودل النسائي:</span>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-36 overflow-y-auto p-1 custom-scrollbar">
+                                                {storeQuickImages.map((qi, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', qi.url);
+                                                            setShowWomenMainQuickImgs(false);
+                                                        }}
+                                                        className="p-1.5 rounded-xl bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-1 transition cursor-pointer"
+                                                    >
+                                                        <img src={qi.url} alt="" className="w-9 h-9 object-contain" />
+                                                        <span className="text-[9px] text-[#800020] truncate w-full text-center font-bold">{qi.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -848,6 +1125,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أعلى اليمين"
                                         item={currentWomenOutfit.rightTop}
                                         productsList={productsList}
+                                        defaultGender="women"
                                         onSelectProduct={(p) => handleSelectProductForCorner('womenOutfit', selectedWomenOutfitIdx, 'rightTop', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('womenOutfit', selectedWomenOutfitIdx, 'rightTop', { [f]: v })}
                                     />
@@ -856,6 +1134,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أسفل اليمين"
                                         item={currentWomenOutfit.rightBottom}
                                         productsList={productsList}
+                                        defaultGender="women"
                                         onSelectProduct={(p) => handleSelectProductForCorner('womenOutfit', selectedWomenOutfitIdx, 'rightBottom', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('womenOutfit', selectedWomenOutfitIdx, 'rightBottom', { [f]: v })}
                                     />
@@ -864,6 +1143,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أعلى اليسار"
                                         item={currentWomenOutfit.leftTop}
                                         productsList={productsList}
+                                        defaultGender="women"
                                         onSelectProduct={(p) => handleSelectProductForCorner('womenOutfit', selectedWomenOutfitIdx, 'leftTop', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('womenOutfit', selectedWomenOutfitIdx, 'leftTop', { [f]: v })}
                                     />
@@ -872,6 +1152,7 @@ export default function HomeSectionsManagement({ productsList = [] }) {
                                         label="أسفل اليسار"
                                         item={currentWomenOutfit.leftBottom}
                                         productsList={productsList}
+                                        defaultGender="women"
                                         onSelectProduct={(p) => handleSelectProductForCorner('womenOutfit', selectedWomenOutfitIdx, 'leftBottom', p)}
                                         onUpdateField={(f, v) => handleUpdateCornerItem('womenOutfit', selectedWomenOutfitIdx, 'leftBottom', { [f]: v })}
                                     />
@@ -902,78 +1183,383 @@ export default function HomeSectionsManagement({ productsList = [] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-component: Corner Item Editor Card with quick product chooser
+// Sub-component: Product Chooser Panel with live search, department tabs & counts
 // ─────────────────────────────────────────────────────────────────────────────
-function CornerItemEditorCard({ label, item = {}, productsList = [], onSelectProduct, onUpdateField }) {
-    const [isChoosingProduct, setIsChoosingProduct] = useState(false);
+function ProductChooserPanel({
+    productsList = [],
+    defaultGender = 'all',
+    onSelectProduct,
+    onClose,
+    selectedProductId = null
+}) {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedGender, setSelectedGender] = useState(defaultGender);
+
+    useEffect(() => {
+        if (defaultGender) setSelectedGender(defaultGender);
+    }, [defaultGender]);
+
+    const filteredProducts = useMemo(() => {
+        let list = productsList || [];
+
+        // 1. Department / Category filter
+        if (selectedGender === 'looks') {
+            list = list.filter(p => {
+                const cat = typeof p.category === 'string' ? p.category : p.category?.name || '';
+                return cat === 'إطلالات' || cat.includes('إطلالة') || p.name?.includes('إطلالة') || p.name?.includes('طقم');
+            });
+        } else if (selectedGender !== 'all') {
+            list = list.filter(p => {
+                const cat = typeof p.category === 'string' ? p.category : p.category?.name || '';
+                const pGender = p.gender || (
+                    ['فساتين', 'عبايات', 'حقائب', 'أزياء نسائية'].includes(cat) ? 'women'
+                    : ['ساعات', 'عطور', 'خواتم', 'نظارات', 'محافظ', 'أحزمة', 'إكسسوارات'].includes(cat) ? 'unisex'
+                    : 'men'
+                );
+                return pGender === selectedGender;
+            });
+        }
+
+        // 2. Search query filter
+        if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            list = list.filter(p => {
+                const nameMatch = p.name?.toLowerCase().includes(q);
+                const cat = typeof p.category === 'string' ? p.category : p.category?.name || '';
+                const catMatch = cat.toLowerCase().includes(q);
+                const priceMatch = String(p.price).includes(q);
+                return nameMatch || catMatch || priceMatch;
+            });
+        }
+
+        return list;
+    }, [productsList, selectedGender, searchQuery]);
 
     return (
-        <div className="bg-white p-3.5 rounded-2xl border border-[#800020]/15 space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-                <span className="font-bold text-[#800020] text-[11px]">{label}</span>
+        <div className="p-3 bg-[#f0dfcd]/40 rounded-2xl border border-[#800020]/20 space-y-2.5 animate-fadeIn">
+            {/* Search & Counter */}
+            <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-[#800020]/50 pointer-events-none" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ابحث باسم المنتج أو تصنيفه أو سعره..."
+                    className="w-full pr-9 pl-8 py-2 bg-white rounded-xl border border-[#800020]/20 text-xs font-bold text-[#800020] placeholder:text-[#800020]/40 focus:outline-none focus:border-[#800020]"
+                />
+                {searchQuery && (
+                    <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs p-0.5 cursor-pointer"
+                        title="مسح البحث"
+                    >
+                        ✕
+                    </button>
+                )}
+            </div>
+
+            {/* Department Filter Tabs */}
+            <div className="flex items-center gap-1.5 text-[11px] font-bold flex-wrap">
+                <span className="text-[#800020]/60 shrink-0 text-[10px]">القسم:</span>
+                {[
+                    { id: 'all', label: 'الكل' },
+                    { id: 'looks', label: 'إطلالات' },
+                    { id: 'men', label: 'رجالي' },
+                    { id: 'women', label: 'نسائي' },
+                    { id: 'unisex', label: 'إكسسوارات' }
+                ].map(dept => (
+                    <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => setSelectedGender(dept.id)}
+                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[10px] ${
+                            selectedGender === dept.id
+                                ? 'bg-[#800020] text-[#F0DFCD] shadow-2xs font-black'
+                                : 'bg-white/80 text-[#800020] hover:bg-white border border-[#800020]/10'
+                        }`}
+                    >
+                        {dept.label}
+                    </button>
+                ))}
+                <span className="mr-auto text-[10px] text-[#800020]/60 font-mono">
+                    ({filteredProducts.length} منتج)
+                </span>
+            </div>
+
+            {/* Scrollable Products List */}
+            <div className="max-h-60 overflow-y-auto space-y-1.5 p-0.5 custom-scrollbar">
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center py-5 text-[#800020]/70 text-xs bg-white/70 rounded-xl p-3 border border-[#800020]/10">
+                        <p className="font-bold">لا توجد منتجات مطابقة لهذا البحث أو الفلتر.</p>
+                        <p className="text-[10px] mt-1 opacity-80">يمكنك تجربة كتابة كلمة أخرى أو اختيار قسم "الكل".</p>
+                    </div>
+                ) : (
+                    filteredProducts.map(p => {
+                        const isSelected = selectedProductId && (selectedProductId === p.id);
+                        return (
+                            <div
+                                key={p.id}
+                                onClick={() => {
+                                    onSelectProduct(p);
+                                    if (onClose) onClose();
+                                }}
+                                className={`p-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition text-xs group shadow-2xs ${
+                                    isSelected
+                                        ? 'bg-[#800020]/10 border-[#800020] ring-1 ring-[#800020]'
+                                        : 'bg-white hover:bg-[#800020]/10 border-[#800020]/10'
+                                }`}
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-[#f0dfcd]/40 p-1 shrink-0 flex items-center justify-center border border-[#800020]/10 overflow-hidden">
+                                    <img
+                                        src={p.image_url || p.image || '/images/coat_transparent.png'}
+                                        alt=""
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-[#800020] truncate group-hover:text-[#600018]">{p.name}</div>
+                                    <div className="text-[10px] text-[#800020]/60 truncate flex items-center gap-1.5">
+                                        <span>{typeof p.category === 'string' ? p.category : p.category?.name || ''}</span>
+                                        {p.gender && (
+                                            <span className="text-[9px] bg-[#800020]/5 px-1 rounded">
+                                                {p.gender === 'women' ? 'نسائي' : p.gender === 'men' ? 'رجالي' : 'إكسسوار'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {p.colors && p.colors.length > 0 && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                            <span className="text-[9px] text-[#800020]/60 font-bold shrink-0">ألوان العرض:</span>
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                {p.colors.map((c, cIdx) => (
+                                                    <button
+                                                        key={cIdx}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onSelectProduct({
+                                                                ...p,
+                                                                image: c.image || c.image_url || p.image || p.image_url,
+                                                                image_url: c.image || c.image_url || p.image || p.image_url,
+                                                                selectedColor: c.name
+                                                            });
+                                                            if (onClose) onClose();
+                                                        }}
+                                                        className="p-0.5 rounded-full hover:scale-125 transition cursor-pointer border border-black/20 bg-white"
+                                                        title={`اختيار لون "${c.name}" كـ لون عرض القطعة`}
+                                                    >
+                                                        <span
+                                                            className="w-2.5 h-2.5 rounded-full block border border-black/10"
+                                                            style={{ backgroundColor: c.hex }}
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="font-black text-[#800020] text-xs shrink-0 font-mono flex items-center gap-1">
+                                    {Number(p.price).toFixed(0)} <span className="text-[10px] font-sans">ر.س</span>
+                                    {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-600 mr-1" />}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-component: Corner Item Editor Card with full product catalog & custom input
+// ─────────────────────────────────────────────────────────────────────────────
+function CornerItemEditorCard({
+    label,
+    item = {},
+    productsList = [],
+    defaultGender = 'all',
+    onSelectProduct,
+    onUpdateField
+}) {
+    const { showToast } = useToast();
+    const [isChoosingProduct, setIsChoosingProduct] = useState(false);
+    const [showQuickImages, setShowQuickImages] = useState(false);
+
+    const linkedProduct = useMemo(() => {
+        if (!item?.id && !item?.name) return null;
+        return (productsList || []).find(p => p.id === item.id) ||
+               (productsList || []).find(p => p.name === item.name) || null;
+    }, [productsList, item?.id, item?.name]);
+
+    const availableColors = linkedProduct?.colors || [];
+
+    return (
+        <div className="bg-white p-3.5 rounded-2xl border border-[#800020]/15 space-y-2.5 text-xs shadow-2xs">
+            {/* Header: Label + Choose Button */}
+            <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-[#800020] text-[11px] flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
+                    {label}
+                </span>
                 <button
                     type="button"
-                    onClick={() => setIsChoosingProduct(!isChoosingProduct)}
-                    className="text-[10px] font-bold text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD] px-2 py-0.5 rounded transition cursor-pointer"
+                    onClick={() => {
+                        setIsChoosingProduct(!isChoosingProduct);
+                        if (!isChoosingProduct) setShowQuickImages(false);
+                    }}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                        isChoosingProduct
+                            ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
+                            : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
+                    }`}
                 >
-                    {isChoosingProduct ? 'إلغاء' : 'اختر من المنتجات'}
+                    <Search className="w-3 h-3" />
+                    <span>{isChoosingProduct ? 'إغلاق القائمة' : 'اختر من المنتجات'}</span>
                 </button>
             </div>
 
-            {isChoosingProduct ? (
-                <div className="max-h-36 overflow-y-auto space-y-1.5 p-1 bg-[#f0dfcd]/20 rounded-xl border border-[#800020]/10 custom-scrollbar">
-                    {productsList.slice(0, 8).map(p => (
-                        <div
-                            key={p.id}
-                            onClick={() => {
-                                onSelectProduct(p);
-                                setIsChoosingProduct(false);
-                            }}
-                            className="p-1.5 rounded-lg bg-white hover:bg-[#800020]/10 flex items-center gap-2 cursor-pointer transition text-[11px]"
-                        >
-                            <img src={p.image_url || p.image || '/images/coat_transparent.png'} alt="" className="w-6 h-6 object-contain" />
-                            <span className="font-bold text-[#800020] truncate flex-1">{p.name}</span>
-                            <span className="font-mono text-[#800020]/70 text-[10px]">{Number(p.price).toFixed(0)} ر.س</span>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <>
-                    <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-lg bg-[#f0dfcd]/40 p-1 shrink-0 flex items-center justify-center border border-[#800020]/10">
-                            <img src={item.image || '/images/coat_transparent.png'} alt="" className="w-full h-full object-contain" />
-                        </div>
+            {/* Product Chooser Panel */}
+            {isChoosingProduct && (
+                <ProductChooserPanel
+                    productsList={productsList}
+                    defaultGender={defaultGender}
+                    selectedProductId={item?.id}
+                    onSelectProduct={(p) => {
+                        onSelectProduct(p);
+                        setIsChoosingProduct(false);
+                    }}
+                    onClose={() => setIsChoosingProduct(false)}
+                />
+            )}
+
+            {/* Current Item Preview & Direct Inputs (Always available for custom products) */}
+            <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                    <div className="w-11 h-11 rounded-xl bg-[#f0dfcd]/40 p-1 shrink-0 flex items-center justify-center border border-[#800020]/15 relative">
+                        <img
+                            src={item.image || '/images/coat_transparent.png'}
+                            alt=""
+                            className="w-full h-full object-contain"
+                            onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
+                        />
+                    </div>
+                    <div className="flex-1 min-w-0">
                         <input
                             type="text"
                             value={item.name || ''}
                             onChange={(e) => onUpdateField('name', e.target.value)}
-                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-[#800020]/20 font-bold text-[#800020] text-xs"
-                            placeholder="اسم المنتج"
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
+                            placeholder="اسم المنتج أو القطعة"
+                            title="يمكنك كتابة اسم أي منتج مخصص تريده هنا"
                         />
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                            <input
-                                type="number"
-                                value={item.price || ''}
-                                onChange={(e) => onUpdateField('price', parseFloat(e.target.value) || 0)}
-                                className="w-full px-2.5 py-1 rounded-lg border border-[#800020]/20 font-bold text-[#800020] text-xs"
-                                placeholder="السعر"
-                            />
+                {/* Available Product Colors Selector */}
+                {availableColors.length > 0 && (
+                    <div className="p-2 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1 animate-fadeIn">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-[#800020]">
+                            <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
+                                <span>لون عرض القطعة في الطقم:</span>
+                            </span>
+                            <span className="text-[9px] font-bold text-[#800020]/80 bg-white px-1.5 py-0.2 rounded border border-[#800020]/10">
+                                {item.selectedColor || availableColors.find(c => c.image === item.image || c.image_url === item.image)?.name || availableColors[0]?.name}
+                            </span>
                         </div>
-                        <div className="flex-1">
-                            <input
-                                type="text"
-                                value={item.image || ''}
-                                onChange={(e) => onUpdateField('image', e.target.value)}
-                                className="w-full px-2 py-1 rounded-lg border border-[#800020]/20 font-mono text-[10px] text-[#800020]"
-                                placeholder="رابط الصورة"
-                            />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {availableColors.map((c, cIdx) => {
+                                const isSelected = (item.image && (item.image === c.image || item.image === c.image_url)) || (item.selectedColor === c.name);
+                                return (
+                                    <button
+                                        key={cIdx}
+                                        type="button"
+                                        onClick={() => {
+                                            if (c.image || c.image_url) {
+                                                onUpdateField('image', c.image || c.image_url);
+                                            }
+                                            onUpdateField('selectedColor', c.name);
+                                            showToast(`تم اختيار لون "${c.name}" كـ لون عرض للقطعة`);
+                                        }}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
+                                            isSelected
+                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-2xs'
+                                                : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
+                                        }`}
+                                        title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
+                                    >
+                                        <span
+                                            className="w-3 h-3 rounded-full border border-black/20 shrink-0"
+                                            style={{ backgroundColor: c.hex }}
+                                        />
+                                        <span>{c.name}</span>
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-[#F0DFCD]" />}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
-                </>
-            )}
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <label className="block text-[9px] font-bold text-[#800020]/70 mb-0.5">السعر (ر.س)</label>
+                        <input
+                            type="number"
+                            value={item.price || ''}
+                            onChange={(e) => onUpdateField('price', parseFloat(e.target.value) || 0)}
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
+                            placeholder="السعر"
+                        />
+                    </div>
+                    <div>
+                        <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[9px] font-bold text-[#800020]/70">الصورة</label>
+                            <button
+                                type="button"
+                                onClick={() => setShowQuickImages(!showQuickImages)}
+                                className="text-[9px] text-[#800020] hover:underline font-bold cursor-pointer"
+                            >
+                                {showQuickImages ? 'إغلاق الكتالوج' : 'صور الكتالوج'}
+                            </button>
+                        </div>
+                        <input
+                            type="text"
+                            value={item.image || ''}
+                            onChange={(e) => onUpdateField('image', e.target.value)}
+                            className="w-full px-2 py-1.5 rounded-xl border border-[#800020]/20 font-mono text-[10px] text-[#800020] focus:outline-none focus:border-[#800020]"
+                            placeholder="رابط الصورة /images/..."
+                        />
+                    </div>
+                </div>
+
+                {/* Quick Catalog Images Strip */}
+                {showQuickImages && (
+                    <div className="p-2 bg-[#f0dfcd]/20 rounded-xl border border-[#800020]/10 space-y-1 animate-fadeIn">
+                        <span className="text-[9px] font-bold text-[#800020]/70">اختر صورة سريعة من الكتالوج:</span>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 custom-scrollbar">
+                            {storeQuickImages.map((qi, qIdx) => (
+                                <button
+                                    key={qIdx}
+                                    type="button"
+                                    onClick={() => {
+                                        onUpdateField('image', qi.url);
+                                        if (!item.name) onUpdateField('name', qi.name);
+                                        setShowQuickImages(false);
+                                    }}
+                                    className="p-1 rounded-lg bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-0.5 transition cursor-pointer"
+                                    title={qi.name}
+                                >
+                                    <img src={qi.url} alt="" className="w-7 h-7 object-contain" />
+                                    <span className="text-[8px] text-[#800020] truncate w-full text-center">{qi.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

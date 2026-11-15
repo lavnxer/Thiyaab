@@ -91,32 +91,86 @@ export const orderStatusMeta = {
 };
 
 export const storeQuickImages = [
-    { name: 'معطف جوخ فاخر', url: '/images/coat_transparent.png', category: 'معاطف وجاكيتات' },
-    { name: 'بلوفر صوف كلاسيك', url: '/images/blover_transparent.png', category: 'كنزات وبلوفرات' },
+    { name: 'معطف جوخ فاخر', url: '/images/coat_transparent.png', category: 'معاطف' },
+    { name: 'بلوفر صوف كلاسيك', url: '/images/blover_transparent.png', category: 'قمصان' },
     { name: 'حذاء جلدي رسمي', url: '/images/leather_shoes_transparent.png', category: 'أحذية' },
     { name: 'بنطال قماشي أنيق', url: '/images/pants_transparent.png', category: 'بناطيل' },
-    { name: 'إطلالة شتاء كاملة', url: '/images/winter_outfit_transparent.png', category: 'أطقم متكاملة' },
-    { name: 'جاكيت جلد طبيعي', url: '/images/leather_jacket_transparent.png', category: 'معاطف وجاكيتات' },
+    { name: 'إطلالة شتاء كاملة', url: '/images/winter_outfit_transparent.png', category: 'إطلالات' },
+    { name: 'جاكيت جلد طبيعي', url: '/images/leather_jacket_transparent.png', category: 'معاطف' },
     { name: 'حذاء لوفر صيفي', url: '/images/summer_loafers_transparent.png', category: 'أحذية' },
     { name: 'بنطال سليم فيت', url: '/images/slim_trousers_transparent.png', category: 'بناطيل' },
-    { name: 'ساعة يد وإكسسوارات', url: '/images/lux_accessories_bg_removed.png', category: 'إكسسوارات' },
-    { name: 'طقم أساور وعطور', url: '/images/user_accessories_bg_removed.png', category: 'إكسسوارات' },
-    { name: 'عطر مسك ومجوهرات', url: '/images/accessories_new_bg_removed.png', category: 'إكسسوارات' },
-    { name: 'أزياء نسائية فاخرة', url: '/images/women_new_bg_removed.png', category: 'أزياء نسائية' },
+    { name: 'ساعة يد فاخرة', url: '/images/lux_accessories_bg_removed.png', category: 'ساعات' },
+    { name: 'طقم أساور وخواتم', url: '/images/user_accessories_bg_removed.png', category: 'خواتم' },
+    { name: 'عطر مسك فاخر', url: '/images/accessories_new_bg_removed.png', category: 'عطور' },
+    { name: 'عباءة وأزياء نسائية', url: '/images/women_new_bg_removed.png', category: 'عبايات' },
 ];
+
+export const DEPARTMENT_CATEGORIES = {
+    men: {
+        id: 'men',
+        label: 'رجالي',
+        categories: [
+            'إطلالات',
+            'معاطف',
+            'قمصان',
+            'بناطيل',
+            'أحذية'
+        ]
+    },
+    women: {
+        id: 'women',
+        label: 'نسائي',
+        categories: [
+            'إطلالات',
+            'فساتين',
+            'عبايات',
+            'قمصان',
+            'بناطيل',
+            'أحذية',
+            'حقائب'
+        ]
+    },
+    unisex: {
+        id: 'unisex',
+        label: 'إكسسوارات',
+        categories: [
+            'ساعات',
+            'عطور',
+            'خواتم',
+            'نظارات',
+            'محافظ',
+            'أحزمة'
+        ]
+    }
+};
 
 export const productCategoriesList = [
-    'معاطف وجاكيتات',
-    'كنزات وبلوفرات',
-    'أحذية',
+    'إطلالات',
+    'معاطف',
+    'قمصان',
     'بناطيل',
-    'أطقم متكاملة',
-    'إكسسوارات',
-    'أزياء نسائية',
-    'عطور ومنتجات عناية'
+    'أحذية',
+    'فساتين',
+    'عبايات',
+    'حقائب',
+    'ساعات',
+    'عطور',
+    'خواتم',
+    'نظارات',
+    'محافظ',
+    'أحزمة'
 ];
 
-export const commonSizesList = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '38', '39', '40', '41', '42', '43', '44', '45'];
+export const abayaThobeSizesList = ['50', '52', '54', '56', '58', '60', '62'];
+export const clothingSizesList = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
+export const shoeSizesList = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
+
+export const commonSizesList = [
+    'S', 'M', 'L', 'XL', 'XXL', '3XL',
+    '50', '52', '54', '56', '58', '60', '62',
+    '38', '39', '40', '41', '42', '43', '44', '45',
+    'Free Size'
+];
 
 export const commonColorsList = [
     { name: 'أسود ملكي', hex: '#111111' },

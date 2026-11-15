@@ -15,6 +15,7 @@ export const DEFAULT_HOME_OFFER = {
     salePrice: 150,
     imageUrl: '/new_offer_shoes_transparent.png',
     imageScale: 1.1,
+    imageOffsetX: 45,
     targetUrl: '/product/1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7',
     durationDays: 3,
     durationHours: 23,
@@ -35,6 +36,7 @@ export const QUICK_OFFER_PRESETS = [
         salePrice: 150,
         imageUrl: '/new_offer_shoes_transparent.png',
         imageScale: 1.1,
+        imageOffsetX: 45,
         targetUrl: '/product/1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7'
     },
     {

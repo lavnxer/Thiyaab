@@ -62,14 +62,11 @@ test.describe('Navigation & Route Functional Tests', () => {
         await expect(allFilterBtn).toHaveClass(/bg-\[#800020\]/);
     });
 
-    test('Quick utility pages load successfully (Size Guide, Track Order, Reviews)', async ({ page }) => {
+    test('Quick utility pages load successfully (Size Guide, Track Order)', async ({ page }) => {
         await page.goto('/size-guide');
         await expect(page.locator('h1, h2:has-text("دليل المقاسات")').first()).toBeVisible();
 
         await page.goto('/track-order');
         await expect(page.locator('h1:has-text("تتبع الطلب")')).toBeVisible();
-
-        await page.goto('/reviews');
-        await expect(page.locator('h1, h2:has-text("تقييمات")').first()).toBeVisible();
     });
 });

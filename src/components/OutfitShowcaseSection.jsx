@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ArrowUpRight } from 'lucide-react';
 import InteractiveButton from './InteractiveButton';
 import RiyalIcon from './RiyalIcon';
 import { useShop } from '../context/ShopContext';
@@ -248,6 +248,12 @@ const bottomLeftVariants = {
     }
 };
 
+const mobileItemVariants = {
+    hidden: { opacity: 0, y: 16, scale: 0.98 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: gentleEase } },
+    exit: { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.3 } }
+};
+
 export default function OutfitShowcaseSection({ title = "", outfits = null, sectionType = null, className = "" }) {
     const navigate = useNavigate();
     const { homeSections } = useShop();
@@ -313,64 +319,72 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
         return "h-[75%] max-w-[78%] w-auto object-contain transition-transform duration-500 group-hover:scale-105";
     };
 
+    const touchStartX = useRef(null);
+
     return (
         <motion.section
             ref={sectionRef}
             initial={{ opacity: 0, y: 30 }}
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`container mx-auto px-6 pt-14 pb-16 overflow-hidden relative ${className}`}
+            className={`container mx-auto px-2 sm:px-6 pt-10 sm:pt-14 pb-12 sm:pb-16 overflow-hidden relative ${className}`}
         >
             {/* Section Header Title */}
             {effectiveTitle && (
-                <div className="text-center mb-10">
-                    <h2 className="text-3xl lg:text-5xl font-black text-[#800020] tracking-tight">
+                <div className="text-center mb-6 sm:mb-10">
+                    <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-[#800020] tracking-tight">
                         {effectiveTitle}
                     </h2>
                 </div>
             )}
 
-            <div className="relative">
-                {/* Side Floating Navigation Arrows (مربع بأنيميشن InteractiveButton) */}
+            <div 
+                className="relative"
+                onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                    if (touchStartX.current === null) return;
+                    const diff = touchStartX.current - e.changedTouches[0].clientX;
+                    if (Math.abs(diff) > 40) {
+                        if (diff > 0) handleNext();
+                        else handlePrev();
+                    }
+                    touchStartX.current = null;
+                }}
+            >
+                {/* Side Floating Navigation Arrows (تصميم المتجر الفاخر - مربع rounded-sm بأنيميشن PC) */}
                 <button
                     onClick={handlePrev}
                     aria-label="الطقم السابق"
-                    className="flex absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-none border-0"
+                    className="flex absolute right-3 min-[400px]:right-4 sm:right-1.5 md:right-2 lg:right-3 top-40 sm:top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm sm:shadow-none border-0"
                 >
-                    {/* 1. Base Icon (Burgundy, slides out to the right on hover) */}
                     <div className="absolute inset-0 flex items-center justify-center text-[#800020] z-0 transition-all duration-500 ease-in-out group-hover:translate-x-6 group-hover:opacity-0">
-                        <ChevronRight className="w-6 h-6" />
+                        <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
 
-                    {/* 2. Sliding Burgundy Sheet (Enters from left at 35deg skew) */}
                     <span className="absolute inset-0 rounded-sm overflow-hidden pointer-events-none z-10">
                         <span className="absolute -inset-x-8 -inset-y-4 bg-[#800020] -translate-x-[140%] skew-x-[35deg] transition-transform duration-500 ease-in-out group-hover:translate-x-0" />
                     </span>
 
-                    {/* 3. Hover Icon (Beige, enters from left to center on hover) */}
                     <div className="absolute inset-0 flex items-center justify-center text-[#F0DFCD] z-20 pointer-events-none transition-all duration-500 ease-in-out -translate-x-6 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
-                        <ChevronRight className="w-6 h-6 transition-transform duration-500 ease-in-out group-hover:translate-x-0.5" />
+                        <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-500 ease-in-out group-hover:translate-x-0.5" />
                     </div>
                 </button>
 
                 <button
                     onClick={handleNext}
                     aria-label="الطقم التالي"
-                    className="flex absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-none border-0"
+                    className="flex absolute left-3 min-[400px]:left-4 sm:left-1.5 md:left-2 lg:left-3 top-40 sm:top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm sm:shadow-none border-0"
                 >
-                    {/* 1. Base Icon (Burgundy, slides out to the left on hover) */}
                     <div className="absolute inset-0 flex items-center justify-center text-[#800020] z-0 transition-all duration-500 ease-in-out group-hover:-translate-x-6 group-hover:opacity-0">
-                        <ChevronLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
 
-                    {/* 2. Sliding Burgundy Sheet (Enters from right at -35deg skew) */}
                     <span className="absolute inset-0 rounded-sm overflow-hidden pointer-events-none z-10">
                         <span className="absolute -inset-x-8 -inset-y-4 bg-[#800020] translate-x-[140%] -skew-x-[35deg] transition-transform duration-500 ease-in-out group-hover:translate-x-0" />
                     </span>
 
-                    {/* 3. Hover Icon (Beige, enters from right to center on hover) */}
                     <div className="absolute inset-0 flex items-center justify-center text-[#F0DFCD] z-20 pointer-events-none transition-all duration-500 ease-in-out translate-x-6 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
-                        <ChevronLeft className="w-6 h-6 transition-transform duration-500 ease-in-out group-hover:-translate-x-0.5" />
+                        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-500 ease-in-out group-hover:-translate-x-0.5" />
                     </div>
                 </button>
 
@@ -381,122 +395,227 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                         animate={hasAppeared ? "visible" : "hidden"}
                         exit="exit"
                         variants={containerVariants}
-                        className="grid grid-cols-1 lg:grid-cols-3 gap-8 origin-center"
+                        className="origin-center"
                     >
-                        {/* Right Items */}
-                        <div className="flex flex-col gap-8">
-                            {currentOutfit.rightTop && (
-                                <motion.div
-                                    key={`rt-${currentOutfit.rightTop.id}`}
-                                    className="group cursor-pointer"
-                                    onClick={() => navigate(`/product/${currentOutfit.rightTop.id}`)}
-                                    variants={topRightVariants}
-                                >
-                                    <div className="relative bg-[#f0dfcd]/20 overflow-hidden rounded-sm aspect-[10/9] flex items-center justify-center">
-                                        <img
-                                            src={currentOutfit.rightTop.image}
-                                            alt={currentOutfit.rightTop.name}
-                                            className={getItemImgClass(currentOutfit.rightTop)}
-                                        />
+                        {/* ─── Mobile View (< 640px) ─── */}
+                        <div className="block sm:hidden flex flex-col gap-4 overflow-hidden">
+                            {/* Main Center Model Hero */}
+                            <motion.div
+                                variants={centerVariants}
+                                className="group cursor-pointer flex flex-col z-10 relative"
+                                onClick={() => navigate(`/product/${currentOutfit.mainProductId}`)}
+                            >
+                                <div className={`relative bg-[#f0dfcd]/25 overflow-hidden rounded-2xl flex items-center justify-center shadow-xs ${
+                                    isWomen || currentOutfit.mainImage?.includes('women')
+                                        ? 'h-[320px]'
+                                        : 'h-[300px]'
+                                }`}>
+                                    <div className="absolute top-3 left-3 z-20 shadow-md">
+                                        <InteractiveButton 
+                                            padding="px-3.5 py-1.5"
+                                            className="text-xs whitespace-nowrap font-bold"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/product/${currentOutfit.mainProductId}`);
+                                            }}
+                                        >
+                                            شراء الطقم كامل
+                                        </InteractiveButton>
                                     </div>
-                                    <div className="text-center mt-4">
-                                        <h4 className="font-bold text-lg text-[#800020]">{currentOutfit.rightTop.name}</h4>
-                                        <p className="text-[#800020] font-bold mt-1 flex items-center justify-center gap-1">{currentOutfit.rightTop.price.toFixed(2)} <RiyalIcon /></p>
-                                    </div>
-                                </motion.div>
-                            )}
+                                    <img
+                                        src={currentOutfit.mainImage}
+                                        alt={currentOutfit.title}
+                                        className={`transition-transform duration-500 group-hover:scale-105 ${
+                                            isWomen || currentOutfit.mainImage?.includes('women')
+                                                ? 'w-full h-full max-h-full object-contain object-bottom p-2'
+                                                : 'w-[90%] h-[90%] object-contain translate-y-2'
+                                        }`}
+                                    />
+                                </div>
+                                <div className="text-center mt-3">
+                                    <h4 className="font-bold text-base text-[#800020] line-clamp-1">{currentOutfit.title}</h4>
+                                    <p className="text-[#800020] font-black mt-1 text-sm flex items-center justify-center gap-1">
+                                        {typeof currentOutfit.price === 'number' ? currentOutfit.price.toFixed(2) : currentOutfit.price} <RiyalIcon className="w-3.5 h-3.5" />
+                                    </p>
+                                </div>
+                            </motion.div>
 
-                            {currentOutfit.rightBottom && (
-                                <motion.div
-                                    key={`rb-${currentOutfit.rightBottom.id}`}
-                                    className="group cursor-pointer"
-                                    onClick={() => navigate(`/product/${currentOutfit.rightBottom.id}`)}
-                                    variants={bottomRightVariants}
-                                >
-                                    <div className="relative bg-[#f0dfcd]/20 overflow-hidden rounded-sm aspect-[10/9] flex items-center justify-center">
-                                        <img
-                                            src={currentOutfit.rightBottom.image}
-                                            alt={currentOutfit.rightBottom.name}
-                                            className={getItemImgClass(currentOutfit.rightBottom)}
-                                        />
-                                    </div>
-                                    <div className="text-center mt-4">
-                                        <h4 className="font-bold text-lg text-[#800020]">{currentOutfit.rightBottom.name}</h4>
-                                        <p className="text-[#800020] font-bold mt-1 flex items-center justify-center gap-1">{currentOutfit.rightBottom.price.toFixed(2)} <RiyalIcon /></p>
-                                    </div>
-                                </motion.div>
-                            )}
+                            {/* 4 Outfit Items in 2x2 Grid */}
+                            <div className="grid grid-cols-2 gap-2.5 overflow-hidden">
+                                {[
+                                    { item: currentOutfit.rightTop, key: 'rt' },
+                                    { item: currentOutfit.leftTop, key: 'lt' },
+                                    { item: currentOutfit.rightBottom, key: 'rb' },
+                                    { item: currentOutfit.leftBottom, key: 'lb' },
+                                ].filter(x => x.item).map(({ item, key }) => (
+                                    <motion.div
+                                        key={`m-${key}-${item.id}`}
+                                        className="group cursor-pointer flex flex-col bg-[#f0dfcd]/20 rounded-xl p-2.5 border border-[#800020]/5 hover:border-[#800020]/20 transition-all shadow-xs"
+                                        onClick={() => navigate(`/product/${item.id}`)}
+                                        variants={mobileItemVariants}
+                                    >
+                                        <div className="relative bg-[#f0dfcd]/30 overflow-hidden rounded-lg aspect-square flex items-center justify-center p-2 mb-2">
+                                            <img
+                                                src={item.image}
+                                                alt={item.name}
+                                                className={getItemImgClass(item)}
+                                            />
+                                        </div>
+                                        <div className="text-center">
+                                            <h4 className="font-bold text-xs text-[#800020] line-clamp-1">{item.name}</h4>
+                                            <p className="text-[#800020] font-bold mt-1 text-xs flex items-center justify-center gap-0.5">
+                                                {item.price.toFixed(2)} <RiyalIcon className="w-2.5 h-2.5" />
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Main Center Item */}
-                        <motion.div
-                            variants={centerVariants}
-                            className="group cursor-pointer lg:row-span-2 flex flex-col h-full z-10 relative"
-                            onClick={() => navigate(`/product/${currentOutfit.mainProductId}`)}
-                        >
-                            <div className="relative bg-[#f0dfcd]/20 overflow-hidden rounded-sm flex-1 min-h-[420px] flex items-center justify-center">
-                                <div className="absolute top-4 left-4 z-20 shadow-md">
-                                    <InteractiveButton>
-                                        شراء الطقم كامل
-                                    </InteractiveButton>
+                        {/* ─── Desktop & Tablet View (>= 640px) ─── */}
+                        <div className={`hidden sm:grid gap-4 md:gap-6 lg:gap-8 origin-center items-stretch sm:px-14 md:px-16 lg:px-20 ${
+                            isWomen || currentOutfit.mainImage?.includes('women')
+                                ? 'grid-cols-[1fr_1.6fr_1fr] lg:grid-cols-[1fr_1.75fr_1fr]'
+                                : 'grid-cols-3'
+                        }`}>
+                            {/* Right Items */}
+                            <div className="flex flex-col justify-between gap-2 sm:gap-8 h-full">
+                                {currentOutfit.rightTop && (
+                                    <motion.div
+                                        key={`rt-${currentOutfit.rightTop.id}`}
+                                        className="group cursor-pointer flex flex-col"
+                                        onClick={() => navigate(`/product/${currentOutfit.rightTop.id}`)}
+                                        variants={topRightVariants}
+                                    >
+                                        <div className="relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm aspect-[1/1] sm:aspect-[10/9] flex items-center justify-center p-1 sm:p-2">
+                                            <img
+                                                src={currentOutfit.rightTop.image}
+                                                alt={currentOutfit.rightTop.name}
+                                                className={getItemImgClass(currentOutfit.rightTop)}
+                                            />
+                                        </div>
+                                        <div className="text-center mt-1 sm:mt-3">
+                                            <h4 className="font-bold text-[10px] sm:text-xs md:text-sm lg:text-base text-[#800020] line-clamp-2 leading-tight min-h-[2.2em] flex items-center justify-center">{currentOutfit.rightTop.name}</h4>
+                                            <p className="text-[#800020] font-bold mt-0.5 sm:mt-1 text-[9px] sm:text-xs md:text-sm lg:text-base flex items-center justify-center gap-0.5 sm:gap-1">
+                                                {currentOutfit.rightTop.price.toFixed(2)} <RiyalIcon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {currentOutfit.rightBottom && (
+                                    <motion.div
+                                        key={`rb-${currentOutfit.rightBottom.id}`}
+                                        className="group cursor-pointer flex flex-col"
+                                        onClick={() => navigate(`/product/${currentOutfit.rightBottom.id}`)}
+                                        variants={bottomRightVariants}
+                                    >
+                                        <div className="relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm aspect-[1/1] sm:aspect-[10/9] flex items-center justify-center p-1 sm:p-2">
+                                            <img
+                                                src={currentOutfit.rightBottom.image}
+                                                alt={currentOutfit.rightBottom.name}
+                                                className={getItemImgClass(currentOutfit.rightBottom)}
+                                            />
+                                        </div>
+                                        <div className="text-center mt-1 sm:mt-3">
+                                            <h4 className="font-bold text-[10px] sm:text-xs md:text-sm lg:text-base text-[#800020] line-clamp-2 leading-tight min-h-[2.2em] flex items-center justify-center">{currentOutfit.rightBottom.name}</h4>
+                                            <p className="text-[#800020] font-bold mt-0.5 sm:mt-1 text-[9px] sm:text-xs md:text-sm lg:text-base flex items-center justify-center gap-0.5 sm:gap-1">
+                                                {currentOutfit.rightBottom.price.toFixed(2)} <RiyalIcon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </div>
+
+                            {/* Main Center Item */}
+                            <motion.div
+                                variants={centerVariants}
+                                className="group cursor-pointer flex flex-col h-full z-10 relative justify-between"
+                                onClick={() => navigate(`/product/${currentOutfit.mainProductId}`)}
+                            >
+                                <div className={`relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm flex-1 flex items-center justify-center ${
+                                    isWomen || currentOutfit.mainImage?.includes('women')
+                                        ? 'min-h-[260px] sm:min-h-[460px] lg:min-h-[520px]'
+                                        : 'min-h-[220px] sm:min-h-[420px]'
+                                }`}>
+                                    <div className="absolute top-1.5 left-1.5 sm:top-4 sm:left-4 z-20 shadow-md">
+                                        <InteractiveButton 
+                                            padding="px-2.5 py-1 sm:px-5 sm:py-2.5"
+                                            className="text-[10px] sm:text-sm lg:text-base whitespace-nowrap"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/product/${currentOutfit.mainProductId}`);
+                                            }}
+                                        >
+                                            شراء الطقم كامل
+                                        </InteractiveButton>
+                                    </div>
+                                    <img
+                                        src={currentOutfit.mainImage}
+                                        alt={currentOutfit.title}
+                                        className={`transition-transform duration-500 group-hover:scale-105 ${
+                                            isWomen || currentOutfit.mainImage?.includes('women')
+                                                ? 'w-full h-full max-h-full object-contain object-bottom p-2 sm:p-4'
+                                                : 'w-[92%] h-[92%] object-contain sm:object-cover translate-y-2 sm:translate-y-8'
+                                        }`}
+                                    />
                                 </div>
-                                <img
-                                    src={currentOutfit.mainImage}
-                                    alt={currentOutfit.title}
-                                    className="w-[90%] h-[90%] object-cover translate-y-8 transition-transform duration-500 group-hover:scale-105"
-                                />
-                            </div>
-                            <div className="text-center mt-6">
-                                <h4 className="font-bold text-2xl text-[#800020]">{currentOutfit.title}</h4>
-                                <p className="text-[#800020] font-bold mt-2 text-xl flex items-center justify-center gap-1">
-                                    {typeof currentOutfit.price === 'number' ? currentOutfit.price.toFixed(2) : currentOutfit.price} <RiyalIcon />
-                                </p>
-                            </div>
-                        </motion.div>
+                                <div className="text-center mt-2 sm:mt-6">
+                                    <h4 className="font-bold text-xs sm:text-xl lg:text-2xl text-[#800020] line-clamp-1">{currentOutfit.title}</h4>
+                                    <p className="text-[#800020] font-black mt-0.5 sm:mt-2 text-xs sm:text-lg lg:text-xl flex items-center justify-center gap-0.5 sm:gap-1">
+                                        {typeof currentOutfit.price === 'number' ? currentOutfit.price.toFixed(2) : currentOutfit.price} <RiyalIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    </p>
+                                </div>
+                            </motion.div>
 
-                        {/* Left Items */}
-                        <div className="flex flex-col gap-8">
-                            {currentOutfit.leftTop && (
-                                <motion.div
-                                    key={`lt-${currentOutfit.leftTop.id}`}
-                                    className="group cursor-pointer"
-                                    onClick={() => navigate(`/product/${currentOutfit.leftTop.id}`)}
-                                    variants={topLeftVariants}
-                                >
-                                    <div className="relative bg-[#f0dfcd]/20 overflow-hidden rounded-sm aspect-[10/9] flex items-center justify-center">
-                                        <img
-                                            src={currentOutfit.leftTop.image}
-                                            alt={currentOutfit.leftTop.name}
-                                            className={getItemImgClass(currentOutfit.leftTop)}
-                                        />
-                                    </div>
-                                    <div className="text-center mt-4">
-                                        <h4 className="font-bold text-lg text-[#800020]">{currentOutfit.leftTop.name}</h4>
-                                        <p className="text-[#800020] font-bold mt-1 flex items-center justify-center gap-1">{currentOutfit.leftTop.price.toFixed(2)} <RiyalIcon /></p>
-                                    </div>
-                                </motion.div>
-                            )}
+                            {/* Left Items */}
+                            <div className="flex flex-col justify-between gap-2 sm:gap-8 h-full">
+                                {currentOutfit.leftTop && (
+                                    <motion.div
+                                        key={`lt-${currentOutfit.leftTop.id}`}
+                                        className="group cursor-pointer flex flex-col"
+                                        onClick={() => navigate(`/product/${currentOutfit.leftTop.id}`)}
+                                        variants={topLeftVariants}
+                                    >
+                                        <div className="relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm aspect-[1/1] sm:aspect-[10/9] flex items-center justify-center p-1 sm:p-2">
+                                            <img
+                                                src={currentOutfit.leftTop.image}
+                                                alt={currentOutfit.leftTop.name}
+                                                className={getItemImgClass(currentOutfit.leftTop)}
+                                            />
+                                        </div>
+                                        <div className="text-center mt-1 sm:mt-3">
+                                            <h4 className="font-bold text-[10px] sm:text-xs md:text-sm lg:text-base text-[#800020] line-clamp-2 leading-tight min-h-[2.2em] flex items-center justify-center">{currentOutfit.leftTop.name}</h4>
+                                            <p className="text-[#800020] font-bold mt-0.5 sm:mt-1 text-[9px] sm:text-xs md:text-sm lg:text-base flex items-center justify-center gap-0.5 sm:gap-1">
+                                                {currentOutfit.leftTop.price.toFixed(2)} <RiyalIcon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                            {currentOutfit.leftBottom && (
-                                <motion.div
-                                    key={`lb-${currentOutfit.leftBottom.id}`}
-                                    className="group cursor-pointer"
-                                    onClick={() => navigate(`/product/${currentOutfit.leftBottom.id}`)}
-                                    variants={bottomLeftVariants}
-                                >
-                                    <div className="relative bg-[#f0dfcd]/20 overflow-hidden rounded-sm aspect-[10/9] flex items-center justify-center">
-                                        <img
-                                            src={currentOutfit.leftBottom.image}
-                                            alt={currentOutfit.leftBottom.name}
-                                            className={getItemImgClass(currentOutfit.leftBottom)}
-                                        />
-                                    </div>
-                                    <div className="text-center mt-4">
-                                        <h4 className="font-bold text-lg text-[#800020]">{currentOutfit.leftBottom.name}</h4>
-                                        <p className="text-[#800020] font-bold mt-1 flex items-center justify-center gap-1">{currentOutfit.leftBottom.price.toFixed(2)} <RiyalIcon /></p>
-                                    </div>
-                                </motion.div>
-                            )}
+                                {currentOutfit.leftBottom && (
+                                    <motion.div
+                                        key={`lb-${currentOutfit.leftBottom.id}`}
+                                        className="group cursor-pointer flex flex-col"
+                                        onClick={() => navigate(`/product/${currentOutfit.leftBottom.id}`)}
+                                        variants={bottomLeftVariants}
+                                    >
+                                        <div className="relative bg-[#f0dfcd]/25 overflow-hidden rounded-md sm:rounded-sm aspect-[1/1] sm:aspect-[10/9] flex items-center justify-center p-1 sm:p-2">
+                                            <img
+                                                src={currentOutfit.leftBottom.image}
+                                                alt={currentOutfit.leftBottom.name}
+                                                className={getItemImgClass(currentOutfit.leftBottom)}
+                                            />
+                                        </div>
+                                        <div className="text-center mt-1 sm:mt-3">
+                                            <h4 className="font-bold text-[10px] sm:text-xs md:text-sm lg:text-base text-[#800020] line-clamp-2 leading-tight min-h-[2.2em] flex items-center justify-center">{currentOutfit.leftBottom.name}</h4>
+                                            <p className="text-[#800020] font-bold mt-0.5 sm:mt-1 text-[9px] sm:text-xs md:text-sm lg:text-base flex items-center justify-center gap-0.5 sm:gap-1">
+                                                {currentOutfit.leftBottom.price.toFixed(2)} <RiyalIcon className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 </AnimatePresence>

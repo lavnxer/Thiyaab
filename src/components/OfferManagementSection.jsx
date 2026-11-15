@@ -47,6 +47,7 @@ export default function OfferManagementSection({
         salePrice: homeOffer?.salePrice ?? 150,
         imageUrl: homeOffer?.imageUrl || '/new_offer_shoes_transparent.png',
         imageScale: homeOffer?.imageScale ?? 1.1,
+        imageOffsetX: homeOffer?.imageOffsetX ?? 45,
         targetUrl: homeOffer?.targetUrl || '/product/1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7',
         durationDays: homeOffer?.durationDays ?? 3,
         durationHours: homeOffer?.durationHours ?? 23,
@@ -136,8 +137,13 @@ export default function OfferManagementSection({
             offerForm.salePrice !== homeOffer.salePrice ||
             offerForm.imageUrl !== homeOffer.imageUrl ||
             offerForm.imageScale !== homeOffer.imageScale ||
+            offerForm.imageOffsetX !== homeOffer.imageOffsetX ||
             offerForm.isActive !== homeOffer.isActive ||
             offerForm.badgeText !== homeOffer.badgeText ||
+            offerForm.durationDays !== homeOffer.durationDays ||
+            offerForm.durationHours !== homeOffer.durationHours ||
+            offerForm.durationMinutes !== homeOffer.durationMinutes ||
+            offerForm.durationSeconds !== homeOffer.durationSeconds ||
             offerForm.endTimestamp !== homeOffer.endTimestamp
         );
     }, [offerForm, homeOffer]);
@@ -189,19 +195,110 @@ export default function OfferManagementSection({
         }
     };
 
-    // Handler: reset countdown timer to X days from now
-    const handleSetDurationPreset = (days, hours = 0) => {
-        const newEndTime = Date.now() + (days * 24 * 60 * 60 * 1000) + (hours * 60 * 60 * 1000);
+    // Helper to format ISO datetime-local string in user's local time
+    const formatToLocalDateTimeInput = (timestamp) => {
+        if (!timestamp) return '';
+        const date = new Date(Number(timestamp));
+        if (isNaN(date.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        const mm = pad(date.getMonth() + 1);
+        const dd = pad(date.getDate());
+        const hh = pad(date.getHours());
+        const min = pad(date.getMinutes());
+        return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    };
+
+    // Helper to format Arabic date string for display
+    const formatEndDateArabic = (timestamp) => {
+        if (!timestamp) return 'غير محدد';
+        const date = new Date(Number(timestamp));
+        if (isNaN(date.getTime())) return 'غير محدد';
+        try {
+            return date.toLocaleDateString('ar-SA', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch {
+            return date.toLocaleString();
+        }
+    };
+
+    // Handler: reset countdown timer to preset from now
+    const handleSetDurationPreset = (days, hours = 0, mins = 0) => {
+        const newEndTime = Date.now() + (days * 86400000) + (hours * 3600000) + (mins * 60000);
         setOfferForm(prev => ({
             ...prev,
             durationDays: days,
             durationHours: hours,
-            durationMinutes: 0,
+            durationMinutes: mins,
             durationSeconds: 0,
             endTimestamp: newEndTime
         }));
         if (showToast) {
-            showToast(`تم ضبط العداد التنازلي لمدة ${days} أيام من الآن`, 'info');
+            showToast(`تم ضبط العداد ليبدأ من الآن لمدة (${days > 0 ? `${days} أيام ` : ''}${hours > 0 ? `${hours} ساعات` : ''})`, 'info');
+        }
+    };
+
+    // Handler: update single duration numeric field and recompute endTimestamp
+    const handleUpdateDurationField = (field, val) => {
+        const num = Math.max(0, parseInt(val) || 0);
+        setOfferForm(prev => {
+            const updated = { ...prev, [field]: num };
+            const d = Number(updated.durationDays) || 0;
+            const h = Number(updated.durationHours) || 0;
+            const m = Number(updated.durationMinutes) || 0;
+            const s = Number(updated.durationSeconds) || 0;
+            const newEnd = Date.now() + (d * 86400000) + (h * 3600000) + (m * 60000) + (s * 1000);
+            return {
+                ...updated,
+                endTimestamp: newEnd
+            };
+        });
+    };
+
+    // Handler: set exact end date & time from datetime-local input
+    const handleSetExactEndDateTime = (e) => {
+        const val = e.target.value;
+        if (!val) return;
+        const target = new Date(val).getTime();
+        if (isNaN(target)) return;
+        const diff = Math.max(0, target - Date.now());
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setOfferForm(prev => ({
+            ...prev,
+            endTimestamp: target,
+            durationDays: d,
+            durationHours: h,
+            durationMinutes: m,
+            durationSeconds: s
+        }));
+        if (showToast) {
+            showToast('تم تحديد موعد انتهاء العرض وحساب الوقت المتبقي بنجاح', 'success');
+        }
+    };
+
+    // Handler: Restart / Refresh countdown from now with currently selected duration
+    const handleRestartCountdownFromNow = () => {
+        const d = Number(offerForm.durationDays) || 0;
+        const h = Number(offerForm.durationHours) || 0;
+        const m = Number(offerForm.durationMinutes) || 0;
+        const s = Number(offerForm.durationSeconds) || 0;
+        const newEnd = Date.now() + (d * 86400000) + (h * 3600000) + (m * 60000) + (s * 1000);
+        setOfferForm(prev => ({
+            ...prev,
+            endTimestamp: newEnd
+        }));
+        if (showToast) {
+            showToast('تم بدء العد التنازلي مجدداً من هذه اللحظة', 'sparkle');
         }
     };
 
@@ -209,9 +306,26 @@ export default function OfferManagementSection({
     const handleSaveOffer = () => {
         setIsSaving(true);
         try {
-            updateHomeOffer(offerForm);
+            let finalEnd = offerForm.endTimestamp ? Number(offerForm.endTimestamp) : null;
+            if (!finalEnd || isNaN(finalEnd) || finalEnd <= Date.now()) {
+                const daysMs = (Number(offerForm.durationDays) || 0) * 86400000;
+                const hoursMs = (Number(offerForm.durationHours) || 0) * 3600000;
+                const minsMs = (Number(offerForm.durationMinutes) || 0) * 60000;
+                const secsMs = (Number(offerForm.durationSeconds) || 0) * 1000;
+                finalEnd = Date.now() + daysMs + hoursMs + minsMs + secsMs;
+            }
+            const toSave = {
+                ...offerForm,
+                endTimestamp: finalEnd,
+                durationDays: Number(offerForm.durationDays) || 0,
+                durationHours: Number(offerForm.durationHours) || 0,
+                durationMinutes: Number(offerForm.durationMinutes) || 0,
+                durationSeconds: Number(offerForm.durationSeconds) || 0
+            };
+            setOfferForm(toSave);
+            updateHomeOffer(toSave);
             if (showToast) {
-                showToast('تم حفظ وتطبيق التعديلات على عرض الصفحة الرئيسية بنجاح!', 'sparkle');
+                showToast('تم حفظ توقيت وتفاصيل العرض بنجاح وربطه بالصفحة الرئيسية!', 'sparkle');
             }
         } catch (err) {
             console.error('Error saving home offer:', err);
@@ -393,7 +507,7 @@ export default function OfferManagementSection({
                                     src={offerForm.imageUrl || '/new_offer_shoes_transparent.png'}
                                     alt={offerForm.productName}
                                     className="w-[360px] sm:w-[415px] max-w-none h-auto object-contain origin-center absolute translate-x-8 sm:translate-x-12 transition-transform duration-500 drop-shadow-2xl"
-                                    style={{ transform: `scale(${offerForm.imageScale || 1.1}) translateX(2.5rem)` }}
+                                    style={{ transform: `scale(${offerForm.imageScale || 1.1}) translateX(${offerForm.imageOffsetX !== undefined ? `${offerForm.imageOffsetX}px` : '45px'})` }}
                                 />
                             </div>
                         </div>
@@ -827,6 +941,36 @@ export default function OfferManagementSection({
                         </div>
                     </div>
 
+                    {/* Horizontal position slider */}
+                    <div className="bg-white/70 p-4 rounded-2xl border border-[#800020]/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Sliders className="w-5 h-5 text-[#800020]" />
+                            <div>
+                                <span className="text-xs font-bold text-[#800020] block">إزاحة الصورة أفقياً (Image X-Offset): {offerForm.imageOffsetX ?? 45}px</span>
+                                <span className="text-[11px] text-[#800020]/60">تحريك الصورة لليمين واليسار لضبط موضع طرف الحذاء بالنسبة للمستطيل البيج</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-60">
+                            <input
+                                type="range"
+                                min="20"
+                                max="140"
+                                step="2"
+                                value={offerForm.imageOffsetX ?? 45}
+                                onChange={(e) => setOfferForm(prev => ({ ...prev, imageOffsetX: parseInt(e.target.value, 10) }))}
+                                className="w-full accent-[#800020] cursor-pointer"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setOfferForm(prev => ({ ...prev, imageOffsetX: 45 }))}
+                                className="text-[10px] font-bold px-2 py-1 rounded bg-[#800020]/10 text-[#800020] hover:bg-[#800020] hover:text-[#F0DFCD] shrink-0"
+                            >
+                                افتراضي
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Custom Image URL input */}
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-[#800020] block">
@@ -899,145 +1043,267 @@ export default function OfferManagementSection({
             {/* SUBSECTION 4: COUNTDOWN TIMER & SCHEDULING                        */}
             {/* ================================================================= */}
             {activeSection === 'timer' && (
-                <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-                    <div className="border-b border-[#800020]/15 pb-4">
-                        <h3 className="text-lg font-black text-[#800020]">
-                            إعدادات العداد التنازلي وتاريخ الانتهاء
-                        </h3>
-                        <p className="text-xs font-semibold text-[#800020]/70">
-                            تحكم بمدة العرض التنازلي المباشر، أو أعد ضبط العداد لمدة محددة
-                        </p>
-                    </div>
+                <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 sm:p-8 shadow-sm space-y-8">
+                    
+                    {/* Header */}
+                    <div className="border-b border-[#800020]/15 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-[#800020]" />
+                                <h3 className="text-lg sm:text-xl font-black text-[#800020]">
+                                    إعدادات العداد التنازلي وتوقيت العرض
+                                </h3>
+                            </div>
+                            <p className="text-xs font-semibold text-[#800020]/70 mt-1">
+                                هذا التوقيت مرتبط مباشرة بالبانر في الصفحة الرئيسية للمتجر ويتم تحديثه لحظياً.
+                            </p>
+                        </div>
 
-                    {/* Quick Preset Buttons */}
-                    <div className="space-y-3">
-                        <span className="text-xs font-bold text-[#800020] block">
-                            إعادة تعيين سريعة للعداد التنازلي (يبدأ من الآن):
-                        </span>
-
-                        <div className="flex flex-wrap gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() => handleSetDurationPreset(1, 0)}
-                                className="px-4 py-2.5 rounded-2xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                            >
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>24 ساعة (يوم واحد)</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => handleSetDurationPreset(2, 0)}
-                                className="px-4 py-2.5 rounded-2xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                            >
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>48 ساعة (يومان)</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => handleSetDurationPreset(3, 23)}
-                                className="px-4 py-2.5 rounded-2xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                            >
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>4 أيام (العرض القياسي)</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => handleSetDurationPreset(7, 0)}
-                                className="px-4 py-2.5 rounded-2xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                            >
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>أسبوع كامل (7 أيام)</span>
-                            </button>
+                        {/* Status Badge */}
+                        <div className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 border shadow-xs ${
+                            (offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-rose-50 text-rose-800 border-rose-200'
+                        }`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${
+                                (offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
+                                    ? 'bg-emerald-500 animate-pulse'
+                                    : 'bg-rose-500'
+                            }`} />
+                            <span>
+                                {(offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
+                                    ? 'العداد نشط ويعمل حالياً'
+                                    : 'انتهت مدة العرض'
+                                }
+                            </span>
                         </div>
                     </div>
 
-                    {/* Manual duration inputs */}
-                    <div className="space-y-3 pt-2">
-                        <span className="text-xs font-bold text-[#800020] block">
-                            تحديد المدة يدوياً:
-                        </span>
+                    {/* Live Preview Card */}
+                    <div className="bg-[#800020] text-white p-6 rounded-3xl shadow-lg border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="text-center md:text-right space-y-1">
+                            <span className="text-xs font-bold text-[#F0DFCD]/80 block">المعاينة الحية للعداد كما يظهر للزوار في الصفحة الرئيسية:</span>
+                            <h4 className="text-lg font-black text-white">العد التنازلي المباشر</h4>
+                            <span className="text-[11px] text-[#F0DFCD]/70 block">
+                                ينتهي العرض في: <strong className="text-[#F0DFCD]">{formatEndDateArabic(offerForm.endTimestamp)}</strong>
+                            </span>
+                        </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {/* Timer Blocks */}
+                        <div className="flex gap-3 sm:gap-4 text-center items-center" dir="ltr">
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15">
+                                    {previewTimer.days}
+                                </div>
+                                <span className="text-[11px] font-bold text-[#F0DFCD]">أيام</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15">
+                                    {previewTimer.hours}
+                                </div>
+                                <span className="text-[11px] font-bold text-[#F0DFCD]">ساعات</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15">
+                                    {previewTimer.minutes}
+                                </div>
+                                <span className="text-[11px] font-bold text-[#F0DFCD]">دقائق</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15 text-amber-300">
+                                    {previewTimer.seconds}
+                                </div>
+                                <span className="text-[11px] font-bold text-[#F0DFCD]">ثواني</span>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleRestartCountdownFromNow}
+                            className="px-4 py-2.5 rounded-2xl bg-[#F0DFCD] text-[#800020] hover:bg-white text-xs font-bold transition shadow-md flex items-center gap-2 cursor-pointer shrink-0 active:scale-95"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>تجديد العد من الآن</span>
+                        </button>
+                    </div>
+
+                    {/* Method 1: Exact Date and Time Picker */}
+                    <div className="bg-white/80 border border-[#800020]/20 rounded-2xl p-5 space-y-4 shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-[#800020]" />
+                            <h4 className="text-sm font-black text-[#800020]">
+                                الخيار الأول: تحديد تاريخ ووقت انتهاء العرض بدقة (موصى به)
+                            </h4>
+                        </div>
+                        <p className="text-xs text-[#800020]/70">
+                            حدد موعداً محدداً لانتهاء العرض (مثلاً: 25 أكتوبر 2026 الساعة 11:59 مساءً). سيتم احتساب الأيام والساعات المتبقية تلقائياً.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-[#800020] block">
+                                    تاريخ ووقت انتهاء العرض:
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={formatToLocalDateTimeInput(offerForm.endTimestamp)}
+                                    min={formatToLocalDateTimeInput(Date.now())}
+                                    onChange={handleSetExactEndDateTime}
+                                    className="w-full bg-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-[#800020]/25 text-[#800020] focus:outline-none focus:border-[#800020] shadow-xs cursor-pointer"
+                                />
+                            </div>
+
+                            <div className="p-3.5 rounded-xl bg-[#F0DFCD]/40 border border-[#800020]/15 text-xs text-[#800020]">
+                                <span className="font-bold block mb-1">الموعد المحدد حالياً:</span>
+                                <span className="font-black text-sm text-[#800020]">{formatEndDateArabic(offerForm.endTimestamp)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Method 2: Manual Duration Inputs */}
+                    <div className="bg-white/80 border border-[#800020]/20 rounded-2xl p-5 space-y-4 shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <Sliders className="w-4 h-4 text-[#800020]" />
+                            <h4 className="text-sm font-black text-[#800020]">
+                                الخيار الثاني: تحديد مدة العرض يدوياً (أيام، ساعات، دقائق، ثواني)
+                            </h4>
+                        </div>
+                        <p className="text-xs text-[#800020]/70">
+                            أو يمكنك تحديد مدة العرض بالأيام والساعات ليتم حسابه بدءاً من اللحظة الحالية:
+                        </p>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                             <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-[#800020]/70">الأيام</label>
+                                <label className="text-xs font-bold text-[#800020] block">الأيام (Days)</label>
                                 <input
                                     type="number"
                                     min="0"
                                     max="365"
                                     value={offerForm.durationDays}
-                                    onChange={(e) => {
-                                        const d = parseInt(e.target.value) || 0;
-                                        setOfferForm(prev => ({
-                                            ...prev,
-                                            durationDays: d,
-                                            endTimestamp: Date.now() + (d * 86400000) + (prev.durationHours * 3600000)
-                                        }));
-                                    }}
-                                    className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-[#800020]/20 text-[#800020]"
+                                    onChange={(e) => handleUpdateDurationField('durationDays', e.target.value)}
+                                    className="w-full bg-white px-3.5 py-2.5 rounded-xl text-sm font-black border border-[#800020]/25 text-[#800020] text-center focus:outline-none focus:border-[#800020]"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-[#800020]/70">الساعات</label>
+                                <label className="text-xs font-bold text-[#800020] block">الساعات (Hours)</label>
                                 <input
                                     type="number"
                                     min="0"
                                     max="23"
                                     value={offerForm.durationHours}
-                                    onChange={(e) => {
-                                        const h = parseInt(e.target.value) || 0;
-                                        setOfferForm(prev => ({
-                                            ...prev,
-                                            durationHours: h,
-                                            endTimestamp: Date.now() + (prev.durationDays * 86400000) + (h * 3600000)
-                                        }));
-                                    }}
-                                    className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-[#800020]/20 text-[#800020]"
+                                    onChange={(e) => handleUpdateDurationField('durationHours', e.target.value)}
+                                    className="w-full bg-white px-3.5 py-2.5 rounded-xl text-sm font-black border border-[#800020]/25 text-[#800020] text-center focus:outline-none focus:border-[#800020]"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-[#800020]/70">الدقائق</label>
+                                <label className="text-xs font-bold text-[#800020] block">الدقائق (Minutes)</label>
                                 <input
                                     type="number"
                                     min="0"
                                     max="59"
                                     value={offerForm.durationMinutes}
-                                    onChange={(e) => {
-                                        const m = parseInt(e.target.value) || 0;
-                                        setOfferForm(prev => ({ ...prev, durationMinutes: m }));
-                                    }}
-                                    className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-[#800020]/20 text-[#800020]"
+                                    onChange={(e) => handleUpdateDurationField('durationMinutes', e.target.value)}
+                                    className="w-full bg-white px-3.5 py-2.5 rounded-xl text-sm font-black border border-[#800020]/25 text-[#800020] text-center focus:outline-none focus:border-[#800020]"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-[#800020]/70">الثواني</label>
+                                <label className="text-xs font-bold text-[#800020] block">الثواني (Seconds)</label>
                                 <input
                                     type="number"
                                     min="0"
                                     max="59"
                                     value={offerForm.durationSeconds}
-                                    onChange={(e) => {
-                                        const s = parseInt(e.target.value) || 0;
-                                        setOfferForm(prev => ({ ...prev, durationSeconds: s }));
-                                    }}
-                                    className="w-full bg-white px-3 py-2 rounded-xl text-xs font-bold border border-[#800020]/20 text-[#800020]"
+                                    onChange={(e) => handleUpdateDurationField('durationSeconds', e.target.value)}
+                                    className="w-full bg-white px-3.5 py-2.5 rounded-xl text-sm font-black border border-[#800020]/25 text-[#800020] text-center focus:outline-none focus:border-[#800020]"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="space-y-2 pt-2">
+                            <span className="text-xs font-bold text-[#800020] block">
+                                نماذج سريعة جاهزة (يبدأ العد التنازلي من الآن):
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(0, 12)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    ⚡ 12 ساعة (عرض خاطف)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(1, 0)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    24 ساعة (يوم كامل)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(2, 0)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    48 ساعة (يومان)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(3, 23, 15)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    4 أيام (العرض القياسي)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(7, 0)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    أسبوع كامل (7 أيام)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(14, 0)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    أسبوعان (14 يوماً)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(30, 0)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    شهر كامل (30 يوماً)
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Status Alert */}
-                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3">
-                        <Clock className="w-5 h-5 text-amber-700 shrink-0" />
-                        <div>
-                            <span className="font-black block">الوقت المتبقي حالياً:</span>
-                            <span>{previewTimer.days} يوم و {previewTimer.hours} ساعة و {previewTimer.minutes} دقيقة و {previewTimer.seconds} ثانية.</span>
+                    {/* Dedicated Save Bar for Timer */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Clock className="w-5 h-5 text-amber-700 shrink-0" />
+                            <div>
+                                <span className="font-bold text-xs text-amber-900 block">
+                                    تأكيد وحفظ توقيت العرض:
+                                </span>
+                                <span className="text-[11px] text-amber-800">
+                                    سيتم نشر هذا التوقيت فوراً على الصفحة الرئيسية لجميع زوار المتجر وتثبيت العداد التنازلي.
+                                </span>
+                            </div>
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={handleSaveOffer}
+                            disabled={isSaving}
+                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] text-xs sm:text-sm font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
+                        >
+                            <Save className="w-4 h-4" />
+                            <span>{isSaving ? 'جاري الحفظ...' : 'حفظ التوقيت ونشره على المتجر الآن'}</span>
+                        </button>
                     </div>
 
                 </div>

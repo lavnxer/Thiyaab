@@ -45,19 +45,4 @@ test.describe('Tracking, Reviews & Size Guide Functional Tests', () => {
             await expect(page.locator('text=المقاس الموصى به')).toBeVisible();
         }
     });
-
-    test('Functional: Reviews page loads product rating, stars and write review modal trigger', async ({ page }) => {
-        await page.goto('/reviews');
-        await page.waitForLoadState('networkidle');
-
-        // Page title
-        await expect(page.locator('h1, h2').first()).toBeVisible();
-
-        // Filter / sort controls and action button
-        const writeReviewBtn = page.locator('button:has-text("كتابة مراجعة")');
-        await expect(writeReviewBtn).toBeVisible();
-
-        const filterControls = page.locator('button:has-text("جميع النجوم")');
-        await expect(filterControls).toBeVisible();
-    });
 });

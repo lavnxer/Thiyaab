@@ -24,7 +24,7 @@ export default function ProductPage() {
     const navigate = useNavigate();
     const { showToast } = useToast();
     const { user, isAdmin } = useAuth();
-    const { isWishlisted, toggleWishlist, addToCart, homeOffer } = useShop();
+    const { isWishlisted, toggleWishlist, addToCart, homeOffer, cartItems } = useShop();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -36,8 +36,27 @@ export default function ProductPage() {
     const [activeTab, setActiveTab] = useState('details');
     const [likedRelated, setLikedRelated] = useState({});
     const [relatedList, setRelatedList] = useState([]);
-    const VISIBLE_COUNT = 4;
-    const maxRelatedIndex = Math.max(0, relatedList.length - VISIBLE_COUNT);
+
+    // Responsive visible count: 2 on mobile (<640px), 3 on tablet (<1024px), 4 on desktop
+    const [visibleCount, setVisibleCount] = useState(() => {
+        if (typeof window !== 'undefined') {
+            if (window.innerWidth < 640) return 2;
+            if (window.innerWidth < 1024) return 3;
+        }
+        return 4;
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 640) setVisibleCount(2);
+            else if (window.innerWidth < 1024) setVisibleCount(3);
+            else setVisibleCount(4);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const maxRelatedIndex = Math.max(0, relatedList.length - visibleCount);
     const [relatedIndex, setRelatedIndex] = useState(0);
     const [slideDirection, setSlideDirection] = useState('left');
 
@@ -78,6 +97,17 @@ export default function ProductPage() {
                     const colorNames = data.colors && data.colors.length > 0
                         ? data.colors.map(c => c.name)
                         : ['أسود', 'عنابي'];
+                    const colorImages = data.colors && data.colors.length > 0
+                        ? data.colors.map(c => c.image_url || c.image || null)
+                        : [];
+                    const colorObjects = data.colors && data.colors.length > 0
+                        ? data.colors.map(c => ({
+                            id: c.id,
+                            name: c.name,
+                            hex: c.hex,
+                            image: c.image_url || c.image || null
+                        }))
+                        : [];
                     const sizeDetails = data.sizes && data.sizes.length > 0
                         ? data.sizes.map(s => ({
                             size: s.size,
@@ -92,9 +122,17 @@ export default function ProductPage() {
                         ];
                     const sizes = sizeDetails.map(s => s.size);
 
-                    const images = data.images && data.images.length > 0
-                        ? data.images
+                    const baseImages = Array.isArray(data.images) && data.images.length > 0
+                        ? [...data.images]
                         : (data.image_url ? [data.image_url] : ['/images/coat_transparent.png']);
+
+                    // Collect all valid unique images including color-specific images
+                    const allUniqueImgs = [...baseImages];
+                    colorImages.forEach(cImg => {
+                        if (cImg && !allUniqueImgs.includes(cImg)) {
+                            allUniqueImgs.push(cImg);
+                        }
+                    });
 
                     setProduct({
                         id: data.id,
@@ -104,9 +142,11 @@ export default function ProductPage() {
                         category: data.category?.name || 'أزياء',
                         badge: data.is_new ? 'جديد' : (data.is_featured ? 'مميز' : null),
                         description: data.description || 'منتج فاخر مصمم بأعلى معايير الجودة والأناقة.',
-                        imgs: images,
+                        imgs: allUniqueImgs,
                         colors,
                         colorNames,
+                        colorImages,
+                        colorObjects,
                         sizes,
                         sizeDetails,
                         rating: data.rating || 4.9,
@@ -198,33 +238,51 @@ export default function ProductPage() {
         }
 
         // Check if chosen size is in stock
-        const chosenSizeDetail = product.sizeDetails?.find(s => s.size === selectedSize);
-        if (chosenSizeDetail && chosenSizeDetail.inStock === false) {
+        const chosenSize = selectedSize || 'قياسي';
+        const chosenSizeDetail = product.sizeDetails?.find(s => s.size === chosenSize);
+        const maxStock = chosenSizeDetail?.stockQty !== undefined && chosenSizeDetail?.stockQty !== null 
+            ? Number(chosenSizeDetail.stockQty) 
+            : 10;
+
+        if (chosenSizeDetail && (chosenSizeDetail.inStock === false || maxStock <= 0)) {
             showToast('عذراً، هذا المقاس غير متوفر في المخزون حالياً', 'error');
             return;
         }
 
-        setSelectionError(null);
         const chosenColor = selectedColor !== null && product.colorNames?.[selectedColor] 
             ? product.colorNames[selectedColor] 
             : 'أساسي';
-        const chosenSize = selectedSize || 'قياسي';
+
+        // Check current quantity in cart to not exceed actual stock
+        const existingInCart = cartItems?.find(i => 
+            String(i.productId || i.id) === String(product.id) && 
+            i.size === chosenSize && 
+            i.color === chosenColor
+        );
+        const currentQtyInCart = existingInCart ? (Number(existingInCart.qty) || 1) : 0;
+
+        if (currentQtyInCart >= maxStock) {
+            showToast(`عفواً، لقد وصلت إلى الحد الأقصى للمخزون المتوفر لهذا المقاس (${maxStock} قطع)`, 'error');
+            return;
+        }
+
+        setSelectionError(null);
 
         addToCart({
-            id: product.id,
             productId: product.id,
             name: product.name,
             price: product.price,
             oldPrice: product.oldPrice,
             category: product.category,
             qty: 1,
+            maxStock: maxStock,
             size: chosenSize,
             color: chosenColor,
-            img: product.imgs?.[0] || '/images/coat_transparent.png',
+            img: (selectedColor !== null && product.colorImages?.[selectedColor]) || product.imgs?.[activeImg] || product.imgs?.[0] || '/images/coat_transparent.png',
             availableSizes: product.sizes || [chosenSize],
             availableColors: product.colorNames || [chosenColor],
             colorObjects: product.colors && product.colorNames
-                ? product.colors.map((hex, i) => ({ hex, name: product.colorNames[i] }))
+                ? product.colors.map((hex, i) => ({ hex, name: product.colorNames[i], image: product.colorImages?.[i] }))
                 : []
         });
         showToast(`تمت إضافة "${product.name}" (${chosenSize} - ${chosenColor}) إلى السلة بنجاح`);
@@ -264,7 +322,7 @@ export default function ProductPage() {
 
     const visibleRelatedItems = relatedList.slice(
         safeIndex,
-        safeIndex + VISIBLE_COUNT
+        safeIndex + visibleCount
     );
 
     const bsItemVariants = {
@@ -312,28 +370,47 @@ export default function ProductPage() {
     const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0;
 
     return (
-        <div className="min-h-screen bg-brand-cream/20 text-brand-burgundy pt-28 pb-20 font-arabic" dir="rtl">
+        <div className="min-h-screen bg-brand-cream/20 text-brand-burgundy pt-20 sm:pt-28 pb-16 sm:pb-20 font-arabic" dir="rtl">
 
             {/* ─── Top Section: Gallery & Info ─── */}
-            <div className="container mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+            <div className="container mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
 
-                {/* Left: Gallery */}
-                <div className="flex gap-4 h-[600px]">
+                {/* Gallery: Responsive flex */}
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 h-auto sm:h-[480px] lg:h-[580px]">
                     {/* Thumbnails */}
-                    <div className="flex flex-col gap-4 overflow-y-auto scrollbar-hide py-1">
-                        {product.imgs.map((img, i) => (
-                            <button
-                                key={i}
-                                onClick={() => setActiveImg(i)}
-                                className={`w-20 h-24 rounded-xl overflow-hidden shrink-0 transition-all bg-brand-cream/40 ${activeImg === i ? 'opacity-100 border-2 border-brand-cream drop-shadow-sm' : 'opacity-50 hover:opacity-100 border-2 border-transparent'
+                    <div className="flex flex-row sm:flex-col gap-2.5 sm:gap-4 overflow-x-auto sm:overflow-y-auto no-scrollbar py-1 w-full sm:w-20 shrink-0 justify-center sm:justify-start">
+                        {product.imgs.map((img, i) => {
+                            const matchedColorIdx = product.colorImages?.findIndex(cImg => cImg === img);
+                            const matchedColor = matchedColorIdx !== undefined && matchedColorIdx !== -1 ? product.colorObjects?.[matchedColorIdx] : null;
+                            return (
+                                <button
+                                    key={i}
+                                    onClick={() => {
+                                        setActiveImg(i);
+                                        if (matchedColorIdx !== undefined && matchedColorIdx !== -1) {
+                                            setSelectedColor(matchedColorIdx);
+                                            if (selectionError === 'color') setSelectionError(null);
+                                            if (selectionError === 'both') setSelectionError('size');
+                                        }
+                                    }}
+                                    className={`w-14 h-16 sm:w-20 sm:h-24 rounded-xl overflow-hidden shrink-0 transition-all bg-brand-cream/40 cursor-pointer relative ${
+                                        activeImg === i ? 'opacity-100 border-2 border-[#800020] drop-shadow-sm scale-102 ring-2 ring-[#800020]/20' : 'opacity-50 hover:opacity-100 border-2 border-transparent'
                                     }`}
-                            >
-                                <img src={img} alt="" className="w-full h-full object-contain mix-blend-multiply bg-brand-cream/20" />
-                            </button>
-                        ))}
+                                >
+                                    <img src={img} alt="" className="w-full h-full object-contain mix-blend-multiply bg-brand-cream/20" />
+                                    {matchedColor && (
+                                        <span
+                                            className="absolute bottom-1 left-1 w-3 h-3 rounded-full border border-white shadow-xs"
+                                            style={{ backgroundColor: matchedColor.hex }}
+                                            title={`لون: ${matchedColor.name}`}
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                     {/* Main Image */}
-                    <div className="flex-1 bg-brand-cream/30 rounded-3xl relative flex items-center justify-center p-8 overflow-hidden">
+                    <div className="flex-1 w-full h-[360px] sm:h-full bg-brand-cream/30 rounded-2xl sm:rounded-3xl relative flex items-center justify-center p-2 sm:p-4 overflow-hidden shadow-xs">
                         <AnimatePresence mode="wait">
                             <motion.img
                                 key={activeImg}
@@ -343,7 +420,7 @@ export default function ProductPage() {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3 }}
-                                className="w-full h-full object-contain mix-blend-multiply"
+                                className="w-full h-full object-contain drop-shadow-md select-none pointer-events-none"
                             />
                         </AnimatePresence>
                     </div>
@@ -368,24 +445,24 @@ export default function ProductPage() {
                     )}
 
                     {product.badge && (
-                        <span className="bg-brand-burgundy text-brand-cream text-xs font-bold px-2.5 py-1 rounded w-fit mb-4">
+                        <span className="bg-brand-burgundy text-brand-cream text-xs font-bold px-3 py-1 rounded-full w-fit mb-3">
                             {product.badge}
                         </span>
                     )}
 
-                    <h1 className="text-4xl font-black mb-4">{product.name}</h1>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black mb-3 sm:mb-4 tracking-tight break-words">{product.name}</h1>
 
-                    <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-3 mb-5">
                         <StarRating rating={product.rating} />
                         <span className="text-sm font-medium opacity-70">{product.rating} ({product.reviews} تقييم)</span>
                     </div>
 
-                    <div className="flex items-center gap-4 mb-6">
-                        <span className="text-3xl font-black">{product.price} <RiyalIcon /></span>
+                    <div className="flex items-center gap-3 sm:gap-4 mb-6 flex-wrap">
+                        <span className="text-2xl sm:text-3xl font-black">{product.price} <RiyalIcon /></span>
                         {product.oldPrice && (
                             <>
-                                <span className="text-lg line-through opacity-40 font-medium">{product.oldPrice}</span>
-                                <span className="bg-brand-burgundy text-brand-cream text-xs font-bold px-2 py-1 rounded">خصم {discount}%</span>
+                                <span className="text-base sm:text-lg line-through opacity-40 font-medium">{product.oldPrice}</span>
+                                <span className="bg-brand-burgundy text-brand-cream text-xs font-bold px-2 py-0.5 rounded">خصم {discount}%</span>
                             </>
                         )}
                     </div>
@@ -403,18 +480,10 @@ export default function ProductPage() {
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm">اللون:</span>
-                                {selectedColor !== null ? (
+                                {selectedColor !== null && (
                                     <span className="text-brand-burgundy font-bold text-sm bg-brand-burgundy/10 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: product.colors[selectedColor] }} />
                                         {product.colorNames[selectedColor]}
-                                    </span>
-                                ) : (
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                        (selectionError === 'color' || selectionError === 'both')
-                                            ? 'text-red-600 bg-red-100/90 animate-pulse'
-                                            : 'text-brand-burgundy/50 bg-brand-burgundy/5'
-                                    }`}>
-                                        (يرجى اختيار اللون *)
                                     </span>
                                 )}
                             </div>
@@ -426,30 +495,47 @@ export default function ProductPage() {
                             )}
                         </div>
                         <div className="flex gap-3 flex-wrap">
-                            {product.colors.map((hex, i) => (
-                                <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedColor(i);
-                                        if (selectionError === 'color') setSelectionError(null);
-                                        if (selectionError === 'both') setSelectionError('size');
-                                    }}
-                                    title={product.colorNames[i] || ''}
-                                    className={`w-10 h-10 rounded-full relative flex items-center justify-center transition-all cursor-pointer ${
-                                        selectedColor === i 
-                                            ? 'ring-2 ring-brand-burgundy ring-offset-2 ring-offset-brand-cream/30 scale-110 shadow-md' 
-                                            : 'hover:scale-105 opacity-80 hover:opacity-100'
-                                    }`}
-                                >
-                                    <span className="w-8 h-8 rounded-full border border-brand-burgundy/20 shadow-inner" style={{ backgroundColor: hex }} />
-                                    {selectedColor === i && (
-                                        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <Check className="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" strokeWidth={3} />
-                                        </span>
-                                    )}
-                                </button>
-                            ))}
+                            {product.colors.map((hex, i) => {
+                                const cImg = product.colorImages?.[i];
+                                return (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedColor(i);
+                                            if (selectionError === 'color') setSelectionError(null);
+                                            if (selectionError === 'both') setSelectionError('size');
+
+                                            // When switching color, immediately switch the active main image!
+                                            if (cImg) {
+                                                const foundIdx = product.imgs.findIndex(img => img === cImg);
+                                                if (foundIdx !== -1) {
+                                                    setActiveImg(foundIdx);
+                                                } else {
+                                                    setProduct(prev => ({
+                                                        ...prev,
+                                                        imgs: [cImg, ...prev.imgs]
+                                                    }));
+                                                    setActiveImg(0);
+                                                }
+                                            }
+                                        }}
+                                        title={product.colorNames[i] || ''}
+                                        className={`w-10 h-10 rounded-full relative flex items-center justify-center transition-all cursor-pointer ${
+                                            selectedColor === i 
+                                                ? 'ring-2 ring-brand-burgundy ring-offset-2 ring-offset-brand-cream/30 scale-110 shadow-md' 
+                                                : 'hover:scale-105 opacity-80 hover:opacity-100'
+                                        }`}
+                                    >
+                                        <span className="w-8 h-8 rounded-full border border-brand-burgundy/20 shadow-inner" style={{ backgroundColor: hex }} />
+                                        {selectedColor === i && (
+                                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <Check className="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" strokeWidth={3} />
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -462,7 +548,7 @@ export default function ProductPage() {
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm">المقاس:</span>
-                                {selectedSize ? (
+                                {selectedSize && (
                                     <div className="flex items-center gap-2">
                                         <span className="text-brand-burgundy font-bold text-sm bg-brand-burgundy/10 px-2.5 py-0.5 rounded-full">
                                             {selectedSize}
@@ -475,14 +561,6 @@ export default function ProductPage() {
                                             return null;
                                         })()}
                                     </div>
-                                ) : (
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                        (selectionError === 'size' || selectionError === 'both')
-                                            ? 'text-red-600 bg-red-100/90 animate-pulse'
-                                            : 'text-brand-burgundy/50 bg-brand-burgundy/5'
-                                    }`}>
-                                        (يرجى اختيار المقاس *)
-                                    </span>
                                 )}
                             </div>
                             {(selectionError === 'size' || selectionError === 'both') && !selectedSize && (
@@ -496,7 +574,6 @@ export default function ProductPage() {
                             {(product.sizeDetails || product.sizes.map(s => ({ size: s, inStock: true, stockQty: 10 }))).map(item => {
                                 const sName = typeof item === 'string' ? item : item.size;
                                 const isAvailable = typeof item === 'string' ? true : (item.inStock !== false && item.stockQty > 0);
-                                const stockLeft = typeof item === 'object' ? item.stockQty : null;
 
                                 return (
                                     <button
@@ -509,7 +586,7 @@ export default function ProductPage() {
                                             if (selectionError === 'size') setSelectionError(null);
                                             if (selectionError === 'both') setSelectionError('color');
                                         }}
-                                        className={`relative min-w-[3.5rem] h-12 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer flex flex-col items-center justify-center ${
+                                        className={`relative min-w-[3.5rem] h-12 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer flex items-center justify-center ${
                                             !isAvailable
                                                 ? 'opacity-40 bg-gray-200/50 border-gray-300 text-gray-500 cursor-not-allowed line-through'
                                                 : selectedSize === sName
@@ -518,9 +595,6 @@ export default function ProductPage() {
                                         }`}
                                     >
                                         <span>{sName}</span>
-                                        {stockLeft !== null && stockLeft > 0 && stockLeft <= 5 && (
-                                            <span className="text-[9px] -mt-0.5 opacity-80">({stockLeft})</span>
-                                        )}
                                     </button>
                                 );
                             })}
@@ -529,13 +603,29 @@ export default function ProductPage() {
 
                     {/* Actions */}
                     <div className="flex gap-4 mb-10">
-                        <button
-                            onClick={handleAddToCart}
-                            className="shine-button flex-1 bg-brand-burgundy text-[#F0DFCD] rounded-xl h-14 flex items-center justify-center gap-3 font-bold cursor-pointer active:scale-98 transition-all shadow-sm hover:shadow-lg"
-                        >
-                            <ShoppingBag className="w-5 h-5 relative z-10" />
-                            <span className="relative z-10">أضف للسلة</span>
-                        </button>
+                        {(() => {
+                            const chosenSizeDetail = product.sizeDetails?.find(s => s.size === selectedSize);
+                            const isSelectedSizeOut = chosenSizeDetail && (chosenSizeDetail.inStock === false || chosenSizeDetail.stockQty <= 0);
+                            const isAllOut = product.inStock === false || (product.sizeDetails && product.sizeDetails.length > 0 && product.sizeDetails.every(s => s.inStock === false || s.stockQty <= 0));
+                            const isDisabled = isAllOut || isSelectedSizeOut;
+
+                            return (
+                                <button
+                                    onClick={handleAddToCart}
+                                    disabled={isDisabled}
+                                    className={`shine-button flex-1 rounded-xl h-14 flex items-center justify-center gap-3 font-bold transition-all shadow-sm ${
+                                        isDisabled
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                                            : 'bg-brand-burgundy text-[#F0DFCD] cursor-pointer active:scale-98 hover:shadow-lg'
+                                    }`}
+                                >
+                                    <ShoppingBag className="w-5 h-5 relative z-10" />
+                                    <span className="relative z-10">
+                                        {isAllOut ? 'نفد من المخزون' : isSelectedSizeOut ? 'المقاس غير متوفر' : 'أضف للسلة'}
+                                    </span>
+                                </button>
+                            );
+                        })()}
                         <ToggleIcon
                             Icon={Heart}
                             isActive={isLiked}
@@ -567,7 +657,7 @@ export default function ProductPage() {
             </div>
 
             {/* ─── Middle Section: Tabs ─── */}
-            <div className="container mx-auto px-6 mt-32">
+            <div className="container mx-auto px-4 sm:px-6 mt-14 sm:mt-24">
                 <div className="w-full">
                     {/* Tab Headers */}
                     <div className="flex gap-8 border-b border-brand-burgundy/10 mb-8 overflow-x-auto scrollbar-hide">
@@ -697,12 +787,12 @@ export default function ProductPage() {
             </div>
 
             {/* ─── Bottom Section: Related Products ─── */}
-            <div className="container mx-auto px-6 mt-32">
-                <div className="mb-8">
-                    <h2 className="text-2xl font-black text-brand-burgundy">قد يعجبك أيضاً</h2>
+            <div className="container mx-auto px-3 sm:px-6 mt-14 sm:mt-24">
+                <div className="mb-6 sm:mb-8 text-center sm:text-right">
+                    <h2 className="text-xl sm:text-2xl font-black text-brand-burgundy">قد يعجبك أيضاً</h2>
                 </div>
 
-                <div className="relative w-full text-[#800020] py-6 px-4 sm:px-8 lg:px-10">
+                <div className="relative w-full text-[#800020] py-2 sm:py-6 px-1 sm:px-8 lg:px-10">
                     {/* Right Arrow (السابق - يمين) */}
                     <motion.button
                         onClick={handlePrevRelated}
@@ -710,7 +800,7 @@ export default function ProductPage() {
                         aria-label="المنتجات السابقة"
                         initial="rest"
                         whileHover={!isAtStart ? "hover" : "rest"}
-                        className={`group flex absolute -right-2 sm:-right-4 md:-right-6 top-1/2 -translate-y-1/2 z-30 p-2 items-center justify-center focus:outline-none bg-transparent border-0 shadow-none transition-all duration-200 ${isAtStart ? 'opacity-20 cursor-not-allowed pointer-events-none' : 'opacity-100 cursor-pointer hover:scale-110 active:scale-95'
+                        className={`group flex absolute right-0 sm:right-1 md:right-2 top-1/2 -translate-y-1/2 z-30 p-2 items-center justify-center focus:outline-none bg-transparent border-0 shadow-none transition-all duration-200 ${isAtStart ? 'opacity-20 cursor-not-allowed pointer-events-none' : 'opacity-100 cursor-pointer hover:scale-110 active:scale-95'
                             }`}
                     >
                         <svg viewBox="0 0 24 24" className="w-8 h-8 md:w-10 md:h-10 overflow-visible">
@@ -805,7 +895,7 @@ export default function ProductPage() {
                         aria-label="المنتجات التالية"
                         initial="rest"
                         whileHover={!isAtEnd ? "hover" : "rest"}
-                        className={`group flex absolute -left-2 sm:-left-4 md:-left-6 top-1/2 -translate-y-1/2 z-30 p-2 items-center justify-center focus:outline-none bg-transparent border-0 shadow-none transition-all duration-200 ${isAtEnd ? 'opacity-20 cursor-not-allowed pointer-events-none' : 'opacity-100 cursor-pointer hover:scale-110 active:scale-95'
+                        className={`group flex absolute left-0 sm:left-1 md:left-2 top-1/2 -translate-y-1/2 z-30 p-2 items-center justify-center focus:outline-none bg-transparent border-0 shadow-none transition-all duration-200 ${isAtEnd ? 'opacity-20 cursor-not-allowed pointer-events-none' : 'opacity-100 cursor-pointer hover:scale-110 active:scale-95'
                             }`}
                     >
                         <svg viewBox="0 0 24 24" className="w-8 h-8 md:w-10 md:h-10 overflow-visible">

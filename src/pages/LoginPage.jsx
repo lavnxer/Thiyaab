@@ -12,16 +12,72 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const { signIn, signUp, signInWithGoogle, signInWithApple } = useAuth();
+    const { signIn, signUp } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        const cleanEmail = form.email.trim();
+        const cleanPassword = form.password;
+        const cleanName = form.name.trim();
+
+        // 1. Email validation (max 60, valid email format)
+        if (!cleanEmail) {
+            setError('يرجى إدخال البريد الإلكتروني');
+            return;
+        }
+        if (cleanEmail.length > 60) {
+            setError('البريد الإلكتروني يجب ألا يتجاوز 60 خانة');
+            return;
+        }
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(cleanEmail)) {
+            setError('يرجى إدخال بريد إلكتروني صالح (مثال: name@domain.com)');
+            return;
+        }
+
+        // 2. Password validation (max 60, standard ascii printable password characters only, no decoration/arabic/emojis)
+        if (!cleanPassword) {
+            setError('يرجى إدخال كلمة المرور');
+            return;
+        }
+        if (cleanPassword.length < 6) {
+            setError('كلمة المرور يجب أن تكون 6 خانات على الأقل');
+            return;
+        }
+        if (cleanPassword.length > 60) {
+            setError('كلمة المرور يجب ألا تتجاوز 60 خانة');
+            return;
+        }
+        const standardPasswordRegex = /^[\x20-\x7E]{6,60}$/;
+        if (!standardPasswordRegex.test(cleanPassword)) {
+            setError('كلمة المرور يجب أن تحتوي فقط على أحرف إنجليزية وأرقام ورموز قياسية وبدون زخرفة');
+            return;
+        }
+
+        // 3. Name validation for signup (max 60, Arabic, English, digits, spaces only)
+        if (!isLogin) {
+            if (!cleanName) {
+                setError('يرجى إدخال الاسم الكامل');
+                return;
+            }
+            if (cleanName.length > 60) {
+                setError('الاسم الكامل يجب ألا يتجاوز 60 حرفاً');
+                return;
+            }
+            const nameRegex = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\u0660-\u0669\s]{2,60}$/;
+            if (!nameRegex.test(cleanName)) {
+                setError('الاسم يجب أن يحتوي فقط على أحرف عربية أو إنجليزية وأرقام ومسافات وبدون رموز أو زخرفة (بحد أقصى 60 حرفاً)');
+                return;
+            }
+        }
+
         setLoading(true);
 
         try {
             if (isLogin) {
-                const { error: authError } = await signIn(form.email, form.password);
+                const { error: authError } = await signIn(cleanEmail, cleanPassword);
                 if (authError) {
                     if (authError.message.includes('Invalid login')) {
                         setError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
@@ -31,11 +87,7 @@ export default function LoginPage() {
                     return;
                 }
             } else {
-                if (!form.name.trim()) {
-                    setError('يرجى إدخال الاسم الكامل');
-                    return;
-                }
-                const { error: authError } = await signUp(form.email, form.password, form.name);
+                const { error: authError } = await signUp(cleanEmail, cleanPassword, cleanName);
                 if (authError) {
                     if (authError.message.includes('already registered')) {
                         setError('هذا البريد مسجل مسبقاً، يرجى تسجيل الدخول');
@@ -61,14 +113,6 @@ export default function LoginPage() {
         }
     };
 
-    const handleOAuth = async (provider) => {
-        setError('');
-        if (provider === 'Google') {
-            await signInWithGoogle();
-        } else {
-            await signInWithApple();
-        }
-    };
 
     return (
         <div className="min-h-screen bg-[#F0DFCD] flex" dir="rtl">
@@ -138,44 +182,73 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                         {!isLogin && (
                             <motion.div key="name" initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} transition={{duration:0.3}}>
-                                <label className="block text-[#800020] font-bold text-sm mb-2">الاسم الكامل</label>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-[#800020] font-bold text-sm">الاسم الكامل</label>
+                                    <span className="text-[11px] text-[#800020]/50 font-mono">
+                                        {form.name.length}/60
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     placeholder="محمد عبدالله"
+                                    maxLength={60}
                                     value={form.name}
-                                    onChange={e => setForm(f => ({...f, name: e.target.value}))}
+                                    onChange={e => {
+                                        const filtered = e.target.value
+                                            .replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\u0660-\u0669\s]/g, '')
+                                            .slice(0, 60);
+                                        setForm(f => ({...f, name: filtered}));
+                                    }}
                                     className="w-full bg-[#800020]/5 border border-[#800020]/20 rounded-sm px-4 py-3.5 text-[#800020] placeholder-[#800020]/40 focus:outline-none focus:border-[#800020] focus:bg-[#800020]/10 transition font-medium"
                                 />
                             </motion.div>
                         )}
 
                         <div>
-                            <label className="block text-[#800020] font-bold text-sm mb-2">البريد الإلكتروني</label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-[#800020] font-bold text-sm">البريد الإلكتروني</label>
+                                <span className="text-[11px] text-[#800020]/50 font-mono">
+                                    {form.email.length}/60
+                                </span>
+                            </div>
                             <input
                                 type="email"
                                 placeholder="example@email.com"
+                                maxLength={60}
                                 value={form.email}
-                                onChange={e => setForm(f => ({...f, email: e.target.value}))}
+                                onChange={e => {
+                                    const filtered = e.target.value.replace(/\s/g, '').slice(0, 60);
+                                    setForm(f => ({...f, email: filtered}));
+                                }}
                                 className="w-full bg-[#800020]/5 border border-[#800020]/20 rounded-sm px-4 py-3.5 text-[#800020] placeholder-[#800020]/40 focus:outline-none focus:border-[#800020] focus:bg-[#800020]/10 transition font-medium"
                                 required
                             />
                         </div>
 
                         <div>
-                            <div className="flex justify-between mb-2">
+                            <div className="flex justify-between items-center mb-2">
                                 <label className="text-[#800020] font-bold text-sm">كلمة المرور</label>
-                                {isLogin && (
-                                    <a href="#" className="text-[#800020]/60 hover:text-[#800020] text-sm font-medium transition">
-                                        نسيت كلمة المرور؟
-                                    </a>
-                                )}
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[11px] text-[#800020]/50 font-mono">
+                                        {form.password.length}/60
+                                    </span>
+                                    {isLogin && (
+                                        <a href="#" className="text-[#800020]/60 hover:text-[#800020] text-sm font-medium transition">
+                                            نسيت كلمة المرور؟
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                             <div className="relative">
                                 <input
                                     type={showPass ? 'text' : 'password'}
                                     placeholder="••••••••"
+                                    maxLength={60}
                                     value={form.password}
-                                    onChange={e => setForm(f => ({...f, password: e.target.value}))}
+                                    onChange={e => {
+                                        const filtered = e.target.value.replace(/[^\x20-\x7E]/g, '').slice(0, 60);
+                                        setForm(f => ({...f, password: filtered}));
+                                    }}
                                     className="w-full bg-[#800020]/5 border border-[#800020]/20 rounded-sm px-4 py-3.5 text-[#800020] placeholder-[#800020]/40 focus:outline-none focus:border-[#800020] focus:bg-[#800020]/10 transition font-medium pl-12"
                                     required
                                     minLength={6}
@@ -200,20 +273,6 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="mt-8 flex items-center gap-4">
-                        <div className="flex-1 h-px bg-[#800020]/20" />
-                        <span className="text-[#800020]/50 text-sm font-medium">أو تابع بـ</span>
-                        <div className="flex-1 h-px bg-[#800020]/20" />
-                    </div>
-
-                    <div className="mt-6 grid grid-cols-2 gap-4">
-                        {['Google', 'Apple'].map(provider => (
-                            <button key={provider} onClick={() => handleOAuth(provider)}
-                                className="flex items-center justify-center gap-2 border border-[#800020]/20 rounded-sm py-3 text-[#800020] font-bold text-sm hover:bg-[#800020]/5 transition">
-                                {provider}
-                            </button>
-                        ))}
-                    </div>
 
                 </motion.div>
             </div>

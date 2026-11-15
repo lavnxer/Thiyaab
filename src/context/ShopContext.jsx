@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
-import { cartApi, wishlistApi, productsApi, ordersApi } from '../lib/api';
+import { cartApi, wishlistApi, productsApi, ordersApi, settingsApi } from '../lib/api';
 import { DEFAULT_HOME_OFFER } from '../data/homeOfferData';
 import { DEFAULT_HOME_SECTIONS } from '../data/homeSectionsData';
 
@@ -29,21 +29,53 @@ export function ShopProvider({ children }) {
     });
 
     // 0.1 Home Page Offer Banner State (Synced across admin & store)
+    // 0.1 Home Page Offer Banner State (Synced across admin & store)
     const [homeOffer, setHomeOffer] = useState(() => {
         try {
             const savedOffer = localStorage.getItem('thyiaab_home_offer');
             if (savedOffer) {
-                return { ...DEFAULT_HOME_OFFER, ...JSON.parse(savedOffer) };
+                const parsed = JSON.parse(savedOffer);
+                if (parsed.imageOffsetX === 65 || parsed.imageOffsetX === 85 || parsed.imageOffsetX === 95) {
+                    parsed.imageOffsetX = DEFAULT_HOME_OFFER.imageOffsetX;
+                }
+                let offer = { ...DEFAULT_HOME_OFFER, ...parsed };
+                if (!offer.endTimestamp || isNaN(Number(offer.endTimestamp))) {
+                    const daysMs = (Number(offer.durationDays) || 3) * 86400000;
+                    const hoursMs = (Number(offer.durationHours) || 23) * 3600000;
+                    const minsMs = (Number(offer.durationMinutes) || 15) * 60000;
+                    const secsMs = (Number(offer.durationSeconds) || 33) * 1000;
+                    offer.endTimestamp = Date.now() + daysMs + hoursMs + minsMs + secsMs;
+                    localStorage.setItem('thyiaab_home_offer', JSON.stringify(offer));
+                }
+                return offer;
             }
             const savedSections = localStorage.getItem('thyiaab_home_sections');
             if (savedSections) {
                 const parsed = JSON.parse(savedSections);
-                if (parsed.offer) return { ...DEFAULT_HOME_OFFER, ...parsed.offer };
+                if (parsed.offer) {
+                    let offer = { ...DEFAULT_HOME_OFFER, ...parsed.offer };
+                    if (!offer.endTimestamp || isNaN(Number(offer.endTimestamp))) {
+                        const daysMs = (Number(offer.durationDays) || 3) * 86400000;
+                        const hoursMs = (Number(offer.durationHours) || 23) * 3600000;
+                        const minsMs = (Number(offer.durationMinutes) || 15) * 60000;
+                        const secsMs = (Number(offer.durationSeconds) || 33) * 1000;
+                        offer.endTimestamp = Date.now() + daysMs + hoursMs + minsMs + secsMs;
+                        localStorage.setItem('thyiaab_home_offer', JSON.stringify(offer));
+                    }
+                    return offer;
+                }
             }
         } catch (e) {
             console.error('Failed to parse home offer from localStorage:', e);
         }
-        return DEFAULT_HOME_OFFER;
+        const initialOffer = {
+            ...DEFAULT_HOME_OFFER,
+            endTimestamp: Date.now() + (3 * 86400000) + (23 * 3600000) + (15 * 60000) + (33 * 1000)
+        };
+        try {
+            localStorage.setItem('thyiaab_home_offer', JSON.stringify(initialOffer));
+        } catch {}
+        return initialOffer;
     });
 
     const updateHomeSection = useCallback((sectionKey, updatedData) => {
@@ -56,11 +88,23 @@ export function ShopProvider({ children }) {
                 if (sectionKey === 'offer') {
                     localStorage.setItem('thyiaab_home_offer', JSON.stringify(newSec));
                     setHomeOffer(newSec);
+                    window.dispatchEvent(new CustomEvent('thyiaab_home_offer_updated', { detail: newSec }));
                 }
                 window.dispatchEvent(new CustomEvent('thyiaab_home_sections_updated', { detail: next }));
             } catch (e) {
-                console.error('Failed to save home section:', e);
+                console.error('Failed to save home section to localStorage:', e);
             }
+
+            // Sync with Supabase store_settings asynchronously
+            settingsApi.set('home_sections', next).catch(err => {
+                console.error('Failed to sync home_sections with Supabase:', err);
+            });
+            if (sectionKey === 'offer') {
+                settingsApi.set('home_offer', newSec).catch(err => {
+                    console.error('Failed to sync home_offer with Supabase:', err);
+                });
+            }
+
             return next;
         });
     }, []);
@@ -81,6 +125,9 @@ export function ShopProvider({ children }) {
         } catch (e) {
             console.error('Failed to reset all home sections:', e);
         }
+        // Sync reset with Supabase
+        settingsApi.set('home_sections', DEFAULT_HOME_SECTIONS).catch(() => {});
+        settingsApi.set('home_offer', DEFAULT_HOME_SECTIONS.offer).catch(() => {});
     }, []);
 
     const updateHomeOffer = useCallback((updatedOffer) => {
@@ -141,6 +188,42 @@ export function ShopProvider({ children }) {
         fetchTopSellingProducts();
     }, [fetchTopSellingProducts]);
 
+    // Load remote store settings (Home Sections, Offers) from Supabase store_settings
+    useEffect(() => {
+        let isMounted = true;
+        const loadRemoteSettings = async () => {
+            try {
+                const { data: remoteSections } = await settingsApi.get('home_sections');
+                if (remoteSections && isMounted) {
+                    setHomeSections(prev => ({
+                        menOutfit: { ...DEFAULT_HOME_SECTIONS.menOutfit, ...(remoteSections.menOutfit || {}) },
+                        bestSellers: { ...DEFAULT_HOME_SECTIONS.bestSellers, ...(remoteSections.bestSellers || {}) },
+                        womenOutfit: { ...DEFAULT_HOME_SECTIONS.womenOutfit, ...(remoteSections.womenOutfit || {}) },
+                        offer: { ...DEFAULT_HOME_SECTIONS.offer, ...(remoteSections.offer || {}) }
+                    }));
+                    if (remoteSections.offer) {
+                        setHomeOffer(prev => ({ ...prev, ...remoteSections.offer }));
+                    }
+                    try {
+                        localStorage.setItem('thyiaab_home_sections', JSON.stringify(remoteSections));
+                    } catch {}
+                }
+
+                const { data: remoteOffer } = await settingsApi.get('home_offer');
+                if (remoteOffer && isMounted) {
+                    setHomeOffer(prev => ({ ...prev, ...remoteOffer }));
+                    try {
+                        localStorage.setItem('thyiaab_home_offer', JSON.stringify(remoteOffer));
+                    } catch {}
+                }
+            } catch (err) {
+                console.warn('Failed to load store settings from Supabase:', err);
+            }
+        };
+        loadRemoteSettings();
+        return () => { isMounted = false; };
+    }, []);
+
     // Listen to custom event or storage event for multi-tab sync
     useEffect(() => {
         const handleSync = (e) => {
@@ -172,7 +255,23 @@ export function ShopProvider({ children }) {
     const [cartItems, setCartItems] = useState(() => {
         try {
             const saved = localStorage.getItem('thyiaab_cart_items');
-            return saved ? JSON.parse(saved) : [];
+            if (!saved) return [];
+            const parsed = JSON.parse(saved);
+            if (!Array.isArray(parsed)) return [];
+            const seen = new Set();
+            return parsed.map((item, idx) => {
+                let uniqueId = item.id;
+                // If id is missing, or already seen, or identical to productId (was accidentally product.id):
+                if (!uniqueId || seen.has(String(uniqueId)) || (item.productId && String(uniqueId) === String(item.productId))) {
+                    uniqueId = `cart-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
+                }
+                seen.add(String(uniqueId));
+                return {
+                    ...item,
+                    id: uniqueId,
+                    productId: item.productId || item.product_id || item.id
+                };
+            });
         } catch {
             return [];
         }
@@ -344,6 +443,20 @@ export function ShopProvider({ children }) {
         const size = item.size || '';
         const color = item.color || '';
         const qtyToAdd = Number(item.qty) || 1;
+        const uniqueCartRowId = item.cartItemId || (typeof item.id === 'string' && item.id.startsWith('cart-') ? item.id : `cart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+
+        // Compute max available stock
+        let itemMaxStock = 99;
+        if (item.maxStock !== undefined && item.maxStock !== null) {
+            itemMaxStock = Number(item.maxStock);
+        } else if (item.stockQty !== undefined && item.stockQty !== null) {
+            itemMaxStock = Number(item.stockQty);
+        } else if (item.product?.sizes && Array.isArray(item.product.sizes)) {
+            const sz = item.product.sizes.find(s => s.size === size);
+            if (sz?.stock_qty !== undefined && sz?.stock_qty !== null) {
+                itemMaxStock = Number(sz.stock_qty);
+            }
+        }
 
         setCartItems(prev => {
             const existingIndex = prev.findIndex(i => 
@@ -353,20 +466,33 @@ export function ShopProvider({ children }) {
             );
 
             if (existingIndex > -1) {
+                const currentQty = Number(prev[existingIndex].qty) || 1;
+                const effectiveMax = prev[existingIndex].maxStock !== undefined 
+                    ? Number(prev[existingIndex].maxStock) 
+                    : itemMaxStock;
+
+                if (currentQty >= effectiveMax) {
+                    return prev;
+                }
+
                 const updated = [...prev];
+                const newQty = Math.min(currentQty + qtyToAdd, effectiveMax);
                 updated[existingIndex] = {
                     ...updated[existingIndex],
-                    qty: (updated[existingIndex].qty || 1) + qtyToAdd
+                    qty: newQty,
+                    maxStock: effectiveMax
                 };
                 return updated;
             } else {
+                const allowedQty = Math.min(qtyToAdd, itemMaxStock);
                 const newCartItem = {
-                    id: item.id || 'cart-' + Date.now(),
+                    id: uniqueCartRowId,
                     productId: prodId,
                     name: item.name || 'منتج فاخر',
                     price: Number(item.price || 0),
                     oldPrice: item.oldPrice ? Number(item.oldPrice) : null,
-                    qty: qtyToAdd,
+                    qty: allowedQty,
+                    maxStock: itemMaxStock,
                     size,
                     color,
                     img: item.img || item.image || (item.imgs && item.imgs[0]) || '/images/coat_transparent.png',
@@ -386,7 +512,7 @@ export function ShopProvider({ children }) {
                 if (data?.id) {
                     // Update temp local id to real database id silently
                     setCartItems(prev => prev.map(ci => 
-                        String(ci.productId) === String(prodId) && ci.size === size && ci.color === color && !ci.id.includes('-')
+                        ci.id === uniqueCartRowId
                             ? { ...ci, id: data.id }
                             : ci
                     ));
@@ -414,10 +540,18 @@ export function ShopProvider({ children }) {
             return;
         }
 
-        setCartItems(prev => prev.map(i => i.id === itemId ? { ...i, qty: newQty } : i));
+        let effectiveQty = newQty;
+        setCartItems(prev => prev.map(i => {
+            if (i.id === itemId) {
+                const maxStock = i.maxStock !== undefined ? Number(i.maxStock) : 99;
+                effectiveQty = Math.min(newQty, maxStock);
+                return { ...i, qty: effectiveQty };
+            }
+            return i;
+        }));
 
         if (user && typeof itemId === 'string' && itemId.includes('-') && !itemId.startsWith('cart-')) {
-            cartApi.updateQuantity(itemId, newQty).catch(err => {
+            cartApi.updateQuantity(itemId, effectiveQty).catch(err => {
                 console.error('Background cart update failed:', err);
             });
         }

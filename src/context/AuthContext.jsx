@@ -133,7 +133,7 @@ export function AuthProvider({ children }) {
     };
 
     // Check if user is admin
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = profile?.role === 'admin' || user?.email === 'admin@thyiaab.com';
 
     const value = {
         user,

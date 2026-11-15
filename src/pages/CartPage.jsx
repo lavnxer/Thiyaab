@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
-import { ordersApi, productsApi } from '../lib/api';
+import { ordersApi, productsApi, cartApi } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 const getColorHex = (colorName = '') => {
@@ -34,23 +34,77 @@ export default function CartPage() {
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [productsMap, setProductsMap] = useState({});
 
-    // Fetch and index real products from database to link dropdown options to actual product definitions
+    // Ensure every item in cart has a strictly unique id
+    useEffect(() => {
+        if (!cartItems || cartItems.length === 0) return;
+        const seen = new Set();
+        let hasDuplicates = false;
+        for (const it of cartItems) {
+            const idStr = String(it.id || '');
+            if (!it.id || seen.has(idStr)) {
+                hasDuplicates = true;
+                break;
+            }
+            seen.add(idStr);
+        }
+        if (hasDuplicates) {
+            const newSeen = new Set();
+            setCartItems(prev => prev.map((it, idx) => {
+                let uId = it.id;
+                if (!uId || newSeen.has(String(uId))) {
+                    uId = `cart-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
+                }
+                newSeen.add(String(uId));
+                return { ...it, id: uId };
+            }));
+        }
+    }, [cartItems, setCartItems]);
+
+    // Fetch and index real products from database to link dropdown options to actual product definitions and live stock
     useEffect(() => {
         let isMounted = true;
-        productsApi.getAll().then(({ data }) => {
-            if (!isMounted || !data) return;
-            const map = {};
-            data.forEach(p => {
-                map[p.id] = p;
-                map[String(p.id)] = p;
-                if (p.name) {
-                    map[p.name.trim()] = p;
-                }
+        const fetchStockData = () => {
+            productsApi.getAll().then(({ data }) => {
+                if (!isMounted || !data) return;
+                const map = {};
+                data.forEach(p => {
+                    map[p.id] = p;
+                    map[String(p.id)] = p;
+                    if (p.name) {
+                        map[p.name.trim()] = p;
+                    }
+                });
+                setProductsMap(map);
             });
-            setProductsMap(map);
-        });
-        return () => { isMounted = false; };
+        };
+
+        fetchStockData();
+        window.addEventListener('thyiaab_stock_updated', fetchStockData);
+
+        return () => { 
+            isMounted = false; 
+            window.removeEventListener('thyiaab_stock_updated', fetchStockData);
+        };
     }, []);
+
+    // Helper to get maximum available stock for an item in the cart
+    const getMaxStockForItem = (item) => {
+        const prodId = item.productId || item.id;
+        const prod = productsMap[prodId] || productsMap[String(prodId)] || (item.name ? productsMap[item.name.trim()] : null) || item.product;
+        if (prod?.sizes && prod.sizes.length > 0) {
+            const matchingSize = prod.sizes.find(s => isSizeMatch(item.size, s.size));
+            if (matchingSize && matchingSize.stock_qty !== undefined && matchingSize.stock_qty !== null) {
+                return Math.max(0, Number(matchingSize.stock_qty));
+            }
+            if (prod.sizes.length === 1 && prod.sizes[0].stock_qty !== undefined && prod.sizes[0].stock_qty !== null) {
+                return Math.max(0, Number(prod.sizes[0].stock_qty));
+            }
+        }
+        if (item.maxStock !== undefined && item.maxStock !== null) {
+            return Math.max(0, Number(item.maxStock));
+        }
+        return 10;
+    };
 
     // Helper to check color match
     const isColorMatch = (itemColor = '', optColor = '') => {
@@ -205,6 +259,22 @@ export default function CartPage() {
             showToast(`يرجى تحديد المقاس واللون للمنتج "${invalidItem.name}" للمتابعة لإتمام الشراء`, 'error');
             return;
         }
+
+        // Validate that cart quantities do not exceed actual stock
+        const overstocked = cartItems.find(i => {
+            const maxS = getMaxStockForItem(i);
+            return (Number(i.qty) || 1) > maxS;
+        });
+        if (overstocked) {
+            const maxS = getMaxStockForItem(overstocked);
+            showToast(`الكمية المطلوبة للمنتج "${overstocked.name}" تتجاوز المخزون الفعلي (${maxS} قطع). تم ضبط الكمية لتطابق المخزون.`, 'error');
+            setCartItems(prev => prev.map(x => {
+                const ms = getMaxStockForItem(x);
+                return { ...x, qty: Math.max(1, Math.min(Number(x.qty) || 1, ms)), maxStock: ms };
+            }));
+            return;
+        }
+
         navigate('/checkout');
     };
 
@@ -212,6 +282,21 @@ export default function CartPage() {
         if (!user) {
             showToast('يرجى تسجيل الدخول لإتمام عملية الشراء', 'info');
             navigate('/login');
+            return;
+        }
+
+        // Validate that cart quantities do not exceed actual stock
+        const overstocked = cartItems.find(i => {
+            const maxS = getMaxStockForItem(i);
+            return (Number(i.qty) || 1) > maxS;
+        });
+        if (overstocked) {
+            const maxS = getMaxStockForItem(overstocked);
+            showToast(`الكمية المطلوبة للمنتج "${overstocked.name}" تتجاوز المخزون الفعلي (${maxS} قطع). تم ضبط الكمية لتطابق المخزون.`, 'error');
+            setCartItems(prev => prev.map(x => {
+                const ms = getMaxStockForItem(x);
+                return { ...x, qty: Math.max(1, Math.min(Number(x.qty) || 1, ms)), maxStock: ms };
+            }));
             return;
         }
 
@@ -260,7 +345,10 @@ export default function CartPage() {
         if (!activeDropdown) return;
 
         const handleClickOutside = (e) => {
-            if (e.target.closest(`[data-dropdown-container="${activeDropdown.id}-${activeDropdown.type}"]`)) {
+            const targetContainer = activeDropdown.rowKey
+                ? `[data-dropdown-container="${activeDropdown.rowKey}-${activeDropdown.type}"]`
+                : `[data-dropdown-container="${activeDropdown.id}-${activeDropdown.type}"]`;
+            if (e.target.closest(targetContainer)) {
                 return;
             }
             setActiveDropdown(null);
@@ -291,6 +379,9 @@ export default function CartPage() {
                                 {cartItems.map((item, i) => {
                                     const itemColors = getItemColorOptions(item);
                                     const itemSizes = getItemSizeOptions(item);
+                                    const rowKey = `${item.id || 'item'}_row_${i}`;
+                                    const isColorOpen = activeDropdown?.rowKey === rowKey && activeDropdown.type === 'color';
+                                    const isSizeOpen = activeDropdown?.rowKey === rowKey && activeDropdown.type === 'size';
 
                                     return (
                                         <motion.div
@@ -298,14 +389,17 @@ export default function CartPage() {
                                             initial={{ opacity: 0, y: 15 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.95 }}
-                                            key={item.id}
-                                            style={{ zIndex: activeDropdown?.id === item.id ? 40 : cartItems.length - i }}
+                                            key={item.id ? `${item.id}-${i}` : i}
+                                            style={{ zIndex: (isColorOpen || isSizeOpen) ? 40 : cartItems.length - i }}
                                             className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5 relative border-b border-brand-burgundy/15 last:border-b-0"
                                         >
                                             <AnimatedSadX
                                                 onClick={() => {
-                                                    removeFromCart(item.id);
+                                                    setCartItems(prev => prev.filter((_, idx) => idx !== i));
                                                     showToast(`تمت إزالة "${item.name}" من السلة`);
+                                                    if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
+                                                        cartApi.removeItem(item.id).catch(() => {});
+                                                    }
                                                 }}
                                                 buttonClassName="absolute top-4 left-4 text-brand-burgundy/60 hover:text-brand-burgundy transition-colors p-1 rounded-lg hover:bg-white/40"
                                                 strokeWidth={1.5}
@@ -343,14 +437,14 @@ export default function CartPage() {
                                                     {/* Color and Size */}
                                                     <div className="flex items-center gap-2.5">
                                                         {/* Color Dropdown */}
-                                                        <div className="relative" data-dropdown-container={`${item.id}-color`}>
+                                                        <div className="relative" data-dropdown-container={`${rowKey}-color`}>
                                                             <div
                                                                 className={`h-8 px-3 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition-all shadow-xs select-none whitespace-nowrap ${
                                                                     !item.color || item.color === 'حسب الطلب' || item.color === 'غير محدد'
                                                                         ? 'border border-red-500/50 bg-red-500/10 text-red-700'
                                                                         : 'bg-transparent border border-brand-burgundy/25 text-brand-burgundy hover:border-brand-burgundy/50 hover:bg-brand-burgundy/5'
                                                                 }`}
-                                                                onClick={() => setActiveDropdown(activeDropdown?.id === item.id && activeDropdown.type === 'color' ? null : { id: item.id, type: 'color' })}
+                                                                onClick={() => setActiveDropdown(isColorOpen ? null : { rowKey, index: i, id: item.id, type: 'color' })}
                                                             >
                                                                 <span className="text-xs font-bold whitespace-nowrap leading-none flex items-center gap-1.5">
                                                                     {item.color && item.color !== 'حسب الطلب' && item.color !== 'غير محدد' ? (
@@ -363,10 +457,10 @@ export default function CartPage() {
                                                                         </>
                                                                     ) : 'اللون *'}
                                                                 </span>
-                                                                <ChevronDown className={`w-3.5 h-3.5 text-current shrink-0 transition-transform duration-200 ${activeDropdown?.id === item.id && activeDropdown.type === 'color' ? 'rotate-180' : ''}`} strokeWidth={2.5} />
+                                                                <ChevronDown className={`w-3.5 h-3.5 text-current shrink-0 transition-transform duration-200 ${isColorOpen ? 'rotate-180' : ''}`} strokeWidth={2.5} />
                                                             </div>
                                                             <AnimatePresence>
-                                                                {activeDropdown?.id === item.id && activeDropdown.type === 'color' && (
+                                                                {isColorOpen && (
                                                                     <motion.div
                                                                         initial={{ opacity: 0, y: -5, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -5, scale: 0.98 }}
                                                                         transition={{ duration: 0.16 }}
@@ -382,7 +476,7 @@ export default function CartPage() {
                                                                                         isSelected ? 'text-brand-burgundy bg-brand-burgundy/10' : 'text-brand-dark'
                                                                                     }`}
                                                                                     onClick={() => {
-                                                                                        setCartItems(prev => prev.map(x => x.id === item.id ? { ...x, color: c.name } : x));
+                                                                                        setCartItems(prev => prev.map((x, idx) => idx === i ? { ...x, color: c.name } : x));
                                                                                         setActiveDropdown(null);
                                                                                         showToast(`تم اختيار اللون: ${c.name}`);
                                                                                         if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
@@ -409,22 +503,22 @@ export default function CartPage() {
                                                         </div>
 
                                                         {/* Size Dropdown */}
-                                                        <div className="relative" data-dropdown-container={`${item.id}-size`}>
+                                                        <div className="relative" data-dropdown-container={`${rowKey}-size`}>
                                                             <div
                                                                 className={`h-8 px-3 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition-all shadow-xs select-none whitespace-nowrap ${
                                                                     !item.size || item.size === 'غير محدد'
                                                                         ? 'border border-red-500/50 bg-red-500/10 text-red-700'
                                                                         : 'bg-transparent border border-brand-burgundy/25 text-brand-burgundy hover:border-brand-burgundy/50 hover:bg-brand-burgundy/5'
                                                                 }`}
-                                                                onClick={() => setActiveDropdown(activeDropdown?.id === item.id && activeDropdown.type === 'size' ? null : { id: item.id, type: 'size' })}
+                                                                onClick={() => setActiveDropdown(isSizeOpen ? null : { rowKey, index: i, id: item.id, type: 'size' })}
                                                             >
                                                                 <span className="text-xs font-bold whitespace-nowrap leading-none">
                                                                     {item.size && item.size !== 'غير محدد' ? item.size : 'المقاس *'}
                                                                 </span>
-                                                                <ChevronDown className={`w-3.5 h-3.5 text-current shrink-0 transition-transform duration-200 ${activeDropdown?.id === item.id && activeDropdown.type === 'size' ? 'rotate-180' : ''}`} strokeWidth={2.5} />
+                                                                <ChevronDown className={`w-3.5 h-3.5 text-current shrink-0 transition-transform duration-200 ${isSizeOpen ? 'rotate-180' : ''}`} strokeWidth={2.5} />
                                                             </div>
                                                             <AnimatePresence>
-                                                                {activeDropdown?.id === item.id && activeDropdown.type === 'size' && (
+                                                                {isSizeOpen && (
                                                                     <motion.div
                                                                         initial={{ opacity: 0, y: -5, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -5, scale: 0.98 }}
                                                                         transition={{ duration: 0.16 }}
@@ -440,11 +534,17 @@ export default function CartPage() {
                                                                                         isSelected ? 'text-brand-burgundy bg-brand-burgundy/10' : 'text-brand-dark'
                                                                                     }`}
                                                                                     onClick={() => {
-                                                                                        setCartItems(prev => prev.map(x => x.id === item.id ? { ...x, size: s } : x));
+                                                                                        const prodId = item.productId || item.id;
+                                                                                        const prod = productsMap[prodId] || productsMap[String(prodId)] || (item.name ? productsMap[item.name.trim()] : null);
+                                                                                        const newSizeObj = prod?.sizes?.find(sz => isSizeMatch(s, sz.size));
+                                                                                        const newStock = newSizeObj?.stock_qty !== undefined && newSizeObj.stock_qty !== null ? Number(newSizeObj.stock_qty) : (item.maxStock || 10);
+                                                                                        const adjustedQty = Math.max(1, Math.min(Number(item.qty) || 1, newStock));
+
+                                                                                        setCartItems(prev => prev.map((x, idx) => idx === i ? { ...x, size: s, qty: adjustedQty, maxStock: newStock } : x));
                                                                                         setActiveDropdown(null);
                                                                                         showToast(`تم اختيار المقاس: ${s}`);
                                                                                         if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
-                                                                                            supabase.from('cart_items').update({ size: s }).eq('id', item.id).catch(() => {});
+                                                                                            supabase.from('cart_items').update({ size: s, quantity: adjustedQty }).eq('id', item.id).catch(() => {});
                                                                                         }
                                                                                     }}
                                                                                 >
@@ -464,29 +564,66 @@ export default function CartPage() {
                                                 <div className="h-4 w-px bg-brand-burgundy/20 shrink-0" />
 
                                                 {/* Quantity */}
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <button
-                                                        onClick={() => {
-                                                            const newQty = Math.max(1, (Number(item.qty) || 1) - 1);
-                                                            updateCartQty(item.id, newQty);
-                                                        }}
-                                                        className="w-8 h-8 flex items-center justify-center text-brand-burgundy hover:bg-brand-burgundy/10 rounded-lg font-bold text-base transition-colors cursor-pointer"
-                                                    >
-                                                        -
-                                                    </button>
-                                                    <div className="w-8 h-8 bg-transparent border border-brand-burgundy/25 text-brand-burgundy rounded-lg flex items-center justify-center font-bold text-xs select-none">
-                                                        {item.qty}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            const newQty = (Number(item.qty) || 1) + 1;
-                                                            updateCartQty(item.id, newQty);
-                                                        }}
-                                                        className="w-8 h-8 flex items-center justify-center text-brand-burgundy hover:bg-brand-burgundy/10 rounded-lg font-bold text-base transition-colors cursor-pointer"
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
+                                                {(() => {
+                                                    const maxStock = getMaxStockForItem(item);
+                                                    const currentQty = Number(item.qty) || 1;
+                                                    const isMaxReached = currentQty >= maxStock;
+
+                                                    return (
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (currentQty <= 1) {
+                                                                        setCartItems(prev => prev.filter((_, idx) => idx !== i));
+                                                                        showToast(`تمت إزالة "${item.name}" من السلة`);
+                                                                        if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
+                                                                            cartApi.removeItem(item.id).catch(() => {});
+                                                                        }
+                                                                    } else {
+                                                                        const newQty = currentQty - 1;
+                                                                        setCartItems(prev => prev.map((x, idx) => idx === i ? { ...x, qty: newQty, maxStock } : x));
+                                                                        if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
+                                                                            cartApi.updateQuantity(item.id, newQty).catch(() => {});
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="w-8 h-8 flex items-center justify-center text-brand-burgundy hover:bg-brand-burgundy/10 rounded-lg font-bold text-base transition-colors cursor-pointer"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <div className="w-8 h-8 bg-transparent border border-brand-burgundy/25 text-brand-burgundy rounded-lg flex items-center justify-center font-bold text-xs select-none">
+                                                                {currentQty}
+                                                            </div>
+                                                            <button
+                                                                disabled={isMaxReached}
+                                                                onClick={() => {
+                                                                    if (isMaxReached) {
+                                                                        showToast(`عفواً، لا يمكن تجاوز المخزون الفعلي المتوفر (${maxStock} قطع)`, 'error');
+                                                                        return;
+                                                                    }
+                                                                    const newQty = currentQty + 1;
+                                                                    setCartItems(prev => prev.map((x, idx) => idx === i ? { ...x, qty: newQty, maxStock } : x));
+                                                                    if (user && typeof item.id === 'string' && item.id.includes('-') && !item.id.startsWith('cart-')) {
+                                                                        cartApi.updateQuantity(item.id, newQty).catch(() => {});
+                                                                    }
+                                                                }}
+                                                                className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-base transition-colors ${
+                                                                    isMaxReached 
+                                                                        ? 'opacity-30 cursor-not-allowed text-brand-burgundy/40 bg-transparent' 
+                                                                        : 'text-brand-burgundy hover:bg-brand-burgundy/10 cursor-pointer'
+                                                                }`}
+                                                                title={isMaxReached ? `تم الوصول للحد الأقصى للمخزون المتوفر (${maxStock})` : 'زيادة الكمية'}
+                                                            >
+                                                                +
+                                                            </button>
+                                                            {isMaxReached && (
+                                                                <span className="text-[10px] text-amber-800 font-bold bg-amber-500/15 border border-amber-600/30 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                                                    الحد الأقصى ({maxStock})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </motion.div>
@@ -501,8 +638,8 @@ export default function CartPage() {
                             className="w-full lg:w-[400px] bg-white/25 backdrop-blur-xs rounded-2xl p-8 shrink-0 lg:sticky lg:top-32 border border-brand-burgundy/15 shadow-sm"
                         >
                             <div className="flex flex-col gap-5 text-sm font-bold mb-10 uppercase tracking-wide">
-                                {cartItems.map(item => (
-                                    <div key={item.id} className="flex justify-between items-center">
+                                {cartItems.map((item, idx) => (
+                                    <div key={item.id ? `${item.id}-${idx}` : idx} className="flex justify-between items-center">
                                         <span>{item.name}</span>
                                         <span>{item.price * item.qty} <RiyalIcon /></span>
                                     </div>

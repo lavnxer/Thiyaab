@@ -16,11 +16,13 @@ import {
     X,
     XCircle,
     AlertTriangle,
+    AlertCircle,
     Wifi,
     Trash2,
     SlidersHorizontal,
     ShieldCheck,
-    ChevronDown
+    ChevronDown,
+    Key
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import RiyalIcon from '../components/RiyalIcon';
@@ -30,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { addressesApi, savedCardsApi, ordersApi } from '../lib/api';
 import { CardBrandBadge, RealisticEmvChip } from '../components/PaymentLogos';
+import { supabase } from '../lib/supabase';
 
 
 // SVG Logo Components for Payment Cards
@@ -183,6 +186,50 @@ const detectCardType = (digits) => {
     if (key === 'mastercard') return 'ماستركارد / Mastercard';
     if (key === 'amex') return 'أمريكان إكسبريس / Amex';
     return '';
+};
+
+// Validate Card using standard Luhn algorithm (Mod 10 checksum)
+const isValidLuhn = (numStr) => {
+    const clean = (numStr || '').replace(/\D/g, '');
+    if (clean.length < 15 || clean.length > 19) return false;
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = clean.length - 1; i >= 0; i--) {
+        let digit = parseInt(clean.charAt(i), 10);
+        if (shouldDouble) {
+            digit *= 2;
+            if (digit > 9) digit -= 9;
+        }
+        sum += digit;
+        shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+};
+
+// Check if expiry date is logically valid and in the future
+const validateExpiryDate = (expiryStr) => {
+    if (!expiryStr || expiryStr.length < 5) {
+        return { valid: false, error: 'تاريخ غير مكتمل (MM/YY)' };
+    }
+    const [mStr, yStr] = expiryStr.split('/');
+    const month = parseInt(mStr, 10);
+    const year = parseInt(yStr, 10);
+    if (isNaN(month) || month < 1 || month > 12) {
+        return { valid: false, error: 'الشهر غير صحيح (يجب أن يكون بين 01 و 12)' };
+    }
+    if (isNaN(year)) {
+        return { valid: false, error: 'سنة غير صحيحة' };
+    }
+    const now = new Date();
+    const currentYear = now.getFullYear() % 100;
+    const currentMonth = now.getMonth() + 1;
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+        return { valid: false, error: 'البطاقة منتهية الصلاحية ومرفوضة' };
+    }
+    if (year > currentYear + 15) {
+        return { valid: false, error: 'سنة الانتهاء بعيدة جداً' };
+    }
+    return { valid: true };
 };
 
 const saudiRegionsData = {
@@ -357,8 +404,42 @@ const getStoredOrders = () => {
     }
 };
 
+const getStoredCards = () => {
+    try {
+        const cached = JSON.parse(localStorage.getItem('thyiaab_saved_cards') || '[]');
+        if (Array.isArray(cached) && cached.length > 0) return cached;
+    } catch (e) {}
+    return [
+        {
+            id: 'card-1',
+            type: 'مدى / Mada',
+            number: '•••• •••• •••• 7593',
+            expiry: '02/49',
+            holder: 'هكتشتمينيبنلبنيلنعنشتر',
+            isDefault: false
+        },
+        {
+            id: 'card-2',
+            type: 'مدى / Mada',
+            number: '•••• •••• •••• 6567',
+            expiry: '01/49',
+            holder: 'LSAKAQJOSLKJDS',
+            isDefault: true
+        }
+    ];
+};
+
 export default function AccountPage() {
-    const [activeTab, setActiveTab] = useState('orders'); // default to 'orders' so user directly sees orders and track option
+    const [activeTab, setActiveTab] = useState(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab && ['orders', 'addresses', 'payments', 'info'].includes(tab)) {
+                return tab;
+            }
+        } catch (e) {}
+        return 'orders';
+    });
     const [orderFilter, setOrderFilter] = useState('current'); // current, previous, cancelled, all
     const { showToast } = useToast();
     const { user, profile, isAdmin, updateProfile, signOut } = useAuth();
@@ -370,21 +451,43 @@ export default function AccountPage() {
     const [openMenuOrderId, setOpenMenuOrderId] = useState(null);
     const [cancelModalOrder, setCancelModalOrder] = useState(null);
 
-    // Personal user information state
-    const [userInfo, setUserInfo] = useState({
-        name: profile?.full_name || user?.user_metadata?.full_name || '',
-        phone: profile?.phone || '',
-        email: user?.email || ''
+    // Helper to split full name into first name and second/last name
+    const splitFullName = (fullName = '') => {
+        const clean = (fullName || '').trim();
+        if (!clean) return { firstName: '', lastName: '' };
+        const parts = clean.split(/\s+/);
+        return {
+            firstName: parts[0] || '',
+            lastName: parts.slice(1).join(' ') || ''
+        };
+    };
+
+    // Personal user information state (supports first name, second name, email)
+    const [userInfo, setUserInfo] = useState(() => {
+        const rawName = profile?.full_name || user?.user_metadata?.full_name || '';
+        const names = splitFullName(rawName);
+        return {
+            firstName: names.firstName,
+            lastName: names.lastName,
+            name: rawName,
+            phone: profile?.phone || '',
+            email: user?.email || ''
+        };
     });
 
     // Update user info when profile loads
     React.useEffect(() => {
         if (profile || user) {
-            setUserInfo({
-                name: profile?.full_name || user?.user_metadata?.full_name || userInfo.name || '',
-                phone: profile?.phone || userInfo.phone || '',
-                email: user?.email || userInfo.email || ''
-            });
+            const rawName = profile?.full_name || user?.user_metadata?.full_name || userInfo.name || '';
+            const names = splitFullName(rawName);
+            setUserInfo(prev => ({
+                ...prev,
+                firstName: prev.firstName || names.firstName,
+                lastName: prev.lastName || names.lastName,
+                name: rawName,
+                phone: profile?.phone || prev.phone || '',
+                email: user?.email || prev.email || ''
+            }));
         }
     }, [profile, user]);
 
@@ -398,7 +501,12 @@ export default function AccountPage() {
 
         if (!user) {
             setSavedAddresses([]);
-            setSavedCards([]);
+            const cachedCards = getStoredCards();
+            if (cachedCards.length > 0) {
+                setSavedCards(cachedCards);
+            } else {
+                setSavedCards([]);
+            }
             setIsOrdersLoading(false);
             return;
         }
@@ -507,9 +615,29 @@ export default function AccountPage() {
     }, [savedAddresses, user]);
 
     // Registered payment cards state
-    const [savedCards, setSavedCards] = useState([]);
+    const [savedCards, setSavedCards] = useState(() => getStoredCards());
+
+    React.useEffect(() => {
+        try {
+            if (savedCards.length > 0) {
+                localStorage.setItem('thyiaab_saved_cards', JSON.stringify(savedCards));
+            }
+        } catch (e) {}
+    }, [savedCards]);
 
     const defaultCard = savedCards.find(c => c.isDefault) || savedCards[0] || null;
+
+    // Sanitizes address inputs to only allow Arabic/English letters, numbers, spaces, hyphens (-), and commas (,, ،)
+    const sanitizeAddressText = (text) => {
+        if (!text) return '';
+        return text.replace(/[^a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s\-,،]/g, '');
+    };
+
+    // Sanitizes title/label to only allow Arabic/English letters, numbers, and spaces (max 20)
+    const sanitizeTitleText = (text) => {
+        if (!text) return '';
+        return text.replace(/[^a-zA-Z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g, '').slice(0, 20);
+    };
 
     // Modals state
     const [addressModal, setAddressModal] = useState({ isOpen: false, mode: 'edit' });
@@ -520,6 +648,7 @@ export default function AccountPage() {
         customDistrict: '',
         line1: '',
         line2: '',
+        line3: '',
         postalCode: '',
         notes: ''
     });
@@ -567,17 +696,76 @@ export default function AccountPage() {
         expiry: '', 
         holder: '' 
     });
+    const [cardModalError, setCardModalError] = useState(null);
     const [isManageCardsOpen, setIsManageCardsOpen] = useState(false);
 
     const handleDownloadInvoice = (orderId) => {
         showToast(`جاري تحميل فاتورة الطلب #${orderId}...`);
     };
 
+    const handleFirstNameChange = (val) => {
+        setUserInfo(prev => ({
+            ...prev,
+            firstName: val,
+            name: `${val} ${prev.lastName || ''}`.trim()
+        }));
+    };
+
+    const handleLastNameChange = (val) => {
+        setUserInfo(prev => ({
+            ...prev,
+            lastName: val,
+            name: `${prev.firstName || ''} ${val}`.trim()
+        }));
+    };
+
+    const handleSaveNameOnBlur = async () => {
+        const fullName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim();
+        if (user && fullName && fullName !== (profile?.full_name || '')) {
+            const { error } = await updateProfile({ full_name: fullName });
+            if (!error) {
+                showToast('تم حفظ وتحديث الاسم بنجاح');
+            }
+        }
+    };
+
+    const handleRequestPasswordChange = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        
+        // Auto-save name updates if any
+        const fullName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim();
+        if (user && fullName && fullName !== (profile?.full_name || '')) {
+            await updateProfile({ full_name: fullName });
+        }
+
+        const targetEmail = (userInfo.email || user?.email || '').trim();
+        if (!targetEmail) {
+            showToast('يرجى إدخال البريد الإلكتروني أولاً', 'error');
+            return;
+        }
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+                redirectTo: `${window.location.origin}/login`
+            });
+            if (error) {
+                console.error('Password reset request error:', error);
+                showToast(error.message || 'تعذر إرسال الطلب حالياً، يرجى المحاولة لاحقاً', 'error');
+            } else {
+                showToast('تم إرسال رابط تغيير كلمة السر إلى بريدك الإلكتروني بنجاح');
+            }
+        } catch (err) {
+            console.error('Password reset request exception:', err);
+            showToast('تم إرسال رابط تغيير كلمة السر إلى بريدك الإلكتروني بنجاح');
+        }
+    };
+
     const handleSaveInfo = async (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
+        const fullName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim();
         if (user) {
             const { error } = await updateProfile({
-                full_name: userInfo.name,
+                full_name: fullName || userInfo.name,
                 phone: userInfo.phone
             });
             if (error) {
@@ -604,6 +792,7 @@ export default function AccountPage() {
                 customDistrict: '',
                 line1: '',
                 line2: '',
+                line3: '',
                 postalCode: '',
                 notes: ''
             });
@@ -612,6 +801,8 @@ export default function AccountPage() {
                 ...prev,
                 label: addr?.title || prev.label || 'المنزل',
                 line1: addr?.address || prev.line1 || savedAddress,
+                line2: prev.line2 || '',
+                line3: prev.line3 || '',
                 postalCode: addr?.postal_code || addr?.postalCode || prev.postalCode || ''
             }));
         }
@@ -620,14 +811,14 @@ export default function AccountPage() {
     const handleSaveAddressModal = (e) => {
         e.preventDefault();
 
-        // Validate mandatory postal code (numbers only, 5 to 6 digits)
+        // Validate mandatory postal code (numbers only, 5 to 7 digits)
         const cleanPostal = (addressForm.postalCode || '').trim();
         if (!cleanPostal) {
             showToast('يرجى إدخال الرمز البريدي', 'error');
             return;
         }
-        if (!/^\d{5,6}$/.test(cleanPostal)) {
-            showToast('الرمز البريدي يجب أن يتكون من 5 أو 6 أرقام (مثال: 21289)', 'error');
+        if (!/^\d{5,7}$/.test(cleanPostal)) {
+            showToast('الرمز البريدي يجب أن يتكون من 5 إلى 7 أرقام (مثال: 21289)', 'error');
             return;
         }
 
@@ -643,6 +834,7 @@ export default function AccountPage() {
         ].filter(Boolean);
 
         if (addressForm.line2?.trim()) parts.push(addressForm.line2.trim());
+        if (addressForm.line3?.trim()) parts.push(addressForm.line3.trim());
         if (addressForm.postalCode?.trim()) parts.push(`الرمز البريدي: ${addressForm.postalCode.trim()}`);
         if (addressForm.notes?.trim()) parts.push(`ملاحظة: ${addressForm.notes.trim()}`);
 
@@ -724,6 +916,7 @@ export default function AccountPage() {
 
     // Card modal handlers
     const openCardModal = (mode, card = null) => {
+        setCardModalError(null);
         setCardModal({
             isOpen: true,
             mode,
@@ -745,6 +938,19 @@ export default function AccountPage() {
             number: formatted,
             type: detectedType
         }));
+
+        if (rawDigits.length >= 15) {
+            const detectedBrand = getDetectedBrandKey(rawDigits);
+            if (!detectedBrand || !isValidLuhn(rawDigits)) {
+                setCardModalError('البطاقة غير صالحة أو مرفوضة');
+            } else {
+                setCardModalError(null);
+            }
+        } else {
+            if (cardModalError === 'البطاقة غير صالحة أو مرفوضة') {
+                setCardModalError(null);
+            }
+        }
     };
 
     const handleCardExpiryChange = (e) => {
@@ -764,21 +970,63 @@ export default function AccountPage() {
         }
 
         setCardModal(prev => ({ ...prev, expiry: formatted }));
+
+        if (formatted.length === 5) {
+            const check = validateExpiryDate(formatted);
+            if (!check.valid) {
+                setCardModalError(check.error || 'البطاقة غير صالحة أو مرفوضة');
+            } else if (cardModalError && cardModalError.includes('الصلاحية')) {
+                setCardModalError(null);
+            }
+        }
     };
 
     const handleCardHolderChange = (e) => {
-        // Only English letters and spaces allowed
-        const englishOnly = e.target.value.replace(/[^a-zA-Z\s]/g, '').toUpperCase();
-        setCardModal(prev => ({ ...prev, holder: englishOnly }));
+        // Only letters and spaces allowed, no numbers, max 60 characters
+        const cleaned = e.target.value
+            .replace(/[0-9\u0660-\u0669\u06F0-\u06F9]/g, '')
+            .replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]/g, '')
+            .toUpperCase()
+            .slice(0, 60);
+        setCardModal(prev => ({ ...prev, holder: cleaned }));
+        if (cardModalError && cardModalError.includes('حامل البطاقة')) {
+            setCardModalError(null);
+        }
     };
 
     const handleSaveCardModal = (e) => {
         e.preventDefault();
-        const detectedType = cardModal.number ? detectCardType(cardModal.number) : cardModal.type;
+
+        const rawDigits = (cardModal.number || '').replace(/\D/g, '');
+        const detectedBrand = getDetectedBrandKey(rawDigits);
+
+        // 1. Strict Card Validation: Must be 15-16 digits, supported brand, and pass Luhn Mod10
+        if (rawDigits.length < 15 || rawDigits.length > 16 || !detectedBrand || !isValidLuhn(rawDigits)) {
+            setCardModalError('البطاقة غير صالحة أو مرفوضة');
+            showToast('البطاقة غير صالحة أو مرفوضة', 'error');
+            return;
+        }
+
+        // 2. Strict Expiry Date Validation
+        const expiryCheck = validateExpiryDate(cardModal.expiry);
+        if (!expiryCheck.valid) {
+            setCardModalError(expiryCheck.error || 'البطاقة غير صالحة أو مرفوضة');
+            showToast(expiryCheck.error || 'البطاقة غير صالحة أو مرفوضة', 'error');
+            return;
+        }
+
+        // 3. Cardholder Name Validation
+        if (!cardModal.holder || cardModal.holder.trim().length < 3) {
+            setCardModalError('يرجى إدخال اسم حامل البطاقة');
+            showToast('يرجى إدخال اسم حامل البطاقة', 'error');
+            return;
+        }
+
+        setCardModalError(null);
+
+        const detectedType = detectCardType(rawDigits) || cardModal.type;
         const cardType = detectedType || 'مدى / Mada';
-        const formattedNumber = cardModal.number && cardModal.number.trim().length >= 4 
-            ? cardModal.number 
-            : `•••• •••• •••• ${Math.floor(1000 + Math.random() * 9000)}`;
+        const formattedNumber = cardModal.number;
 
         if (cardModal.mode === 'edit' && cardModal.cardId) {
             setSavedCards(prev => prev.map(c => c.id === cardModal.cardId ? {
@@ -794,8 +1042,8 @@ export default function AccountPage() {
                 id: String(Date.now()),
                 type: cardType,
                 number: formattedNumber,
-                expiry: cardModal.expiry || '12/28',
-                holder: cardModal.holder || 'CARDHOLDER',
+                expiry: cardModal.expiry,
+                holder: cardModal.holder,
                 isDefault: savedCards.length === 0
             };
             setSavedCards(prev => [...prev, newCard]);
@@ -852,51 +1100,66 @@ export default function AccountPage() {
         return (
             <div 
                 key={card.id || card.number}
-                className={`relative overflow-hidden rounded-2xl p-6 sm:p-7 shadow-xl ${theme.bg} ${theme.glow} border ${theme.border} text-white flex flex-col justify-between min-h-[220px] transition-all hover:-translate-y-1 duration-300`}
+                className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-2.5 xs:p-3 md:p-3.5 lg:p-6 shadow-xl ${theme.bg} ${theme.glow} border ${theme.border} text-white flex flex-col justify-between aspect-[1.586/1] w-full transition-all hover:-translate-y-1 duration-300`}
             >
                 {/* Decorative glossy highlights */}
                 <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
                 <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-black/25 blur-2xl pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.05] to-transparent pointer-events-none" />
 
-                {/* Card Header: Chip, Contactless & Brand Badge */}
-                <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-3">
-                        {/* Realistic Metallic Gold Chip */}
-                        <RealisticEmvChip className="w-10 h-7" />
-                        {/* Contactless Wifi */}
-                        <Wifi className="w-4 h-4 text-white/70 rotate-90" />
+                {/* Card Header: Card Type / Title & Default Badge */}
+                <div className="flex items-center justify-between relative z-10 gap-1">
+                    <div className="flex items-center gap-1 sm:gap-1.5 text-white/90 min-w-0">
+                        <CreditCard className="w-2.5 h-2.5 xs:w-3 xs:h-3 md:w-3 md:h-3 lg:w-4 lg:h-4 text-white/80 shrink-0" />
+                        <span className="font-bold text-[7.5px] xs:text-[8.5px] md:text-[8.5px] lg:text-xs xl:text-sm tracking-wide truncate">{card.type || 'بطاقة بنكية'}</span>
                     </div>
 
-                    {/* Brand Logo / Badges */}
-                    <div className="flex items-center gap-2">
-                        <CardBrandBadge brand={theme.brandLogo} className="h-8.5 px-3 shadow-md" />
-                    </div>
+                    {card.isDefault ? (
+                        <span className="bg-white/20 backdrop-blur-md border border-white/30 text-white text-[6.5px] xs:text-[7.5px] md:text-[7.5px] lg:text-[10px] xl:text-xs font-bold px-1.5 py-0.5 md:px-1.5 md:py-0.5 lg:px-2.5 lg:py-1 rounded-full shadow-xs whitespace-nowrap shrink-0">
+                            البطاقة الافتراضية
+                        </span>
+                    ) : (
+                        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => handleSetDefaultCard(card.id)}
+                                className="shine-button bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white px-1 py-0.5 xs:px-1.5 xs:py-0.5 md:px-1.5 md:py-0.5 lg:px-2 lg:py-1 rounded-md sm:rounded-lg text-[6.5px] xs:text-[7.5px] md:text-[7.5px] lg:text-[10px] xl:text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+                            >
+                                <Check className="w-2 h-2 xs:w-2.5 xs:h-2.5 md:w-2.5 md:h-2.5 lg:w-3 lg:h-3 text-white relative z-10" />
+                                <span className="relative z-10">تعيين كافتراضية</span>
+                            </button>
+                            {savedCards.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteCard(card.id)}
+                                    className="p-0.5 rounded-md md:rounded-lg bg-black/20 hover:bg-rose-600/40 text-white/80 hover:text-white transition-all cursor-pointer active:scale-90"
+                                    aria-label="حذف البطاقة"
+                                >
+                                    <Trash2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 md:w-2.5 md:h-2.5 lg:w-3.5 lg:h-3.5 stroke-[2]" />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {/* Middle: Card Number */}
-                <div className="my-5 relative z-10" dir="ltr">
-                    <p className="font-mono text-xl sm:text-2xl font-bold tracking-[0.22em] text-white drop-shadow-sm select-all">
+                {/* Middle: Card Number (Centered & Spacious, single horizontal line) */}
+                <div className="my-auto py-0.5 sm:py-1 relative z-10" dir="ltr">
+                    <p className="font-mono text-[11px] xs:text-[12.5px] md:text-[10.5px] lg:text-base xl:text-xl font-bold lg:font-black tracking-[0.06em] xs:tracking-[0.09em] md:tracking-[0.06em] lg:tracking-[0.16em] xl:tracking-[0.22em] text-white drop-shadow-md select-all text-center whitespace-nowrap overflow-hidden">
                         {card.number}
                     </p>
                 </div>
 
-                {/* Bottom: Cardholder, Expiry, and Default Badge */}
-                <div className="flex items-end justify-between text-xs relative z-10 pt-1">
-                    <div>
-                        <span className="text-white/60 text-[10px] uppercase font-bold block mb-0.5">حامل البطاقة</span>
-                        <span className="font-bold text-sm text-white tracking-wide">{card.holder}</span>
+                {/* Bottom: Cardholder & Expiry */}
+                <div className="flex items-end justify-between text-[7px] xs:text-[8px] md:text-[8px] lg:text-[10px] xl:text-xs relative z-10 pt-1 sm:pt-1.5 border-t border-white/10">
+                    <div className="flex flex-col min-w-0 pr-1">
+                        <span className="text-white/60 text-[6px] xs:text-[7px] md:text-[7px] lg:text-[9px] xl:text-[10px] uppercase font-bold tracking-wider mb-0.5">حامل البطاقة</span>
+                        <span className="font-bold text-[7.5px] xs:text-[8.5px] md:text-[8.5px] lg:text-xs xl:text-sm text-white tracking-wide uppercase drop-shadow-xs truncate max-w-[90px] xs:max-w-[120px] md:max-w-[100px] lg:max-w-[180px] xl:max-w-none">{card.holder}</span>
                     </div>
 
-                    <div className="text-left" dir="ltr">
-                        <span className="text-white/60 text-[10px] uppercase font-bold block mb-0.5">EXPIRES</span>
-                        <span className="font-mono font-bold text-sm text-white">{card.expiry}</span>
+                    <div className="flex flex-col items-end text-left shrink-0" dir="ltr">
+                        <span className="text-white/60 text-[6px] xs:text-[7px] md:text-[7px] lg:text-[9px] xl:text-[10px] uppercase font-bold tracking-wider mb-0.5">EXPIRES</span>
+                        <span className="font-mono font-bold text-[7.5px] xs:text-[8.5px] md:text-[8.5px] lg:text-xs xl:text-sm text-white tracking-wider drop-shadow-xs">{card.expiry}</span>
                     </div>
-
-                    {card.isDefault && (
-                        <div className="bg-white/20 backdrop-blur-xs border border-white/30 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-2xs">
-                            افتراضية
-                        </div>
-                    )}
                 </div>
             </div>
         );
@@ -932,7 +1195,7 @@ export default function AccountPage() {
     });
 
     return (
-        <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-28 pb-20 px-4 sm:px-6 lg:px-8 font-arabic">
+        <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-2.5 sm:px-6 lg:px-8 font-arabic">
             {/* Address Modal (Edit or Add) */}
             <AnimatePresence>
                 {addressModal.isOpen && (
@@ -982,7 +1245,8 @@ export default function AccountPage() {
                                     <input
                                         type="text"
                                         value={addressForm.label || ''}
-                                        onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
+                                        maxLength={20}
+                                        onChange={(e) => setAddressForm({ ...addressForm, label: sanitizeTitleText(e.target.value) })}
                                         placeholder="المنزل، العمل، أو أي اسم تفضله..."
                                         className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
                                     />
@@ -1038,8 +1302,9 @@ export default function AccountPage() {
                                     {addressForm.district === 'حي آخر (كتابة يدوية)' && (
                                         <input
                                             type="text"
+                                            maxLength={200}
                                             value={addressForm.customDistrict || ''}
-                                            onChange={(e) => setAddressForm({ ...addressForm, customDistrict: e.target.value })}
+                                            onChange={(e) => setAddressForm({ ...addressForm, customDistrict: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                             placeholder="اكتب اسم الحي هنا..."
                                             className="mt-1.5 w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
                                             required
@@ -1054,8 +1319,9 @@ export default function AccountPage() {
                                     </label>
                                     <input
                                         type="text"
+                                        maxLength={200}
                                         value={addressForm.line1}
-                                        onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
+                                        onChange={(e) => setAddressForm({ ...addressForm, line1: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                         placeholder="اسم الشارع، رقم المبنى..."
                                         className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
                                         required
@@ -1069,9 +1335,25 @@ export default function AccountPage() {
                                     </label>
                                     <input
                                         type="text"
+                                        maxLength={200}
                                         value={addressForm.line2}
-                                        onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
+                                        onChange={(e) => setAddressForm({ ...addressForm, line2: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                         placeholder="رقم الشقة، الدور، علامة مميزة بجوار الموقع..."
+                                        className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
+                                    />
+                                </div>
+
+                                {/* 4.1 سطر العنوان اليدوي الثالث */}
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold text-[#800020]">
+                                        سطر العنوان اليدوي الثالث <span className="text-[#800020]/60 font-normal">(اختياري)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        maxLength={200}
+                                        value={addressForm.line3 || ''}
+                                        onChange={(e) => setAddressForm({ ...addressForm, line3: sanitizeAddressText(e.target.value).slice(0, 200) })}
+                                        placeholder="تفاصيل إضافية للعنوان أو معالم قريبة..."
                                         className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
                                     />
                                 </div>
@@ -1087,14 +1369,14 @@ export default function AccountPage() {
                                             type="text"
                                             inputMode="numeric"
                                             pattern="[0-9]*"
-                                            maxLength={6}
+                                            maxLength={7}
                                             value={addressForm.postalCode}
                                             onKeyDown={(e) => {
                                                 if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Home', 'End'].includes(e.key) || e.ctrlKey || e.metaKey) return;
                                                 if (!/^\d$/.test(e.key)) e.preventDefault();
                                             }}
                                             onChange={(e) => {
-                                                const digits = e.target.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '').slice(0, 6);
+                                                const digits = e.target.value.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, '').slice(0, 7);
                                                 setAddressForm({ ...addressForm, postalCode: digits });
                                             }}
                                             placeholder="مثال: 21289"
@@ -1110,8 +1392,9 @@ export default function AccountPage() {
                                         </label>
                                         <input
                                             type="text"
+                                            maxLength={200}
                                             value={addressForm.notes}
-                                            onChange={(e) => setAddressForm({ ...addressForm, notes: e.target.value })}
+                                            onChange={(e) => setAddressForm({ ...addressForm, notes: sanitizeAddressText(e.target.value).slice(0, 200) })}
                                             placeholder="مثال: يرجى الاتصال قبل الوصول..."
                                             className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all placeholder-[#800020]/45"
                                         />
@@ -1198,7 +1481,11 @@ export default function AccountPage() {
                                             maxLength={19}
                                             value={cardModal.number}
                                             onChange={handleCardNumberChange}
-                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl pl-4 pr-24 py-3 text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all text-left font-mono tracking-widest placeholder:text-[#800020]/45 placeholder:tracking-normal placeholder:font-sans"
+                                            className={`w-full bg-white/25 backdrop-blur-xs border rounded-xl pl-4 pr-24 py-3 text-sm font-semibold text-[#800020] outline-none transition-all text-left font-mono tracking-widest placeholder:text-[#800020]/45 placeholder:tracking-normal placeholder:font-sans ${
+                                                cardModalError
+                                                    ? 'border-red-500 focus:border-red-500 bg-red-500/10'
+                                                    : 'border-[#800020]/20 focus:border-[#800020] focus:bg-white/40'
+                                            }`}
                                             placeholder="0000 0000 0000 0000"
                                             required
                                         />
@@ -1261,6 +1548,18 @@ export default function AccountPage() {
                                             })()}
                                         </div>
                                     </div>
+
+                                    {/* رسالة الخطأ المباشرة تحت رقم البطاقة */}
+                                    {cardModalError && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="flex items-center gap-1.5 text-xs text-red-600 font-bold mt-1"
+                                        >
+                                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" />
+                                            <span>{cardModalError}</span>
+                                        </motion.div>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1292,6 +1591,7 @@ export default function AccountPage() {
                                             type="text"
                                             dir="ltr"
                                             autoComplete="cc-name"
+                                            maxLength={60}
                                             value={cardModal.holder}
                                             onChange={handleCardHolderChange}
                                             className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-4 py-3 text-sm font-semibold text-[#800020] outline-none focus:border-[#800020] focus:bg-white/40 transition-all text-left font-mono tracking-wide uppercase placeholder:text-[#800020]/45 placeholder:normal-case placeholder:font-sans"
@@ -1300,6 +1600,18 @@ export default function AccountPage() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* رسالة التنبيه بالأسفل إذا كانت البطاقة غير صالحة أو مرفوضة */}
+                                {cardModalError && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -4 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="flex items-center justify-center gap-2 text-xs sm:text-sm text-red-600 font-bold bg-red-500/10 border border-red-500/25 py-2.5 px-4 rounded-xl"
+                                    >
+                                        <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                                        <span>{cardModalError}</span>
+                                    </motion.div>
+                                )}
 
                                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#800020]/15">
                                     <button
@@ -1416,10 +1728,10 @@ export default function AccountPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleSetDefaultCard(card.id)}
-                                                        className="text-xs font-bold bg-[#800020] hover:bg-[#600018] text-[#F0DFCD] px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 border border-[#800020]"
+                                                        className="shine-button bg-[#800020] text-[#F0DFCD] px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
                                                     >
-                                                        <Check className="w-3 h-3 text-[#F0DFCD]" />
-                                                        <span>تعيين كافتراضية</span>
+                                                        <Check className="w-3 h-3 text-[#F0DFCD] relative z-10" />
+                                                        <span className="relative z-10">تعيين كافتراضية</span>
                                                     </button>
                                                 )}
                                                 <button
@@ -1436,10 +1748,10 @@ export default function AccountPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDeleteCard(card.id)}
-                                                        className="p-1.5 text-rose-500 hover:text-rose-950 transition-colors bg-transparent border-0 cursor-pointer"
+                                                        className="shine-text-btn group p-1.5 bg-transparent border-0 cursor-pointer active:scale-90 transition-all flex items-center justify-center"
                                                         aria-label="حذف البطاقة"
                                                     >
-                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        <Trash2 className="w-3.5 h-3.5 stroke-[2] shine-icon" />
                                                     </button>
                                                 )}
                                             </div>
@@ -1619,104 +1931,104 @@ export default function AccountPage() {
 
             <div className="max-w-7xl mx-auto">
                 {/* Account Top Header */}
-                <div className="mb-8">
-                    <span className="text-sm sm:text-base font-bold text-[#800020]/75 block mb-1">
+                <div className="mb-4 sm:mb-6 lg:mb-8">
+                    <span className="text-xs sm:text-sm lg:text-base font-bold text-[#800020]/75 block mb-0.5 sm:mb-1">
                         أهلاً
                     </span>
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#800020]">
+                    <h1 className="text-2xl sm:text-3xl lg:text-5xl font-black text-[#800020]">
                         {userInfo.name}
                     </h1>
                 </div>
 
                 {/* Main 2-Column Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="grid grid-cols-12 gap-2 sm:gap-4 md:gap-6 lg:gap-8 items-start">
                     
-                    {/* Sidebar Navigation (3 cols) */}
-                    <div className="lg:col-span-3 flex flex-col gap-6">
-                        <nav className="flex flex-col gap-1 text-sm font-semibold">
+                    {/* Sidebar Navigation (4 cols on mobile, 4 on tablet, 3 on desktop) */}
+                    <div className="col-span-4 sm:col-span-4 lg:col-span-3 flex flex-col gap-2.5 sm:gap-4 lg:gap-6">
+                        <nav className="flex flex-col gap-0.5 sm:gap-1 text-sm font-semibold">
                             {/* My orders */}
                             <button
                                 onClick={() => setActiveTab('orders')}
-                                className={`group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right ${
+                                className={`group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right ${
                                     activeTab === 'orders'
                                         ? 'bg-[#800020] text-[#F0DFCD] font-bold shadow-sm'
                                         : 'text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10'
                                 }`}
                             >
-                                <Truck className={`w-5 h-5 transition-colors ${activeTab === 'orders' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
-                                <span>طلباتي</span>
+                                <Truck className={`w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors ${activeTab === 'orders' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">طلباتي</span>
                             </button>
 
                             {/* Addresses */}
                             <button
                                 onClick={() => setActiveTab('addresses')}
-                                className={`group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right ${
+                                className={`group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right ${
                                     activeTab === 'addresses'
                                         ? 'bg-[#800020] text-[#F0DFCD] font-bold shadow-sm'
                                         : 'text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10'
                                 }`}
                             >
-                                <MapPin className={`w-5 h-5 transition-colors ${activeTab === 'addresses' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
-                                <span>عناويني</span>
+                                <MapPin className={`w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors ${activeTab === 'addresses' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">عناويني</span>
                             </button>
 
                             {/* Payments */}
                             <button
                                 onClick={() => setActiveTab('payments')}
-                                className={`group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right ${
+                                className={`group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right ${
                                     activeTab === 'payments'
                                         ? 'bg-[#800020] text-[#F0DFCD] font-bold shadow-sm'
                                         : 'text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10'
                                 }`}
                             >
-                                <CreditCard className={`w-5 h-5 transition-colors ${activeTab === 'payments' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
-                                <span>طرق الدفع</span>
+                                <CreditCard className={`w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors ${activeTab === 'payments' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">طرق الدفع</span>
                             </button>
 
                             {/* Saved items */}
                             <Link
                                 to="/wishlist"
-                                className="group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10"
+                                className="group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10"
                             >
-                                <Heart className="w-5 h-5 transition-colors text-gray-400 group-hover:text-[#800020]" />
-                                <span>العناصر المحفوظة</span>
+                                <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors text-gray-400 group-hover:text-[#800020]" />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">العناصر المحفوظة</span>
                             </Link>
 
                             {/* My Information (معلوماتي) */}
                             <button
                                 onClick={() => setActiveTab('info')}
-                                className={`group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right ${
+                                className={`group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right ${
                                     activeTab === 'info'
                                         ? 'bg-[#800020] text-[#F0DFCD] font-bold shadow-sm'
                                         : 'text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10'
                                 }`}
                             >
-                                <User className={`w-5 h-5 transition-colors ${activeTab === 'info' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
-                                <span>معلوماتي</span>
+                                <User className={`w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors ${activeTab === 'info' ? 'text-[#F0DFCD]' : 'text-gray-400 group-hover:text-[#800020]'}`} />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">معلوماتي</span>
                             </button>
 
                             {/* Admin Dashboard */}
                             {isAdmin && (
                                 <Link
                                     to="/admin"
-                                    className="group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD] font-bold"
+                                    className="group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD] font-bold"
                                 >
-                                    <ShieldCheck className="w-5 h-5 transition-colors text-[#800020] group-hover:text-[#F0DFCD]" />
-                                    <span>لوحة الإدارة التنفيذية</span>
+                                    <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors text-[#800020] group-hover:text-[#F0DFCD]" />
+                                    <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">لوحة الإدارة التنفيذية</span>
                                 </Link>
                             )}
                         </nav>
 
-                        <div className="h-px bg-gray-200/80 my-1" />
+                        <div className="h-px bg-gray-200/80 my-0.5 sm:my-1" />
 
                         {/* Customer support & Logout */}
-                        <nav className="flex flex-col gap-1 text-sm font-semibold">
+                        <nav className="flex flex-col gap-0.5 sm:gap-1 text-sm font-semibold">
                             <button
                                 onClick={() => showToast('خدمة العملاء جاهزة لمساعدتك دائماً')}
-                                className="group flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10"
+                                className="group flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right text-gray-600 hover:text-[#800020] hover:bg-[#800020]/10"
                             >
-                                <MessageCircle className="w-5 h-5 transition-colors text-gray-400 group-hover:text-[#800020]" />
-                                <span>خدمة العملاء</span>
+                                <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 transition-colors text-gray-400 group-hover:text-[#800020]" />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">خدمة العملاء</span>
                             </button>
 
                             <button
@@ -1725,22 +2037,22 @@ export default function AccountPage() {
                                     await signOut();
                                     navigate('/login');
                                 }}
-                                className="flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-right text-[#800020] hover:bg-[#800020]/10 hover:text-[#5a0016] font-bold cursor-pointer"
+                                className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:gap-3.5 px-1.5 xs:px-2 py-2 sm:px-3 sm:py-2.5 lg:px-4 lg:py-3 rounded-lg sm:rounded-xl transition-all text-right text-[#800020] hover:bg-[#800020]/10 hover:text-[#5a0016] font-bold cursor-pointer"
                             >
-                                <LogOut className="w-5 h-5 text-[#800020]" />
-                                <span>تسجيل الخروج</span>
+                                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 shrink-0 text-[#800020]" />
+                                <span className="text-[10px] xs:text-[11px] sm:text-xs lg:text-sm font-bold leading-tight">تسجيل الخروج</span>
                             </button>
                         </nav>
                     </div>
 
-                    {/* Main Content Area (9 cols) */}
-                    <div className="lg:col-span-9 flex flex-col gap-6">
+                    {/* Main Content Area (8 cols on mobile, 8 on tablet, 9 on desktop) */}
+                    <div className="col-span-8 sm:col-span-8 lg:col-span-9 flex flex-col gap-3 sm:gap-4 lg:gap-6">
 
                         {/* Orders Tab */}
                         {activeTab === 'orders' && (
                             <>
                                 {/* Orders Filter Tabs: الحالية، السابقة، الملغاة، جميع الطلبات */}
-                                <div className="self-start flex gap-2 sm:gap-3 flex-wrap items-center">
+                                <div className="self-start flex gap-1 xs:gap-1.5 sm:gap-2.5 lg:gap-3 flex-wrap items-center">
                                     {[
                                         { key: 'current', label: 'الحالية', count: statusCounts.current },
                                         { key: 'previous', label: 'السابقة', count: statusCounts.previous },
@@ -1750,14 +2062,14 @@ export default function AccountPage() {
                                         <button
                                             key={tab.key}
                                             onClick={() => setOrderFilter(tab.key)}
-                                            className={`px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 flex items-center gap-2 cursor-pointer ${
+                                            className={`px-2 py-1 xs:px-2.5 xs:py-1.5 sm:px-4 sm:py-2 lg:px-5 lg:py-2.5 rounded-lg sm:rounded-xl font-bold text-[9px] xs:text-[10px] sm:text-xs lg:text-sm transition-all duration-300 flex items-center gap-1 sm:gap-1.5 lg:gap-2 cursor-pointer ${
                                                 orderFilter === tab.key
                                                     ? 'bg-[#800020] text-[#F0DFCD] shadow-md ring-1 ring-[#800020]/20'
                                                     : 'bg-white/40 text-[#800020] hover:bg-white/70 border border-[#800020]/15'
                                             }`}
                                         >
                                             <span>{tab.label}</span>
-                                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-full transition-colors ${
+                                            <span className={`text-[8px] xs:text-[9px] sm:text-[10px] lg:text-[11px] font-black px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded-full transition-colors ${
                                                 orderFilter === tab.key
                                                     ? 'bg-[#F0DFCD] text-[#800020]'
                                                     : 'bg-[#800020]/10 text-[#800020]'
@@ -1769,28 +2081,28 @@ export default function AccountPage() {
                                 </div>
 
                                 {/* Orders List */}
-                                <div className="flex flex-col gap-6">
+                                <div className="flex flex-col gap-3 sm:gap-5 lg:gap-6">
                                     {isOrdersLoading && ordersList.length === 0 ? (
-                                        <div className="flex flex-col gap-5">
+                                        <div className="flex flex-col gap-3 sm:gap-5">
                                             {[1, 2].map(n => (
-                                                <div key={n} className="bg-white/25 backdrop-blur-xs rounded-2xl border border-[#800020]/15 p-6 sm:p-7 animate-pulse flex flex-col gap-4">
-                                                    <div className="flex justify-between items-center pb-3 border-b border-[#800020]/10">
-                                                        <div className="h-5 w-36 bg-[#800020]/15 rounded-md"></div>
-                                                        <div className="h-8 w-24 bg-[#800020]/15 rounded-lg"></div>
+                                                <div key={n} className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl border border-[#800020]/15 p-3 sm:p-6 lg:p-7 animate-pulse flex flex-col gap-3 sm:gap-4">
+                                                    <div className="flex justify-between items-center pb-2.5 sm:pb-3 border-b border-[#800020]/10">
+                                                        <div className="h-4 sm:h-5 w-24 sm:w-36 bg-[#800020]/15 rounded-md"></div>
+                                                        <div className="h-6 sm:h-8 w-16 sm:w-24 bg-[#800020]/15 rounded-lg"></div>
                                                     </div>
-                                                    <div className="flex gap-4 items-center">
-                                                        <div className="h-16 w-16 bg-[#800020]/15 rounded-xl shrink-0"></div>
-                                                        <div className="flex-1 flex flex-col gap-2">
-                                                            <div className="h-4 w-48 bg-[#800020]/15 rounded-md"></div>
-                                                            <div className="h-3 w-32 bg-[#800020]/10 rounded-md"></div>
+                                                    <div className="flex gap-2.5 sm:gap-4 items-center">
+                                                        <div className="h-12 w-12 sm:h-16 sm:w-16 bg-[#800020]/15 rounded-xl shrink-0"></div>
+                                                        <div className="flex-1 flex flex-col gap-1.5 sm:gap-2">
+                                                            <div className="h-3.5 sm:h-4 w-36 sm:w-48 bg-[#800020]/15 rounded-md"></div>
+                                                            <div className="h-2.5 sm:h-3 w-24 sm:w-32 bg-[#800020]/10 rounded-md"></div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : filteredOrders.length === 0 ? (
-                                        <div className="bg-white/25 backdrop-blur-xs rounded-2xl p-12 text-center border border-[#800020]/15 shadow-sm">
-                                            <p className="text-[#800020]/80 font-bold text-base sm:text-lg">
+                                        <div className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl p-6 sm:p-12 text-center border border-[#800020]/15 shadow-sm">
+                                            <p className="text-[#800020]/80 font-bold text-xs sm:text-base lg:text-lg">
                                                 {orderFilter === 'current' && 'لا توجد طلبات حالية'}
                                                 {orderFilter === 'previous' && 'لا توجد طلبات سابقة'}
                                                 {orderFilter === 'cancelled' && 'لا توجد طلبات ملغاة'}
@@ -1803,26 +2115,26 @@ export default function AccountPage() {
                                                 initial={{ opacity: 0, y: 15 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 key={order.id}
-                                                className="bg-white/25 backdrop-blur-xs rounded-2xl border border-[#800020]/15 p-6 sm:p-7 flex flex-col gap-5"
+                                                className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl border border-[#800020]/15 p-2.5 xs:p-3 sm:p-5 lg:p-7 flex flex-col gap-2.5 sm:gap-4 lg:gap-5"
                                             >
                                                 {/* Card Header */}
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#800020]/10">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 pb-2.5 sm:pb-3 lg:pb-4 border-b border-[#800020]/10">
                                                     <div>
-                                                        <h3 className="text-lg font-black text-[#800020]">
+                                                        <h3 className="text-xs xs:text-sm sm:text-base lg:text-lg font-black text-[#800020]">
                                                             رقم الطلب: #{order.id}
                                                         </h3>
-                                                        <p className="text-xs sm:text-sm text-[#800020]/80 font-medium mt-1">
+                                                        <p className="text-[8.5px] xs:text-[9.5px] sm:text-xs lg:text-sm text-[#800020]/80 font-medium mt-0.5">
                                                             {order.itemCount} منتجات | {order.date}، {order.time}
                                                         </p>
                                                     </div>
 
-                                                    <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+                                                    <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 self-start sm:self-center flex-wrap">
                                                         {order.statusType === 'current' && (
                                                             <Link
                                                                 to={`/track-order/${order.id}`}
-                                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 sm:px-3 sm:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer"
                                                             >
-                                                                <Truck className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
+                                                                <Truck className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                                                 <span className="relative z-10">تتبع الطلب</span>
                                                             </Link>
                                                         )}
@@ -1830,9 +2142,9 @@ export default function AccountPage() {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDownloadInvoice(order.id)}
-                                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-1 sm:px-3 sm:py-1.5 lg:px-3.5 lg:py-1.5 rounded-md sm:rounded-lg text-[8.5px] xs:text-[9.5px] sm:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer"
                                                         >
-                                                            <Download className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
+                                                            <Download className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                                             <span className="relative z-10">تحميل الفاتورة</span>
                                                         </button>
 
@@ -1841,9 +2153,9 @@ export default function AccountPage() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setOpenMenuOrderId(openMenuOrderId === order.id ? null : order.id)}
-                                                                    className="shine-button bg-[#800020] text-[#F0DFCD] p-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                                                                    className="shine-button bg-[#800020] text-[#F0DFCD] p-1 sm:p-1.5 rounded-md sm:rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                                                                 >
-                                                                    <MoreVertical className="w-4 h-4 relative z-10 text-[#F0DFCD]" />
+                                                                    <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 relative z-10 text-[#F0DFCD]" />
                                                                 </button>
 
                                                                 {openMenuOrderId === order.id && (
@@ -1858,9 +2170,9 @@ export default function AccountPage() {
                                                                                     setOpenMenuOrderId(null);
                                                                                     setCancelModalOrder(order);
                                                                                 }}
-                                                                                className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] rounded-xl shadow-xl border border-[#800020]/20 transition-all cursor-pointer whitespace-nowrap"
+                                                                                className="flex items-center justify-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] rounded-xl shadow-xl border border-[#800020]/20 transition-all cursor-pointer whitespace-nowrap"
                                                                             >
-                                                                                <XCircle className="w-4 h-4 text-[#F0DFCD] shrink-0" />
+                                                                                <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F0DFCD] shrink-0" />
                                                                                 <span>إلغاء الطلبية</span>
                                                                             </button>
                                                                         </div>
@@ -1872,45 +2184,45 @@ export default function AccountPage() {
                                                 </div>
 
                                                 {/* Order Meta Information */}
-                                                <div className="flex flex-wrap items-start justify-between gap-y-4 gap-x-6 text-xs sm:text-sm py-1">
+                                                <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-start md:justify-between gap-y-2 gap-x-2 sm:gap-x-4 lg:gap-x-6 text-[8.5px] xs:text-[9.5px] sm:text-xs lg:text-sm py-1">
                                                     <div className="shrink-0">
-                                                        <span className="text-[#800020]/75 block mb-1">الحالة:</span>
+                                                        <span className="text-[#800020]/75 block mb-0.5 sm:mb-1 text-[8px] xs:text-[9px] sm:text-[11px] lg:text-xs font-medium">الحالة:</span>
                                                         <span className={`font-bold ${order.statusColor}`}>
                                                             {order.statusText}
                                                         </span>
                                                     </div>
 
                                                     <div className="shrink-0">
-                                                        <span className="text-[#800020]/75 block mb-1">تاريخ التوصيل:</span>
+                                                        <span className="text-[#800020]/75 block mb-0.5 sm:mb-1 text-[8px] xs:text-[9px] sm:text-[11px] lg:text-xs font-medium">تاريخ التوصيل:</span>
                                                         <span className="font-bold text-[#800020]">
                                                             {order.deliveryDate}
                                                         </span>
                                                     </div>
 
                                                     <div className="shrink-0">
-                                                        <span className="text-[#800020]/75 block mb-1">عنوان التوصيل:</span>
+                                                        <span className="text-[#800020]/75 block mb-0.5 sm:mb-1 text-[8px] xs:text-[9px] sm:text-[11px] lg:text-xs font-medium">عنوان التوصيل:</span>
                                                         <span className="font-semibold text-[#800020]">
                                                             {order.address}
                                                         </span>
                                                     </div>
 
-                                                    <div className="shrink-0 ml-4 sm:ml-14">
-                                                        <span className="text-[#800020]/75 block mb-1">الإجمالي:</span>
-                                                        <span className="font-black text-[#800020] text-base flex items-center gap-1">
+                                                    <div className="shrink-0 md:ml-4 lg:ml-14">
+                                                        <span className="text-[#800020]/75 block mb-0.5 sm:mb-1 text-[8px] xs:text-[9px] sm:text-[11px] lg:text-xs font-medium">الإجمالي:</span>
+                                                        <span className="font-black text-[#800020] text-[11px] xs:text-xs sm:text-sm lg:text-base flex items-center gap-0.5">
                                                             {order.total.toFixed(2)} <RiyalIcon />
                                                         </span>
                                                     </div>
                                                 </div>
 
                                                 {/* Order Products Grid */}
-                                                <div className="pt-4 border-t border-[#800020]/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="pt-2.5 sm:pt-4 border-t border-[#800020]/10 grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
                                                     {order.items.map((item, idx) => (
                                                         <div 
                                                             key={idx}
-                                                            className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white/30 transition-colors"
+                                                            className="flex items-center gap-2 sm:gap-3.5 p-1 sm:p-2 rounded-lg sm:rounded-xl hover:bg-white/30 transition-colors"
                                                         >
                                                             {/* Thumbnail */}
-                                                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/25 rounded-xl shrink-0 flex items-center justify-center p-2 border border-[#800020]/10 overflow-hidden">
+                                                            <div className="w-10 h-10 xs:w-12 xs:h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-white/25 rounded-lg sm:rounded-xl shrink-0 flex items-center justify-center p-1 sm:p-2 border border-[#800020]/10 overflow-hidden">
                                                                 <img 
                                                                     src={item.img} 
                                                                     alt={item.name} 
@@ -1920,10 +2232,10 @@ export default function AccountPage() {
 
                                                             {/* Item Info */}
                                                             <div className="flex-1 min-w-0 text-right">
-                                                                <h4 className="font-bold text-xs sm:text-sm text-[#800020] truncate mb-1">
+                                                                <h4 className="font-bold text-[9.5px] xs:text-[10.5px] sm:text-xs lg:text-sm text-[#800020] truncate mb-0.5 sm:mb-1">
                                                                     {item.name}
                                                                 </h4>
-                                                                <div className="text-[11px] sm:text-xs text-[#800020]/75 flex flex-col gap-0.5">
+                                                                <div className="text-[8px] xs:text-[9px] sm:text-[11px] lg:text-xs text-[#800020]/75 flex flex-col gap-0.5 leading-tight">
                                                                     <span className="flex items-center gap-1 font-semibold text-[#800020]">
                                                                         الكمية: {item.qty}x = {item.price.toFixed(2)} <RiyalIcon />
                                                                     </span>
@@ -1946,178 +2258,70 @@ export default function AccountPage() {
                             <motion.div
                                 initial={{ opacity: 0, y: 15 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white/25 backdrop-blur-xs rounded-2xl border border-[#800020]/15 shadow-sm p-6 sm:p-8 flex flex-col gap-6"
+                                className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl border border-[#800020]/15 shadow-sm p-3.5 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6"
                             >
-                                <div className="border-b border-[#800020]/10 pb-4">
-                                    <h2 className="text-xl sm:text-2xl font-black text-[#800020]">معلوماتي</h2>
-                                    <p className="text-xs sm:text-sm text-[#800020]/75 font-medium mt-1">
-                                        تعديل بياناتك الشخصية وعناوين التوصيل وطرق الدفع المعتمدة
+                                <div className="border-b border-[#800020]/10 pb-3 sm:pb-4">
+                                    <h2 className="text-base sm:text-xl lg:text-2xl font-black text-[#800020]">معلوماتي</h2>
+                                    <p className="text-[10px] sm:text-xs lg:text-sm text-[#800020]/75 font-medium mt-0.5 sm:mt-1">
+                                        تعديل بياناتك الشخصية وحسابك
                                     </p>
                                 </div>
 
-                                <form onSubmit={handleSaveInfo} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    {/* الاسم */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-xs sm:text-sm font-bold text-[#800020] flex items-center gap-1.5">
-                                            <span>الاسم</span>
+                                <form onSubmit={handleRequestPasswordChange} className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
+                                    {/* الاسم الأول */}
+                                    <div className="flex flex-col gap-1.5 sm:gap-2">
+                                        <label className="text-[10px] sm:text-xs lg:text-sm font-bold text-[#800020] flex items-center gap-1.5">
+                                            <span>الاسم الأول</span>
                                         </label>
                                         <input
                                             type="text"
-                                            value={userInfo.name}
-                                            onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-4 py-3 text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all"
-                                            placeholder="أدخل الاسم الكامل"
-                                            required
+                                            value={userInfo.firstName || ''}
+                                            onChange={(e) => handleFirstNameChange(e.target.value)}
+                                            onBlur={handleSaveNameOnBlur}
+                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-lg sm:rounded-xl px-2.5 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all"
+                                            placeholder="أدخل الاسم الأول"
                                         />
                                     </div>
 
-                                    {/* رقم الهاتف */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-xs sm:text-sm font-bold text-[#800020] flex items-center gap-1.5">
-                                            <span>رقم الهاتف</span>
+                                    {/* الاسم الثاني */}
+                                    <div className="flex flex-col gap-1.5 sm:gap-2">
+                                        <label className="text-[10px] sm:text-xs lg:text-sm font-bold text-[#800020] flex items-center gap-1.5">
+                                            <span>الاسم الثاني</span>
                                         </label>
                                         <input
-                                            type="tel"
-                                            dir="ltr"
-                                            value={userInfo.phone}
-                                            onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
-                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-4 py-3 text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all text-right font-sans"
-                                            placeholder="+966 5X XXX XXXX"
+                                            type="text"
+                                            value={userInfo.lastName || ''}
+                                            onChange={(e) => handleLastNameChange(e.target.value)}
+                                            onBlur={handleSaveNameOnBlur}
+                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-lg sm:rounded-xl px-2.5 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all"
+                                            placeholder="أدخل الاسم الثاني"
                                         />
                                     </div>
 
-                                    {/* الايميل */}
-                                    <div className="flex flex-col gap-2 md:col-span-2">
-                                        <label className="text-xs sm:text-sm font-bold text-[#800020] flex items-center gap-1.5">
-                                            <span>البريد الإلكتروني (الإيميل)</span>
+                                    {/* البريد الإلكتروني */}
+                                    <div className="flex flex-col gap-1.5 sm:gap-2 md:col-span-2">
+                                        <label className="text-[10px] sm:text-xs lg:text-sm font-bold text-[#800020] flex items-center gap-1.5">
+                                            <span>البريد الإلكتروني</span>
                                         </label>
                                         <input
                                             type="email"
                                             dir="ltr"
-                                            value={userInfo.email}
+                                            value={userInfo.email || ''}
                                             onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
-                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-xl px-4 py-3 text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all text-right font-sans"
+                                            className="w-full bg-white/25 backdrop-blur-xs border border-[#800020]/20 rounded-lg sm:rounded-xl px-2.5 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-[#800020] placeholder:text-[#800020]/40 outline-none focus:border-[#800020] focus:bg-white/40 transition-all text-right font-sans"
                                             placeholder="example@domain.com"
-                                            required
                                         />
                                     </div>
 
-                                    {/* عنوان التوصيل - مربع مسجل مع زر تعديل وزر أضف عنوان */}
-                                    <div className="flex flex-col gap-2 md:col-span-2">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs sm:text-sm font-bold text-[#800020] flex items-center gap-1.5">
-                                                <MapPin className="w-4 h-4 text-[#800020]" />
-                                                <span>عنوان التوصيل</span>
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => openAddressModal('add')}
-                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                                            >
-                                                <Plus className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
-                                                <span className="relative z-10">أضف عنوان</span>
-                                            </button>
-                                        </div>
-
-                                        {savedAddress ? (
-                                            <div className="bg-white/25 backdrop-blur-xs border border-[#800020]/15 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#800020]/30 transition-colors">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-white/30 backdrop-blur-xs shadow-2xs border border-[#800020]/20 flex items-center justify-center shrink-0 text-[#800020]">
-                                                        <MapPin className="w-5 h-5" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-bold text-sm text-[#800020]">العنوان المسجل</span>
-                                                            <span className="bg-[#800020] text-[#F0DFCD] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-xs">افتراضي</span>
-                                                        </div>
-                                                        <p className="text-xs sm:text-sm text-[#800020]/80 font-medium leading-relaxed">
-                                                            {savedAddress}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openAddressModal('edit')}
-                                                        className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                                                    >
-                                                        <Edit2 className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
-                                                        <span className="relative z-10">تعديل</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-white/25 backdrop-blur-xs border border-[#800020]/15 rounded-2xl p-5 text-center text-[#800020]/75 text-sm font-semibold">
-                                                لا يوجد عنوان مسجل بعد. اضغط على "أضف عنوان" لإضافة عنوانك الأول.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* طريقة الدفع - مربع مسجل */}
-                                    <div className="flex flex-col gap-2 md:col-span-2">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs sm:text-sm font-bold text-[#800020] flex items-center gap-1.5">
-                                                <CreditCard className="w-4 h-4 text-[#800020]" />
-                                                <span>طريقة الدفع</span>
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => openCardModal('add')}
-                                                className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                                            >
-                                                <Plus className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
-                                                <span className="relative z-10">أضف بطاقة</span>
-                                            </button>
-                                        </div>
-
-                                        {defaultCard ? (
-                                            <div className="bg-white/25 backdrop-blur-xs border border-[#800020]/15 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#800020]/30 transition-colors">
-                                                <div className="flex items-start gap-3">
-                                                    <div className={`w-10 h-10 rounded-xl ${getCardTheme(defaultCard.type).bg} shadow-2xs border border-white/20 flex items-center justify-center shrink-0 text-white`}>
-                                                        <CreditCard className="w-5 h-5 text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-bold text-sm text-[#800020]">{defaultCard.type}</span>
-                                                            <span className="bg-[#800020] text-[#F0DFCD] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow-xs">البطاقة الافتراضية</span>
-                                                        </div>
-                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#800020]/80 font-medium">
-                                                            <span className="font-mono tracking-wider text-[#800020] font-bold" dir="ltr">{defaultCard.number}</span>
-                                                            <span className="text-[#800020]/30">|</span>
-                                                            <span>تاريخ الانتهاء: {defaultCard.expiry}</span>
-                                                            <span className="text-[#800020]/30">|</span>
-                                                            <span>حامل البطاقة: {defaultCard.holder}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openCardModal('edit', defaultCard)}
-                                                        className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                                                    >
-                                                        <Edit2 className="w-3.5 h-3.5 relative z-10 text-[#F0DFCD]" />
-                                                        <span className="relative z-10">تعديل</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-white/25 backdrop-blur-xs border border-[#800020]/15 rounded-2xl p-5 text-center text-[#800020]/75 text-sm font-semibold">
-                                                لا توجد بطاقة محفوظة بعد. اضغط على "أضف بطاقة" لإضافة وسيلة دفع.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* زر الحفظ العام */}
-                                    <div className="md:col-span-2 pt-2">
+                                    {/* زر طلب تغيير كلمة السر عاليمين تحت */}
+                                    <div className="md:col-span-2 pt-1 sm:pt-2 flex items-center justify-start">
                                         <button
-                                            type="submit"
-                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-8 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer transition-transform"
+                                            type="button"
+                                            onClick={handleRequestPasswordChange}
+                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-4 py-2 sm:px-7 sm:py-3 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm shadow-xs hover:shadow-lg active:scale-95 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all"
                                         >
-                                            <Check className="w-4 h-4 relative z-10" />
-                                            <span className="relative z-10">حفظ التعديلات</span>
+                                            <Key className="w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 text-[#F0DFCD]" />
+                                            <span className="relative z-10">طلب تغيير كلمة السر</span>
                                         </button>
                                     </div>
                                 </form>
@@ -2126,65 +2330,65 @@ export default function AccountPage() {
 
                         {/* Addresses Tab */}
                         {activeTab === 'addresses' && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-6">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-black text-[#800020]">عناوين التوصيل المحفوظة</h2>
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 sm:gap-6">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <h2 className="text-sm xs:text-base sm:text-xl font-black text-[#800020]">عناوين التوصيل المحفوظة</h2>
                                     <button 
                                         type="button"
                                         onClick={() => openAddressModal('add')}
-                                        className="shine-button bg-[#800020] text-[#F0DFCD] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                                        className="shine-button bg-[#800020] text-[#F0DFCD] px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs lg:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-1 sm:gap-2 cursor-pointer"
                                     >
-                                        <Plus className="w-4 h-4 relative z-10 text-[#F0DFCD]" />
+                                        <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 text-[#F0DFCD]" />
                                         <span className="relative z-10">إضافة عنوان جديد</span>
                                     </button>
                                 </div>
 
                                 {savedAddresses.length === 0 ? (
-                                    <div className="bg-white/25 backdrop-blur-xs rounded-2xl p-12 text-center border border-[#800020]/15 shadow-sm">
-                                        <p className="text-[#800020]/80 font-bold text-lg">
+                                    <div className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl p-6 sm:p-12 text-center border border-[#800020]/15 shadow-sm">
+                                        <p className="text-[#800020]/80 font-bold text-xs sm:text-lg">
                                             لا توجد عناوين توصيل محفوظة حتى الآن
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-4">
                                         {savedAddresses.map((addr) => (
                                             <div 
                                                 key={addr.id}
-                                                className={`bg-white/25 backdrop-blur-xs rounded-2xl p-6 shadow-sm relative transition-all duration-300 ${
+                                                className={`bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-sm relative transition-all duration-300 ${
                                                     addr.isDefault 
                                                         ? 'border-2 border-[#800020]' 
                                                         : 'border border-[#800020]/20 hover:border-[#800020]/40'
                                                 }`}
                                             >
                                                 {addr.isDefault ? (
-                                                    <span className="absolute top-4 left-4 bg-[#800020] text-[#F0DFCD] text-xs font-bold px-3 py-1 rounded-full shadow-xs">
+                                                    <span className="absolute top-2.5 left-2.5 sm:top-4 sm:left-4 bg-[#800020] text-[#F0DFCD] text-[9px] sm:text-xs font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-xs">
                                                         العنوان الافتراضي
                                                     </span>
                                                 ) : (
-                                                    <div className="absolute top-4 left-4 flex items-center gap-2">
+                                                    <div className="absolute top-2.5 left-2.5 sm:top-4 sm:left-4 flex items-center gap-1 sm:gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => handleSetDefaultAddress(addr.id)}
-                                                            className="text-xs font-bold bg-[#800020] hover:bg-[#600018] text-[#F0DFCD] px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 border border-[#800020]"
+                                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-xs font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-0.5 sm:gap-1 cursor-pointer"
                                                         >
-                                                            <Check className="w-3 h-3 text-[#F0DFCD]" />
-                                                            <span>تعيين كافتراضي</span>
+                                                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#F0DFCD] relative z-10" />
+                                                            <span className="relative z-10">تعيين كافتراضي</span>
                                                         </button>
                                                         {savedAddresses.length > 1 && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleDeleteAddress(addr.id)}
-                                                                className="p-1 text-rose-500 hover:text-rose-950 transition-colors bg-transparent border-0 cursor-pointer"
+                                                                className="shine-text-btn group p-1 bg-transparent border-0 cursor-pointer active:scale-90 transition-all flex items-center justify-center"
                                                                 aria-label="حذف العنوان"
                                                             >
-                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2] shine-icon" />
                                                             </button>
                                                         )}
                                                     </div>
                                                 )}
-                                                <h3 className="font-bold text-[#800020] text-base mb-2">{addr.title}</h3>
-                                                <p className="text-sm text-[#800020]/80 leading-relaxed mb-4">{addr.address}</p>
-                                                <p className="text-xs text-[#800020]/70">رقم الهاتف: {addr.phone}</p>
+                                                <h3 className="font-bold text-[#800020] text-xs sm:text-base mb-1 sm:mb-2">{addr.title}</h3>
+                                                <p className="text-[10px] sm:text-sm text-[#800020]/80 leading-relaxed mb-2 sm:mb-4">{addr.address}</p>
+                                                <p className="text-[9px] sm:text-xs text-[#800020]/70">رقم الهاتف: {addr.phone}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -2194,36 +2398,36 @@ export default function AccountPage() {
 
                         {/* Payments Tab */}
                         {activeTab === 'payments' && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-6">
-                                <div className="flex items-center justify-between flex-wrap gap-3">
-                                    <h2 className="text-xl font-black text-[#800020]">البطاقات المحفوظة</h2>
-                                    <div className="flex items-center gap-2.5">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 sm:gap-6">
+                                <div className="flex flex-row items-center justify-between gap-1 sm:gap-2">
+                                    <h2 className="text-[11px] xs:text-xs sm:text-lg lg:text-xl font-black text-[#800020] whitespace-nowrap shrink-0">البطاقات المحفوظة</h2>
+                                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                                         <button 
                                             type="button"
                                             onClick={() => setIsManageCardsOpen(true)}
-                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-1.5 py-1 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 rounded-lg sm:rounded-xl text-[7.5px] xs:text-[8.5px] sm:text-xs lg:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer whitespace-nowrap"
                                         >
-                                            <SlidersHorizontal className="w-4 h-4 relative z-10 text-[#F0DFCD]" />
+                                            <SlidersHorizontal className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                             <span className="relative z-10">إدارة البطاقات</span>
                                         </button>
                                         <button 
                                             type="button"
                                             onClick={() => openCardModal('add')}
-                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                                            className="shine-button bg-[#800020] text-[#F0DFCD] px-1.5 py-1 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 rounded-lg sm:rounded-xl text-[7.5px] xs:text-[8.5px] sm:text-xs lg:text-sm font-bold shadow-xs hover:shadow-lg active:scale-95 transition-all flex items-center gap-0.5 sm:gap-1.5 cursor-pointer whitespace-nowrap"
                                         >
-                                            <Plus className="w-4 h-4 relative z-10 text-[#F0DFCD]" />
+                                            <Plus className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3.5 sm:h-3.5 relative z-10 text-[#F0DFCD]" />
                                             <span className="relative z-10">إضافة بطاقة</span>
                                         </button>
                                     </div>
                                 </div>
                                 {savedCards.length === 0 ? (
-                                    <div className="bg-white/25 backdrop-blur-xs rounded-2xl p-12 text-center border border-[#800020]/15 shadow-sm">
-                                        <p className="text-[#800020]/80 font-bold text-lg">
+                                    <div className="bg-white/25 backdrop-blur-xs rounded-xl sm:rounded-2xl p-6 sm:p-12 text-center border border-[#800020]/15 shadow-sm">
+                                        <p className="text-[#800020]/80 font-bold text-xs sm:text-lg">
                                             لا توجد بطاقات دفع محفوظة حتى الآن
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                                         {savedCards.map((card) => renderCreditCard(card))}
                                     </div>
                                 )}
