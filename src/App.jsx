@@ -256,59 +256,59 @@ function App() {
             {homeOffer?.isActive !== false && (
                 <motion.section
                     initial="hidden" whileInView="visible" viewport={{ once: true }} custom={4} variants={staggerVariants}
-                    className="w-full bg-[#800020] text-white mt-8 sm:mt-16 md:mt-24 relative overflow-hidden flex items-stretch group/banner min-h-[115px] xs:min-h-[130px] sm:min-h-[180px] md:min-h-[220px] lg:min-h-[280px]"
+                    className="w-full bg-[#800020] text-white mt-8 sm:mt-16 md:mt-24 relative overflow-hidden flex items-stretch group/banner min-h-[145px] xs:min-h-[155px] sm:min-h-[220px] md:min-h-[250px] lg:min-h-[280px]"
                     style={{ boxShadow: '-4px 0 0 0 #800020, 4px 0 0 0 #800020' }}
                 >
                     <div className="container mx-auto px-2 sm:px-6 lg:px-12 flex flex-row items-center justify-between relative w-full gap-1.5 sm:gap-4 md:gap-0 py-0">
 
                         {/* Right: Timer blocks */}
-                        <div className="flex gap-1 xs:gap-1.5 sm:gap-3 md:gap-3 lg:gap-4 text-center items-center py-2.5 xs:py-3 sm:py-6 md:py-8 lg:py-9 shrink-0" dir="ltr">
+                        <div className="flex gap-1 xs:gap-1.5 sm:gap-3 md:gap-3 lg:gap-4 text-center items-center py-2 xs:py-2.5 sm:py-6 md:py-8 lg:py-9 shrink-0" dir="ltr">
                             <div className="flex flex-col items-center gap-0.5 xs:gap-1 sm:gap-2">
                                 <div className="w-[28px] h-[28px] xs:w-[32px] xs:h-[32px] sm:w-[38px] sm:h-[38px] md:w-[44px] md:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-[11px] xs:text-xs sm:text-lg md:text-xl lg:text-2xl font-bold rounded sm:rounded-md shadow-inner">{timer.days}</div>
-                                <span className="text-[7.5px] xs:text-[8.5px] sm:text-[10px] lg:text-xs font-bold opacity-90">أيام</span>
+                                <span className="text-[8px] xs:text-[9px] sm:text-[10px] lg:text-xs font-bold opacity-90">أيام</span>
                             </div>
                             <div className="flex flex-col items-center gap-0.5 xs:gap-1 sm:gap-2">
                                 <div className="w-[28px] h-[28px] xs:w-[32px] xs:h-[32px] sm:w-[38px] sm:h-[38px] md:w-[44px] md:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-[11px] xs:text-xs sm:text-lg md:text-xl lg:text-2xl font-bold rounded sm:rounded-md shadow-inner">{timer.hours}</div>
-                                <span className="text-[7.5px] xs:text-[8.5px] sm:text-[10px] lg:text-xs font-bold opacity-90">ساعات</span>
+                                <span className="text-[8px] xs:text-[9px] sm:text-[10px] lg:text-xs font-bold opacity-90">ساعات</span>
                             </div>
                             <div className="flex flex-col items-center gap-0.5 xs:gap-1 sm:gap-2">
                                 <div className="w-[28px] h-[28px] xs:w-[32px] xs:h-[32px] sm:w-[38px] sm:h-[38px] md:w-[44px] md:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-[11px] xs:text-xs sm:text-lg md:text-xl lg:text-2xl font-bold rounded sm:rounded-md shadow-inner">{timer.minutes}</div>
-                                <span className="text-[7.5px] xs:text-[8.5px] sm:text-[10px] lg:text-xs font-bold opacity-90">دقائق</span>
+                                <span className="text-[8px] xs:text-[9px] sm:text-[10px] lg:text-xs font-bold opacity-90">دقائق</span>
                             </div>
                             <div className="flex flex-col items-center gap-0.5 xs:gap-1 sm:gap-2">
                                 <div className="w-[28px] h-[28px] xs:w-[32px] xs:h-[32px] sm:w-[38px] sm:h-[38px] md:w-[44px] md:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-[11px] xs:text-xs sm:text-lg md:text-xl lg:text-2xl font-bold rounded sm:rounded-md shadow-inner">{timer.seconds}</div>
-                                <span className="text-[7.5px] xs:text-[8.5px] sm:text-[10px] lg:text-xs font-bold opacity-90">ثواني</span>
+                                <span className="text-[8px] xs:text-[9px] sm:text-[10px] lg:text-xs font-bold opacity-90">ثواني</span>
                             </div>
                         </div>
 
                         {/* Center: Text & Pricing */}
-                        <div className="flex-1 flex justify-center items-center px-1 xs:px-1.5 sm:px-4 lg:translate-x-12">
-                            <div className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-6 lg:gap-8 text-[#E2D3C0]">
+                        <div className="flex-1 flex justify-center items-center px-1 xs:px-2 sm:px-4 translate-x-1.5 xs:translate-x-2.5 sm:translate-x-6 md:translate-x-8 lg:translate-x-12">
+                            <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-6 lg:gap-8 text-[#E2D3C0]">
                                 <div className="text-center">
-                                    <span className="text-[10px] xs:text-xs sm:text-2xl lg:text-3xl font-black block leading-tight">{homeOffer?.badgeText || 'خصم'}</span>
-                                    <span className="text-xs xs:text-sm sm:text-3xl lg:text-4xl font-black block leading-tight">{homeOffer?.discount || '70%'}</span>
+                                    <span className="text-xs xs:text-sm sm:text-2xl lg:text-3xl font-black block leading-tight">{homeOffer?.badgeText || 'خصم'}</span>
+                                    <span className="text-sm xs:text-base sm:text-3xl lg:text-4xl font-black block leading-tight">{homeOffer?.discount || '70%'}</span>
                                 </div>
-                                <div className="flex flex-col items-center justify-center border-r sm:border-r-2 border-[#E2D3C0]/30 pr-1.5 xs:pr-2.5 sm:pr-6 lg:pr-8">
+                                <div className="flex flex-col items-center justify-center border-r sm:border-r-2 border-[#E2D3C0]/30 pr-1.5 xs:pr-2 sm:pr-6 lg:pr-8">
                                     {homeOffer?.originalPrice && (
-                                        <span className="line-through opacity-70 text-[8px] xs:text-[9.5px] sm:text-lg block mb-0.5 leading-tight">{homeOffer.originalPrice} <RiyalIcon className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3.5 sm:h-3.5" /></span>
+                                        <span className="line-through opacity-70 text-[9px] xs:text-[10px] sm:text-lg block mb-0.5 leading-tight">{homeOffer.originalPrice} <RiyalIcon className="w-2.5 h-2.5 xs:w-2.5 xs:h-2.5 sm:w-3.5 sm:h-3.5" /></span>
                                     )}
-                                    <span className="font-bold text-[10px] xs:text-xs sm:text-2xl block leading-tight">{homeOffer?.salePrice ?? 150} <RiyalIcon className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4" /></span>
+                                    <span className="font-bold text-xs xs:text-sm sm:text-2xl block leading-tight">{homeOffer?.salePrice ?? 150} <RiyalIcon className="w-3 h-3 xs:w-3 xs:h-3 sm:w-4 sm:h-4" /></span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Left: Product Card Background block integrated seamlessly */}
                         <div
-                            className="w-[105px] xs:w-[125px] sm:w-[170px] md:w-[220px] lg:w-[310px] self-stretch shrink-0 bg-[#f0dfcd] text-[#800020] flex flex-row items-center cursor-pointer group relative z-10 ml-2 xs:ml-3 sm:ml-4 md:ml-6 lg:-ml-20 mr-1 xs:mr-2 sm:mr-3 md:mr-4 lg:mr-20 overflow-visible"
+                            className="w-[115px] xs:w-[130px] sm:w-[200px] md:w-[250px] lg:w-[310px] self-stretch shrink-0 bg-[#f0dfcd] text-[#800020] flex flex-row items-center cursor-pointer group relative z-10 -ml-2 xs:-ml-3 sm:-ml-4 md:-ml-8 lg:-ml-20 mr-1 xs:mr-2 sm:mr-3 md:mr-4 lg:mr-20 overflow-visible"
                             onClick={() => navigate(homeOffer?.targetUrl || (homeOffer?.productId ? `/product/${homeOffer.productId}` : '/product/1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7'))}
                         >
                             <div className="w-full h-full relative z-20 flex items-center justify-center p-0.5 sm:p-2 group-hover:scale-105 transition-transform duration-500 overflow-visible">
                                 <img
                                     src={homeOffer?.imageUrl || "/new_offer_shoes_transparent.png"}
                                     alt={homeOffer?.productName || "حذاء عرض"}
-                                    className="w-[120px] xs:w-[145px] sm:w-[210px] md:w-[255px] lg:w-[415px] max-w-none h-auto object-contain origin-center relative lg:absolute translate-x-2 xs:translate-x-3 sm:translate-x-3 md:translate-x-3 lg:translate-x-20 transition-transform duration-500 [--offset-factor:0.25] xs:[--offset-factor:0.32] sm:[--offset-factor:0.45] md:[--offset-factor:0.5] lg:[--offset-factor:1]"
+                                    className="w-[155px] xs:w-[170px] sm:w-[300px] md:w-[350px] lg:w-[415px] max-w-none h-auto object-contain origin-center absolute transition-transform duration-500 [--shoe-shift:26px] xs:[--shoe-shift:30px] sm:[--shoe-shift:44px] md:[--shoe-shift:58px] lg:[--shoe-shift:80px] [--offset-factor:0.25] xs:[--offset-factor:0.32] sm:[--offset-factor:0.6] md:[--offset-factor:0.8] lg:[--offset-factor:1]"
                                     style={{
-                                        transform: `scale(${homeOffer?.imageScale || 1.1}) translateX(calc(${homeOffer?.imageOffsetX !== undefined ? `${homeOffer.imageOffsetX}px` : '45px'} * var(--offset-factor, 1)))`
+                                        transform: `scale(${homeOffer?.imageScale || 1.1}) translateX(calc(var(--shoe-shift, 0px) + (${homeOffer?.imageOffsetX !== undefined ? `${homeOffer.imageOffsetX}px` : '45px'} - 45px) * var(--offset-factor, 1)))`
                                     }}
                                 />
                             </div>
