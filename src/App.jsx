@@ -306,7 +306,7 @@ function App() {
                                 <img
                                     src={homeOffer?.imageUrl || "/new_offer_shoes_transparent.png"}
                                     alt={homeOffer?.productName || "حذاء عرض"}
-                                    className="w-[155px] xs:w-[170px] sm:w-[300px] md:w-[350px] lg:w-[415px] max-w-none h-auto object-contain origin-center absolute transition-transform duration-500 [--shoe-shift:26px] xs:[--shoe-shift:30px] sm:[--shoe-shift:44px] md:[--shoe-shift:58px] lg:[--shoe-shift:80px] [--offset-factor:0.25] xs:[--offset-factor:0.32] sm:[--offset-factor:0.6] md:[--offset-factor:0.8] lg:[--offset-factor:1]"
+                                    className="w-[155px] xs:w-[170px] sm:w-[300px] md:w-[350px] lg:w-[415px] max-w-none h-auto object-contain origin-center absolute transition-transform duration-500 [--shoe-shift:12px] xs:[--shoe-shift:15px] sm:[--shoe-shift:22px] md:[--shoe-shift:30px] lg:[--shoe-shift:44px] [--offset-factor:0.25] xs:[--offset-factor:0.32] sm:[--offset-factor:0.6] md:[--offset-factor:0.8] lg:[--offset-factor:1]"
                                     style={{
                                         transform: `scale(${homeOffer?.imageScale || 1.1}) translateX(calc(var(--shoe-shift, 0px) + (${homeOffer?.imageOffsetX !== undefined ? `${homeOffer.imageOffsetX}px` : '45px'} - 45px) * var(--offset-factor, 1)))`
                                     }}
