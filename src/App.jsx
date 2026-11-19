@@ -238,6 +238,7 @@ function App() {
                 >
                     <InteractiveButton
                         href="#categories"
+                        interaction="تغيير نص ولون بزاوية 45"
                         onClick={(e) => {
                             e.preventDefault();
                             const el = document.getElementById('categories');
@@ -486,8 +487,7 @@ function App() {
                     <div className="mt-8 sm:mt-12 flex justify-center">
                         <InteractiveButton
                             onClick={() => navigate('/men')}
-                            inverse={true}
-                            glow={true}
+                            interaction="تغيّر في خلفية ذات اللون"
                             className="w-44 sm:w-56 text-base sm:text-lg transition-all duration-300 py-2 sm:py-3.5"
                         >
                             تصفح الكل

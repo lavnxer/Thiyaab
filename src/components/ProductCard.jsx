@@ -53,8 +53,8 @@ export function ToggleIcon({ Icon, isActive, onClick, className = "", fillOnActi
             onClick={handleClick}
             className={`group/icon overflow-hidden transition-colors duration-500 ${baseClass} ${className}`}
         >
-            {/* Smooth Background */}
-            <div className={`absolute inset-y-0 -left-[50%] w-[200%] bg-[#800020] skew-x-[15deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] z-0
+            {/* Smooth 45-degree angle Background Sweep (تغيّر لون بزاوية 45) */}
+            <div className={`absolute inset-y-0 -left-[50%] w-[200%] bg-[#800020] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] z-0
                 ${isActive ? 'translate-x-0' : '-translate-x-full group-hover/icon:translate-x-0'}`}
             />
 

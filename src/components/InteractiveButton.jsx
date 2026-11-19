@@ -8,7 +8,8 @@ export default function InteractiveButton({
     onClick,
     href,
     to,
-    variant = 'hero', // 'hero' | 'outline-to-burgundy'
+    variant = 'hero', // 'hero' | 'outline-to-burgundy' | 'shine'
+    interaction, // 'تغيير نص ولون بزاوية 45' | 'تغيّر في خلفية ذات اللون' | 'لمعة متحركة'
     inverse = false,
     glow = false,
     icon,
@@ -20,6 +21,19 @@ export default function InteractiveButton({
     title,
     type = 'button',
 }) {
+    // Resolve interaction aliases
+    let resolvedInverse = inverse;
+    let resolvedGlow = glow;
+    let resolvedVariant = variant;
+
+    if (interaction === 'تغيّر في خلفية ذات اللون') {
+        resolvedInverse = true;
+        resolvedGlow = true;
+    } else if (interaction === 'تغيير نص ولون بزاوية 45') {
+        resolvedVariant = 'hero';
+    } else if (interaction === 'لمعة متحركة') {
+        resolvedVariant = 'shine';
+    }
     const Tag = to ? Link : href ? 'a' : 'button';
     const tagProps = to ? { to } : href ? { href } : { type };
 
@@ -43,7 +57,7 @@ export default function InteractiveButton({
     const hasCustomPadding = className.includes('py-') || className.includes('p-') || className.includes('px-');
     const finalPadding = hasCustomPadding ? '' : padding;
 
-    if (variant === 'outline-to-burgundy') {
+    if (resolvedVariant === 'outline-to-burgundy') {
         const finalBorder = border || 'border border-[#800020]/25';
         const finalBg = bg || (className.includes('bg-') ? '' : 'bg-white/25 backdrop-blur-xs');
 
@@ -55,7 +69,7 @@ export default function InteractiveButton({
             >
                 {/* 1. Full-Button Sliding Burgundy Sheet: Covers 100% of button area including padding */}
                 <span className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[35deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0" />
+                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0" />
                 </span>
 
                 {/* 2. Base State: Burgundy Text & Icon */}
@@ -78,31 +92,47 @@ export default function InteractiveButton({
         );
     }
 
-    // Default 'hero' / solid interactive variant:
-    // When inverse is false: Base is Solid Burgundy (#800020) + Cream text (#F0DFCD).
-    //                       Sweep sheet is Cream (#F0DFCD) + Burgundy text (#800020).
-    // When inverse is true:  Base is Solid Cream (#F0DFCD) + Burgundy text (#800020).
-    //                       Sweep sheet is Burgundy (#800020) + Cream text (#F0DFCD).
+    if (resolvedVariant === 'shine') {
+        const finalBg = bg || 'bg-[#800020]';
+        const finalColor = resolvedInverse ? 'text-[#800020]' : 'text-[#F0DFCD]';
+        return (
+            <Tag
+                {...tagProps}
+                onClick={onClick}
+                title={title}
+                className={`shine-button relative overflow-hidden inline-flex items-center justify-center gap-2 font-bold ${rounded} ${border} ${finalBg} ${finalColor} shadow-md hover:shadow-xl active:scale-95 transition-all duration-300 group cursor-pointer ${finalPadding} ${className}`}
+            >
+                <span className="shine-effect z-20" />
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                    {finalIconPosition === 'start' && renderIcon(false)}
+                    {children && <span>{children}</span>}
+                    {finalIconPosition === 'end' && renderIcon(false)}
+                </span>
+            </Tag>
+        );
+    }
+
+    // Default 'hero' / solid interactive variant (تغيير نص ولون بزاوية 45 / تغيّر في خلفية ذات اللون):
     const resolvedBg = bg
         ? bg
-        : inverse
+        : resolvedInverse
             ? 'bg-[#F0DFCD]'
             : 'bg-[#800020]';
 
-    const sweepBg = inverse
+    const sweepBg = resolvedInverse
         ? 'bg-[#800020]'
         : 'bg-[#F0DFCD]';
 
-    const resolvedBaseText = inverse
+    const resolvedBaseText = resolvedInverse
         ? 'text-[#800020]'
         : 'text-[#F0DFCD]';
 
-    const resolvedHoverText = inverse
+    const resolvedHoverText = resolvedInverse
         ? 'text-[#F0DFCD]'
         : 'text-[#800020]';
 
-    const resolvedShadow = glow
-        ? (inverse
+    const resolvedShadow = resolvedGlow
+        ? (resolvedInverse
             ? 'shadow-[0_0_25px_rgba(240,223,205,0.45)] hover:shadow-[0_0_35px_rgba(240,223,205,0.7)]'
             : 'shadow-[0_0_25px_rgba(128,0,32,0.45)] hover:shadow-[0_0_35px_rgba(128,0,32,0.7)]')
         : 'shadow-md hover:shadow-xl';
@@ -116,7 +146,7 @@ export default function InteractiveButton({
         >
             {/* 1. Full-Button Sliding Sweep Sheet: Co-extensive with 100% of the button, covering all edges and padding */}
             <span className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-                <span className={`absolute -inset-x-24 -inset-y-16 ${sweepBg} -translate-x-[160%] skew-x-[35deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0`} />
+                <span className={`absolute -inset-x-24 -inset-y-16 ${sweepBg} -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0`} />
             </span>
 
             {/* 2. Base Layer: Natural flow, establishes button size */}

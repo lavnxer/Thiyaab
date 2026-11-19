@@ -723,33 +723,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                         </div>
                     </div>
 
-                    {/* Text Title & Subtitle Config */}
-                    <div className="bg-white/60 p-5 rounded-3xl border border-[#800020]/15 space-y-3">
-                        <h4 className="text-xs font-black text-[#800020]">نصوص واجهة قسم الأكثر مبيعاً</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                            <div>
-                                <label className="block font-bold text-[#800020] mb-1">عنوان القسم:</label>
-                                <input
-                                    type="text"
-                                    value={bestSellersSection.title || ''}
-                                    onChange={(e) => updateHomeSection('bestSellers', { title: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-bold text-[#800020]"
-                                    placeholder="الأكثر مبيعاً"
-                                />
-                            </div>
-                            <div>
-                                <label className="block font-bold text-[#800020] mb-1">النص الوصفي:</label>
-                                <input
-                                    type="text"
-                                    value={bestSellersSection.subtitle || ''}
-                                    onChange={(e) => updateHomeSection('bestSellers', { subtitle: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 text-[#800020]"
-                                    placeholder="القطع الأكثر طلباً وتميزاً..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Products List Display */}
                     <div className="bg-white/70 p-6 rounded-3xl border border-[#800020]/15 shadow-sm space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#800020]/10 pb-3">

@@ -6,7 +6,7 @@
 
 @layer base {
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100%;
   }
   body {
@@ -55,7 +55,8 @@
   transition: opacity 0.2s ease;
 }
 
-.group:hover .shine-effect {
+.group:hover .shine-effect,
+.shine-button:hover .shine-effect {
   opacity: 1;
   animation: shineSweep 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }

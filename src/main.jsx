@@ -19,7 +19,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage.jsx'
 import Navbar from './components/Navbar.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
-import { AuthProvider } from './context/AuthContext.jsx'
+import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ShopProvider } from './context/ShopContext.jsx'
 import './style.css'
 
@@ -30,6 +30,11 @@ function Layout({ children }) {
             {children}
         </>
     )
+}
+
+function OrdersRedirect() {
+    const { isAdmin } = useAuth();
+    return <Navigate to={isAdmin ? "/admin/orders" : "/account?tab=orders"} replace />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -51,6 +56,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                             <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                             <Route path="/wishlist" element={<Layout><WishlistPage /></Layout>} />
                             <Route path="/account" element={<Layout><AccountPage /></Layout>} />
+                            <Route path="/orders" element={<OrdersRedirect />} />
+                            <Route path="/orders/:id" element={<Layout><TrackOrderPage /></Layout>} />
                             <Route path="/track-order/:id" element={<Layout><TrackOrderPage /></Layout>} />
                             <Route path="/track-order" element={<Layout><TrackOrderPage /></Layout>} />
                             <Route path="/size-guide" element={<Layout><SizeGuidePage /></Layout>} />

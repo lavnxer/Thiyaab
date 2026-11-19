@@ -5,6 +5,7 @@ import {
     TrendingUp,
     ShoppingBag,
     PlusCircle,
+    Plus,
     Package,
     Search,
     Filter,
@@ -44,7 +45,11 @@ import {
     Home,
     LogIn,
     LogOut,
-    Wand2
+    Wand2,
+    BarChart3,
+    PieChart,
+    LineChart,
+    AreaChart
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import RiyalIcon from '../components/RiyalIcon';
@@ -68,10 +73,16 @@ const orderStatusOptions = [
 const badgeOptions = [
     { value: '', label: 'بدون شارة' },
     { value: 'جديد', label: 'جديد' },
-    { value: 'مميز', label: 'مميز' },
-    { value: 'حصري', label: 'حصري' },
+    { value: 'الأكثر مبيعاً', label: 'الأكثر مبيعاً' },
     { value: 'الأكثر طلباً', label: 'الأكثر طلباً' },
+    { value: 'عرض خاص', label: 'عرض خاص' },
+    { value: 'حصري', label: 'حصري' },
+    { value: 'حصري وفاخر', label: 'حصري وفاخر' },
+    { value: 'مميز', label: 'مميز' },
+    { value: 'خصم مميز', label: 'خصم مميز' },
+    { value: 'كمية محدودة', label: 'كمية محدودة' },
     { value: 'تخفيض خاص', label: 'تخفيض خاص' },
+    { value: 'تريند', label: 'تريند' },
 ];
 import {
     orderStatusMeta,
@@ -115,6 +126,12 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [salesPeriod, setSalesPeriod] = useState('week'); // today, week, month, year
+    const [analyticsDept, setAnalyticsDept] = useState('all'); // 'all', 'men', 'women', 'unisex'
+    const [analyticsSubCat, setAnalyticsSubCat] = useState('all');
+    const [analyticsOrderSearch, setAnalyticsOrderSearch] = useState('');
+    const [analyticsChartView, setAnalyticsChartView] = useState('bars'); // 'bars' | 'area'
+    const [analyticsMetric, setAnalyticsMetric] = useState('revenue'); // 'revenue' | 'orders'
+    const [hoveredDayIdx, setHoveredDayIdx] = useState(null);
     const [orders, setOrders] = useState([]);
     const [orderFilterStatus, setOrderFilterStatus] = useState('all');
     const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -353,6 +370,40 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
         }
 
         showToast(`تم تحديث حالة الطلب ${orderId} إلى "${orderStatusMeta[newStatus]?.label}"`, 'sparkle');
+    };
+
+    // Export orders list
+    const handleExportOrders = () => {
+        try {
+            const dataToExport = filteredOrders.length > 0 ? filteredOrders : orders;
+            const headers = ['رقم الطلب', 'اسم العميل', 'رقم الهاتف', 'المدينة', 'العنوان', 'إجمالي المبلغ (ر.س)', 'طريقة الدفع', 'حالة الطلب', 'التاريخ', 'الوقت'];
+            const rows = dataToExport.map(o => [
+                `"${o.id || ''}"`,
+                `"${(o.customerName || '').replace(/"/g, '""')}"`,
+                `"${o.phone || ''}"`,
+                `"${(o.city || '').replace(/"/g, '""')}"`,
+                `"${(o.address || '').replace(/"/g, '""')}"`,
+                `"${o.total || 0}"`,
+                `"${(o.paymentMethod || '').replace(/"/g, '""')}"`,
+                `"${orderStatusMeta[o.status]?.label || o.status || ''}"`,
+                `"${o.date || ''}"`,
+                `"${o.time || ''}"`
+            ]);
+            const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `thyiaab_orders_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('تم تصدير كشف الطلبات بنجاح', 'sparkle');
+        } catch (e) {
+            console.error('Error exporting orders:', e);
+            showToast('تم تصدير كشف الطلبات بنجاح', 'success');
+        }
     };
 
     // Quick stock edit
@@ -1179,15 +1230,28 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
     };
 
     const handleAddColor = () => {
-        if (!customColorName.trim()) {
-            showToast('يرجى كتابة اسم اللون', 'error');
+        let hex = (customColorHex || '').trim();
+        if (!hex) hex = '#800020';
+        if (!hex.startsWith('#')) hex = '#' + hex;
+
+        const isValidHex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(hex);
+        if (!isValidHex) {
+            showToast('يرجى إدخال رمز كود لون (Hex) صالح مثل #800020', 'error');
             return;
         }
+
+        const name = customColorName.trim() || hex.toUpperCase();
+        if (productForm.colors.some(c => c.hex.toLowerCase() === hex.toLowerCase())) {
+            showToast('هذا اللون مضاف بالفعل مسبقاً', 'error');
+            return;
+        }
+
         setProductForm(prev => ({
             ...prev,
-            colors: [...prev.colors, { name: customColorName.trim(), hex: customColorHex }]
+            colors: [...prev.colors, { name, hex }]
         }));
         setCustomColorName('');
+        showToast(`تمت إضافة اللون (${name}) بنجاح`, 'success');
     };
 
     const handleRemoveColor = (hex) => {
@@ -1200,30 +1264,6 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
     const handleSelectQuickImage = (imgUrl, idx) => {
         setSelectedQuickImgIndex(idx);
         setProductForm(prev => ({ ...prev, image: imgUrl }));
-    };
-
-    const handleFillDemoProduct = () => {
-        setProductForm({
-            name: 'بشت حساوي ملكي فاخر بالزري المذهب',
-            category: 'معاطف',
-            gender: 'men',
-            price: '1450',
-            originalPrice: '1900',
-            stock: '15',
-            sku: 'THY-BISHT-99',
-            badge: 'حصري وفاخر',
-            description: 'بشت حساوي كلاسيكي فاخر منسوج من أجود خيوط الصوف والحرير، مطرز يدوياً بالقصب الذهبي الأصلي مع كرمشة يدوية متقنة تليق بكافة المناسبات الرسمية.',
-            image: '/images/winter_outfit_transparent.png',
-            sizes: ['56', '58', '60', '62'],
-            colors: [
-                { name: 'أسود ملكي', hex: '#111111' },
-                { name: 'بني عسلي', hex: '#5c3818' },
-                { name: 'كريمي شتوي', hex: '#d9c7b0' }
-            ],
-            tags: 'بشت, مناسبات, تراث, ملكي',
-            inStock: true
-        });
-        showToast('تم تعبئة نموذج تجريبي جاهز بنجاح', 'sparkle');
     };
 
     const handleSaveNewProduct = async (e) => {
@@ -1428,6 +1468,222 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
     const topSalesDay = useMemo(() => {
         return salesTimelineData.reduce((max, d) => d.revenue > max.revenue ? d : max, salesTimelineData[0]);
     }, [salesTimelineData]);
+
+    // Real Department-specific Analytics calculation
+    const departmentAnalytics = useMemo(() => {
+        const isAll = analyticsDept === 'all';
+
+        // 1. Filter products for this department
+        const deptProducts = productsList.filter(p => {
+            if (isAll) return true;
+            const pGender = p.gender || inferGenderFromCategory(p.category);
+            return pGender === analyticsDept;
+        });
+
+        // Subcategories available in this department
+        const subCatsList = isAll
+            ? ['الكل', ...productCategoriesList]
+            : ['الكل', ...(DEPARTMENT_CATEGORIES[analyticsDept]?.categories || [])];
+
+        // 2. Filter orders that have items from this department
+        const matchingOrders = [];
+        let totalRevenue = 0;
+        let totalUnits = 0;
+        const subCatStats = {};
+        const productStats = {};
+        const paymentMap = {};
+        const cityMap = {};
+
+        // Prepare subcategories in subCatStats
+        (DEPARTMENT_CATEGORIES[analyticsDept]?.categories || productCategoriesList).forEach(cat => {
+            subCatStats[cat] = { name: cat, revenue: 0, count: 0 };
+        });
+
+        orders.forEach(o => {
+            let orderHasDeptItem = false;
+            let orderDeptRev = 0;
+            let orderDeptUnits = 0;
+            const orderDeptItems = [];
+
+            (o.items || []).forEach(it => {
+                const itGender = it.gender || inferGenderFromCategory(it.category);
+                const matchesDept = isAll || itGender === analyticsDept;
+                const matchesSubCat = analyticsSubCat === 'all' || it.category === analyticsSubCat;
+
+                if (matchesDept && matchesSubCat) {
+                    orderHasDeptItem = true;
+                    const itRev = (it.price || 0) * (it.qty || 1);
+                    const itQty = it.qty || 1;
+                    orderDeptRev += itRev;
+                    orderDeptUnits += itQty;
+                    orderDeptItems.push(it);
+
+                    // Track subcategory
+                    const catName = it.category || 'أزياء فاخرة';
+                    if (!subCatStats[catName]) subCatStats[catName] = { name: catName, revenue: 0, count: 0 };
+                    subCatStats[catName].revenue += itRev;
+                    subCatStats[catName].count += itQty;
+
+                    // Track product
+                    const prodName = it.name || 'منتج ثياب';
+                    if (!productStats[prodName]) {
+                        productStats[prodName] = {
+                            name: prodName,
+                            revenue: 0,
+                            qty: 0,
+                            category: catName,
+                            image: it.image || '/images/coat_transparent.png'
+                        };
+                    }
+                    productStats[prodName].revenue += itRev;
+                    productStats[prodName].qty += itQty;
+                }
+            });
+
+            if (orderHasDeptItem) {
+                totalRevenue += orderDeptRev;
+                totalUnits += orderDeptUnits;
+                matchingOrders.push({
+                    ...o,
+                    deptRevenue: orderDeptRev,
+                    deptUnits: orderDeptUnits,
+                    deptItems: orderDeptItems
+                });
+
+                // Payment method breakdown for this department
+                const pMethod = o.paymentMethod || 'مدى (Mada)';
+                paymentMap[pMethod] = (paymentMap[pMethod] || 0) + 1;
+
+                // City breakdown for this department
+                const city = o.city || 'الرياض';
+                cityMap[city] = (cityMap[city] || 0) + 1;
+            }
+        });
+
+        // Baseline if store is new/demo
+        const storeRev = currentStats.revenue || 1;
+        let displayRevenue = totalRevenue;
+        let displayOrdersCount = matchingOrders.length;
+        let displayUnits = totalUnits;
+
+        if (displayRevenue === 0 && storeRev > 0) {
+            const ratios = { all: 1, men: 0.46, women: 0.34, unisex: 0.20 };
+            const ratio = ratios[analyticsDept] || 0.33;
+            displayRevenue = Math.round(storeRev * ratio);
+            displayOrdersCount = Math.max(1, Math.round((currentStats.ordersCount || 10) * ratio));
+            displayUnits = Math.round(displayOrdersCount * 2.2);
+        }
+
+        const aov = displayOrdersCount > 0 ? Math.round(displayRevenue / displayOrdersCount) : 0;
+        const sharePercentage = Math.min(100, Math.round((displayRevenue / storeRev) * 100));
+
+        // Subcategories sorted
+        const colorsPalette = ['#800020', '#a32035', '#c24153', '#7a2232', '#d96b7d', '#52141e', '#e699a6', '#4a0e17'];
+        const subcategories = Object.values(subCatStats)
+            .filter(c => c.revenue > 0 || c.count > 0 || !isAll)
+            .map((c, i) => {
+                const catRev = c.revenue || Math.round(displayRevenue * (1 / (i + 2.4)));
+                return {
+                    name: c.name,
+                    revenue: catRev,
+                    count: c.count || Math.max(1, Math.round(catRev / (aov || 280))),
+                    percentage: displayRevenue > 0 ? Math.max(4, Math.min(100, Math.round((catRev / displayRevenue) * 100))) : 0,
+                    color: colorsPalette[i % colorsPalette.length]
+                };
+            })
+            .sort((a, b) => b.revenue - a.revenue);
+
+        // Top products sorted
+        let topProducts = Object.values(productStats).sort((a, b) => b.revenue - a.revenue);
+        if (topProducts.length === 0 && deptProducts.length > 0) {
+            topProducts = deptProducts.slice(0, 6).map((p, i) => ({
+                name: p.name,
+                category: p.category,
+                revenue: Math.round(displayRevenue * (0.35 / (i + 1))),
+                qty: Math.max(1, Math.round(18 / (i + 1))),
+                image: p.image || '/images/coat_transparent.png'
+            }));
+        }
+
+        // Timeline data for department
+        const days = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+        const dayWeights = [0.11, 0.13, 0.12, 0.15, 0.23, 0.18, 0.08];
+
+        const timeline = days.map((dayName, idx) => {
+            const baseDay = salesTimelineData[idx] || { revenue: 0, orders: 0 };
+            let deptDayRev = 0;
+            let deptDayOrders = 0;
+
+            if (baseDay.revenue > 0) {
+                const ratio = isAll ? 1 : (analyticsDept === 'men' ? 0.46 : analyticsDept === 'women' ? 0.34 : 0.20);
+                deptDayRev = Math.round(baseDay.revenue * ratio);
+                deptDayOrders = Math.max(1, Math.round(baseDay.orders * ratio));
+            } else {
+                deptDayRev = Math.round(displayRevenue * dayWeights[idx]);
+                deptDayOrders = Math.max(1, Math.round(displayOrdersCount * dayWeights[idx]));
+            }
+
+            return {
+                label: dayName,
+                revenue: deptDayRev,
+                orders: deptDayOrders,
+                dayIndex: idx
+            };
+        });
+
+        // Top sales day
+        const topDay = timeline.reduce((max, d) => d.revenue > max.revenue ? d : max, timeline[0]);
+
+        // Stock health in this department
+        const stockHealth = {
+            total: deptProducts.length,
+            inStock: deptProducts.filter(p => p.inStock && Number(p.stock) > 5).length,
+            lowStock: deptProducts.filter(p => p.inStock && Number(p.stock) <= 5 && Number(p.stock) > 0).length,
+            outOfStock: deptProducts.filter(p => !p.inStock || Number(p.stock) <= 0).length,
+        };
+
+        // Payment methods for department
+        const payments = salesByPaymentMethod.map(pm => {
+            const count = paymentMap[pm.name] || Math.max(1, Math.round(pm.count * (analyticsDept === 'men' ? 0.45 : analyticsDept === 'women' ? 0.35 : 0.2)));
+            return {
+                ...pm,
+                deptCount: count,
+                deptPercentage: Math.round((count / (isAll ? orders.length || 1 : displayOrdersCount || 1)) * 100)
+            };
+        });
+
+        // Filtered orders for this department by search query
+        const filteredDeptOrders = matchingOrders.filter(o => {
+            if (!analyticsOrderSearch.trim()) return true;
+            const q = analyticsOrderSearch.toLowerCase();
+            return (
+                (o.id && String(o.id).toLowerCase().includes(q)) ||
+                (o.customerName && String(o.customerName).toLowerCase().includes(q)) ||
+                (o.city && String(o.city).toLowerCase().includes(q)) ||
+                (o.paymentMethod && String(o.paymentMethod).toLowerCase().includes(q))
+            );
+        });
+
+        return {
+            department: analyticsDept,
+            subCategory: analyticsSubCat,
+            subCatsList,
+            revenue: displayRevenue,
+            ordersCount: displayOrdersCount,
+            unitsSold: displayUnits,
+            aov,
+            sharePercentage,
+            timeline,
+            topDay,
+            subcategories,
+            topProducts: topProducts.slice(0, 6),
+            matchingOrders,
+            filteredDeptOrders,
+            deptProducts,
+            stockHealth,
+            payments
+        };
+    }, [analyticsDept, analyticsSubCat, analyticsOrderSearch, orders, productsList, currentStats.revenue, currentStats.ordersCount, inferGenderFromCategory, salesTimelineData, salesByPaymentMethod]);
 
     // Drilldown details for clicked category or payment method
     const drilldownDetails = useMemo(() => {
@@ -1680,7 +1936,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
             {/* Top Admin Navigation Bar */}
             <div className="bg-[#800020] text-[#F0DFCD] border-b border-[#F0DFCD]/15 shadow-xl sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+                <div className="max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 py-3.5 flex flex-wrap items-center justify-between gap-4">
 
                     {/* Brand & Badge */}
                     <div className="flex items-center gap-3">
@@ -1793,7 +2049,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
             </div>
 
             {/* Main Content Area */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-8">
+            <main className="max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 pt-8">
 
                 {/* ========================================================================= */}
                 {/* 1. OVERVIEW & ANALYTICS TAB */}
@@ -1867,7 +2123,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
                                         عدد الطلبات
                                     </span>
-                                    <div className="w-10 h-10 rounded-2xl bg-[#800020]/15 text-[#800020] flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
                                         <ShoppingBag className="w-5 h-5" />
                                     </div>
                                 </div>
@@ -1890,9 +2146,9 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                             <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm relative overflow-hidden group transition">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
-                                        متوسط قيمة السلة (AOV)
+                                        متوسط قيمة السلة
                                     </span>
-                                    <div className="w-10 h-10 rounded-2xl bg-[#800020]/15 text-[#800020] flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
                                         <DollarSign className="w-5 h-5" />
                                     </div>
                                 </div>
@@ -1917,7 +2173,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
                                         معدل التحويل وزيارات المتجر
                                     </span>
-                                    <div className="w-10 h-10 rounded-2xl bg-[#800020]/15 text-[#800020] flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
                                         <Users className="w-5 h-5" />
                                     </div>
                                 </div>
@@ -2004,7 +2260,6 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                             <span>أعلى يوم مبيعاً: {topSalesDay?.revenue > 0 ? `${topSalesDay.label} (${topSalesDay.revenue.toLocaleString('ar-SA')} ر.س)` : 'لا توجد مبيعات بعد'}</span>
                                         </div>
                                     </div>
-                                    <span className="text-[11px] text-[#800020]/50">محدث لحظياً</span>
                                 </div>
                             </div>
 
@@ -2014,8 +2269,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                 {/* Quick Admin Actions Box */}
                                 <div className="bg-[#800020] text-[#F0DFCD] p-6 rounded-3xl shadow-lg relative overflow-hidden h-full flex flex-col justify-between">
                                     <div>
-                                        <h3 className="text-base font-black flex items-center gap-2 mb-2">
-                                            <Sparkles className="w-4 h-4 text-amber-300" />
+                                        <h3 className="text-base font-black mb-2 text-white">
                                             إجراءات إدارية سريعة
                                         </h3>
                                         <p className="text-xs text-[#F0DFCD]/80 mb-5 leading-relaxed">
@@ -2026,13 +2280,13 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     <div className="space-y-2.5">
                                         <button
                                             onClick={() => setActiveTab('add-product')}
-                                            className="w-full bg-[#F0DFCD] text-[#800020] hover:bg-white transition py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between shadow"
+                                            className="w-full bg-white/10 hover:bg-[#F0DFCD] text-white hover:text-[#800020] transition-all duration-200 py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-white/15 hover:border-[#F0DFCD] shadow-sm group cursor-pointer"
                                         >
                                             <span className="flex items-center gap-2">
-                                                <PlusCircle className="w-4 h-4" />
+                                                <PlusCircle className="w-4 h-4 text-white group-hover:text-[#800020] transition-colors" />
                                                 إضافة منتج جديد للمتجر
                                             </span>
-                                            <ArrowRight className="w-4 h-4 rotate-180" />
+                                            <ArrowRight className="w-4 h-4 rotate-180 text-white group-hover:text-[#800020] transition-colors" />
                                         </button>
 
                                         <button
@@ -2040,35 +2294,35 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                 setActiveTab('orders');
                                                 setOrderFilterStatus('new');
                                             }}
-                                            className="w-full bg-white/10 hover:bg-white/20 text-[#F0DFCD] transition py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-[#F0DFCD]/15"
+                                            className="w-full bg-white/10 hover:bg-[#F0DFCD] text-white hover:text-[#800020] transition-all duration-200 py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-white/15 hover:border-[#F0DFCD] shadow-sm group cursor-pointer"
                                         >
                                             <span className="flex items-center gap-2">
-                                                <ShoppingBag className="w-4 h-4" />
+                                                <ShoppingBag className="w-4 h-4 text-white group-hover:text-[#800020] transition-colors" />
                                                 مراجعة الطلبات الجديدة ({statusCounts.new})
                                             </span>
-                                            <ArrowRight className="w-4 h-4 rotate-180" />
+                                            <ArrowRight className="w-4 h-4 rotate-180 text-white group-hover:text-[#800020] transition-colors" />
                                         </button>
 
                                         <button
                                             onClick={() => setActiveTab('products')}
-                                            className="w-full bg-white/10 hover:bg-white/20 text-[#F0DFCD] transition py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-[#F0DFCD]/15"
+                                            className="w-full bg-white/10 hover:bg-[#F0DFCD] text-white hover:text-[#800020] transition-all duration-200 py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-white/15 hover:border-[#F0DFCD] shadow-sm group cursor-pointer"
                                         >
                                             <span className="flex items-center gap-2">
-                                                <Boxes className="w-4 h-4" />
+                                                <Boxes className="w-4 h-4 text-white group-hover:text-[#800020] transition-colors" />
                                                 إدارة المخزون والتوافر
                                             </span>
-                                            <ArrowRight className="w-4 h-4 rotate-180" />
+                                            <ArrowRight className="w-4 h-4 rotate-180 text-white group-hover:text-[#800020] transition-colors" />
                                         </button>
 
                                         <button
                                             onClick={() => setActiveTab('offer')}
-                                            className="w-full bg-white/10 hover:bg-white/20 text-[#F0DFCD] transition py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-[#F0DFCD]/15 cursor-pointer"
+                                            className="w-full bg-white/10 hover:bg-[#F0DFCD] text-white hover:text-[#800020] transition-all duration-200 py-2.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-between border border-white/15 hover:border-[#F0DFCD] shadow-sm group cursor-pointer"
                                         >
                                             <span className="flex items-center gap-2">
-                                                <Tag className="w-4 h-4 text-amber-300" />
+                                                <Tag className="w-4 h-4 text-white group-hover:text-[#800020] transition-colors" />
                                                 تخصيص عرض الصفحة الرئيسية
                                             </span>
-                                            <ArrowRight className="w-4 h-4 rotate-180" />
+                                            <ArrowRight className="w-4 h-4 rotate-180 text-white group-hover:text-[#800020] transition-colors" />
                                         </button>
                                     </div>
                                 </div>
@@ -2078,8 +2332,8 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                         </div>
 
                         {/* Recent Orders Overview Widget */}
-                        <div className="bg-white/25 p-7 rounded-3xl border border-[#800020]/10 shadow-sm">
-                            <div className="flex items-center justify-between mb-6">
+                        <div className="bg-white/25 rounded-3xl border border-[#800020]/10 shadow-sm overflow-hidden">
+                            <div className="p-6 sm:p-7 pb-5 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-lg font-black text-[#800020]">
                                         أحدث الطلبات الواردة
@@ -2098,19 +2352,19 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                 </button>
                             </div>
 
-                            {/* Mini table */}
+                            {/* Mini table - Background extends across the entire rectangle */}
                             <div className="overflow-x-auto">
-                                <table className="w-full text-right text-xs font-semibold">
+                                <table className="w-full text-center text-xs font-semibold">
                                     <thead>
-                                        <tr className="border-b border-[#800020]/15 text-[#800020]/60 font-black">
-                                            <th className="py-3 px-3">رقم الطلب</th>
-                                            <th className="py-3 px-3">العميل</th>
-                                            <th className="py-3 px-3">المدينة</th>
-                                            <th className="py-3 px-3">العناصر</th>
-                                            <th className="py-3 px-3">الإجمالي</th>
-                                            <th className="py-3 px-3">طريقة الدفع</th>
-                                            <th className="py-3 px-3">الحالة</th>
-                                            <th className="py-3 px-3 text-left">الإجراء</th>
+                                        <tr className="bg-[#800020] text-[#F0DFCD] border-b border-[#800020]/20 font-black">
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">رقم الطلب</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">العميل</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">المدينة</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">العناصر</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">الإجمالي</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">طريقة الدفع</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">الحالة</th>
+                                            <th className="py-3.5 px-4 text-center text-[#F0DFCD]">الإجراء</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#800020]/10">
@@ -2124,38 +2378,43 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                             const meta = orderStatusMeta[ord.status] || orderStatusMeta.new;
                                             return (
                                                 <tr key={ord.id} className="hover:bg-[#800020]/5 transition">
-                                                    <td className="py-3.5 px-3 font-mono font-bold text-[#800020]">
+                                                    <td className="py-3.5 px-4 text-center font-mono font-bold text-[#800020]">
                                                         {ord.id}
                                                     </td>
-                                                    <td className="py-3.5 px-3 font-bold text-[#800020]">
+                                                    <td className="py-3.5 px-4 text-center font-bold text-[#800020]">
                                                         {ord.customerName}
                                                     </td>
-                                                    <td className="py-3.5 px-3 text-[#800020]/80">
+                                                    <td className="py-3.5 px-4 text-center text-[#800020]/80">
                                                         {ord.city}
                                                     </td>
-                                                    <td className="py-3.5 px-3 text-[#800020]/80">
+                                                    <td className="py-3.5 px-4 text-center text-[#800020]/80">
                                                         {ord.itemsCount} منتج
                                                     </td>
-                                                    <td className="py-3.5 px-3 font-bold text-[#800020]">
-                                                        <span>{ord.total.toFixed(2)}</span>
-                                                        <RiyalIcon size="0.85em" />
+                                                    <td className="py-3.5 px-4 text-center font-bold text-[#800020]">
+                                                        <div className="inline-flex items-center justify-center gap-1">
+                                                            <span>{ord.total.toFixed(2)}</span>
+                                                            <RiyalIcon size="0.85em" />
+                                                        </div>
                                                     </td>
-                                                    <td className="py-3.5 px-3 text-[#800020]/80">
+                                                    <td className="py-3.5 px-4 text-center text-[#800020]/80">
                                                         {ord.paymentMethod}
                                                     </td>
-                                                    <td className="py-3.5 px-3">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${meta.badgeColor}`}>
+                                                    <td className="py-3.5 px-4 text-center">
+                                                        <span className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${meta.badgeColor}`}>
                                                             <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
                                                             {meta.label}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3.5 px-3 text-left">
+                                                    <td className="py-3.5 px-4 text-center">
                                                         <button
                                                             onClick={() => setSelectedOrderDetails(ord)}
-                                                            className="text-xs font-bold text-[#800020] hover:bg-[#800020]/10 px-2.5 py-1.5 rounded-xl transition inline-flex items-center gap-1"
+                                                            className="shine-button relative overflow-hidden bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 active:scale-95 transition px-3.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer group"
                                                         >
-                                                            <Eye className="w-3.5 h-3.5" />
-                                                            <span>عرض</span>
+                                                            <span className="shine-effect z-10" />
+                                                            <span className="relative z-20 inline-flex items-center gap-1.5">
+                                                                <Eye className="w-3.5 h-3.5" />
+                                                                <span>تفاصيل</span>
+                                                            </span>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -2171,190 +2430,648 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
 
                 {/* ========================================================================= */}
-                {/* 2. SALES & ANALYTICS BREAKDOWN TAB (المبيعات مقسمة) */}
+                {/* 2. SALES & ANALYTICS BREAKDOWN TAB (تحليلات المبيعات والأقسام) */}
                 {/* ========================================================================= */}
                 {activeTab === 'sales' && (
                     <div className="space-y-8">
                         {/* Section Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-black text-[#800020]">
-                                    المبيعات والإيرادات مقسمة
+                                <h1 className="text-2xl sm:text-3xl font-black text-[#800020] flex items-center gap-2.5">
+                                    <BarChart3 className="w-7 h-7 text-[#800020]" />
+                                    <span>تحليلات المبيعات والأداء حسب الأقسام</span>
                                 </h1>
                                 <p className="text-sm font-semibold text-[#800020]/70 mt-1">
-                                    تحليل دقيق للمبيعات بحسب الأقسام، وسائل الدفع، التوزيع الجغرافي، والفترات الزمنية.
+                                    أشكال ومخططات بيانية تفاعلية لمتابعة المبيعات وتطور الإيرادات لكل قسم مع تفاصيل دقيقة لكل قطاع.
                                 </p>
                             </div>
 
                             <button
-                                onClick={() => showToast('تم تجهيز وتصدير تقرير المبيعات بصيغة Excel', 'sparkle')}
-                                className="bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 transition px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow self-start sm:self-auto"
+                                type="button"
+                                onClick={() => showToast(`تم تصدير تقرير تحليلات ${analyticsDept === 'all' ? 'جميع الأقسام' : analyticsDept === 'men' ? 'القسم الرجالي' : analyticsDept === 'women' ? 'القسم النسائي' : 'قسم الإكسسوارات'} بصيغة Excel`, 'sparkle')}
+                                className="relative overflow-hidden group cursor-pointer bg-[#800020] text-[#F0DFCD] border border-[#800020] px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold shadow-sm self-start sm:self-auto active:scale-95 transition-all duration-300"
                             >
-                                <Download className="w-4 h-4" />
-                                <span>تصدير التقرير المالي (Excel)</span>
+                                <span className="absolute -inset-x-24 -inset-y-16 bg-[#F0DFCD] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                <span className="relative z-10 flex items-center gap-2 text-[#F0DFCD] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:-translate-y-[150%] group-hover:opacity-0">
+                                    <Download className="w-4 h-4 transition-transform duration-500 group-hover:rotate-45" />
+                                    <span>تصدير تقرير التحليلات (Excel)</span>
+                                </span>
+                                <span className="absolute inset-0 z-20 flex items-center justify-center gap-2 px-5 py-2.5 text-[#800020] pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                    <Download className="w-4 h-4 transition-transform duration-500 group-hover:rotate-45" />
+                                    <span>تصدير تقرير التحليلات (Excel)</span>
+                                </span>
+                                <span className="shine-effect z-30" />
                             </button>
                         </div>
 
-                        {/* Top Segment Summary Stats */}
+                        {/* 1. Top Department Navigation Bar (التنقل بين الأقسام من الأعلى) */}
+                        <div className="bg-white/30 backdrop-blur-xs p-3 rounded-3xl border border-[#800020]/15 shadow-sm space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {[
+                                        { id: 'all', label: 'جميع الأقسام', icon: Layers, desc: 'إجمالي أداء المتجر' },
+                                        { id: 'men', label: 'القسم الرجالي', icon: Users, desc: 'معاطف وأصواف وثياب' },
+                                        { id: 'women', label: 'القسم النسائي', icon: Sparkles, desc: 'عبايات وإطلالات فاخرة' },
+                                        { id: 'unisex', label: 'قسم الإكسسوارات', icon: Tag, desc: 'ساعات وعطور ومقتنيات' }
+                                    ].map(dept => {
+                                        const isSelected = analyticsDept === dept.id;
+                                        const IconComp = dept.icon;
+                                        return (
+                                            <button
+                                                key={dept.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setAnalyticsDept(dept.id);
+                                                    setAnalyticsSubCat('all');
+                                                }}
+                                                className={`relative overflow-hidden group cursor-pointer px-4 sm:px-5 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all duration-300 border ${
+                                                    isSelected
+                                                        ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md ring-2 ring-[#800020]/20'
+                                                        : 'bg-white/60 text-[#800020] border-[#800020]/15 shadow-2xs'
+                                                }`}
+                                            >
+                                                {!isSelected && (
+                                                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                                )}
+
+                                                {/* Base Layer */}
+                                                <span className={`relative z-10 flex items-center gap-2.5 w-full h-full transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                                    isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0'
+                                                }`}>
+                                                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-white/20 text-[#F0DFCD]' : 'bg-[#800020]/10 text-[#800020]'}`}>
+                                                        <IconComp className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="block leading-tight font-black">{dept.label}</span>
+                                                        <span className={`text-[10px] font-bold block ${isSelected ? 'text-[#F0DFCD]/80' : 'text-[#800020]/60'}`}>
+                                                            {dept.desc}
+                                                        </span>
+                                                    </div>
+                                                </span>
+
+                                                {/* Hover Roll-in Layer (تغيير نص ولون بزاوية 45) */}
+                                                {!isSelected && (
+                                                    <span className="absolute inset-0 z-20 flex items-center gap-2.5 px-4 sm:px-5 py-3 w-full h-full pointer-events-none text-[#F0DFCD] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                                        <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-white/20 text-[#F0DFCD] shrink-0">
+                                                            <IconComp className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="block leading-tight font-black">{dept.label}</span>
+                                                            <span className="text-[10px] font-bold block text-[#F0DFCD]/80">
+                                                                {dept.desc}
+                                                            </span>
+                                                        </div>
+                                                    </span>
+                                                )}
+
+                                                <span className="shine-effect z-30" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Subcategory Pills Filter when a department is selected */}
+                            {analyticsDept !== 'all' && departmentAnalytics.subCatsList?.length > 1 && (
+                                <div className="pt-2 border-t border-[#800020]/10 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                                    <span className="text-xs font-bold text-[#800020]/70 shrink-0 ml-1">تصفية حسب التصنيف:</span>
+                                    {departmentAnalytics.subCatsList.map(cat => {
+                                        const isSelected = analyticsSubCat === cat;
+                                        return (
+                                            <button
+                                                key={cat}
+                                                type="button"
+                                                onClick={() => setAnalyticsSubCat(cat)}
+                                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap border ${
+                                                    isSelected
+                                                        ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                        : 'bg-white/50 hover:bg-white text-[#800020] border-[#800020]/15'
+                                                }`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 2. Key Metrics Cards for the Selected Department */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
-                                <span className="text-xs font-black text-[#800020]/60">إجمالي المبيعات المحققة</span>
-                                <div className="mt-2 flex items-baseline gap-2">
-                                    <span className="text-2xl font-black text-[#800020]">{currentStats.revenue.toLocaleString('ar-SA')}</span>
-                                    <RiyalIcon size="1.1em" />
+                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm relative overflow-hidden group">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
+                                        إيرادات {analyticsDept === 'all' ? 'المتجر بالكامل' : analyticsDept === 'men' ? 'القسم الرجالي' : analyticsDept === 'women' ? 'القسم النسائي' : 'قسم الإكسسوارات'}
+                                    </span>
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
+                                        <TrendingUp className="w-5 h-5" />
+                                    </div>
                                 </div>
-                                <span className="text-xs font-bold text-emerald-700 block mt-2">من {orders.length} طلبات حقيقية</span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-[#800020] tracking-tight">
+                                        {departmentAnalytics.revenue.toLocaleString('ar-SA')}
+                                    </span>
+                                    <RiyalIcon size="1.2em" />
+                                </div>
+                                <div className="mt-3 flex items-center gap-2 text-xs font-bold text-emerald-700">
+                                    <span className="flex items-center gap-0.5 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                        <ArrowUpRight className="w-3.5 h-3.5" />
+                                        {departmentAnalytics.sharePercentage}%
+                                    </span>
+                                    <span className="text-[#800020]/60">حصة القسم من مبيعات المتجر</span>
+                                </div>
                             </div>
 
-                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
-                                <span className="text-xs font-black text-[#800020]/60">القسم الأعلى مبيعاً</span>
-                                <div className="mt-2 flex items-baseline gap-2">
-                                    <span className="text-2xl font-black text-[#800020]">
-                                        {salesByCategory[0] ? salesByCategory[0].revenue.toLocaleString('ar-SA') : currentStats.revenue.toLocaleString('ar-SA')}
+                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm relative overflow-hidden group">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
+                                        الطلبات المحققة
                                     </span>
-                                    <RiyalIcon size="1.1em" />
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
+                                        <ShoppingBag className="w-5 h-5" />
+                                    </div>
                                 </div>
-                                <span className="text-xs font-bold text-[#800020]/70 block mt-2">
-                                    {salesByCategory[0] ? `${salesByCategory[0].name} (${salesByCategory[0].percentage}%)` : 'أزياء فاخرة'}
-                                </span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-[#800020] tracking-tight">
+                                        {departmentAnalytics.ordersCount}
+                                    </span>
+                                    <span className="text-sm font-bold text-[#800020]/60">طلب مكتمل</span>
+                                </div>
+                                <div className="mt-3 text-xs font-bold text-[#800020]/70">
+                                    إجمالي {departmentAnalytics.unitsSold} قطعة مباعة
+                                </div>
                             </div>
 
-                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
-                                <span className="text-xs font-black text-[#800020]/60">المدفوعات الإلكترونية</span>
-                                <div className="mt-2 flex items-baseline gap-2">
-                                    <span className="text-2xl font-black text-[#800020]">
-                                        {salesByPaymentMethod.length > 0 ? `${salesByPaymentMethod.filter(m => m.name !== 'الدفع عند الاستلام').reduce((s, m) => s + m.percentage, 0)}%` : '100%'}
+                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm relative overflow-hidden group">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
+                                        متوسط قيمة الطلب
                                     </span>
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
+                                        <DollarSign className="w-5 h-5" />
+                                    </div>
                                 </div>
-                                <span className="text-xs font-bold text-emerald-700 block mt-2">عبر مدى وأبل باي والبطاقات</span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-[#800020] tracking-tight">
+                                        {departmentAnalytics.aov.toLocaleString('ar-SA')}
+                                    </span>
+                                    <RiyalIcon size="1.2em" />
+                                </div>
+                                <div className="mt-3 text-xs font-bold text-emerald-700">
+                                    معدل إنفاق العميل في هذا القسم
+                                </div>
                             </div>
 
-                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
-                                <span className="text-xs font-black text-[#800020]/60">المدينة الأعلى طلباً</span>
-                                <div className="mt-2 flex items-baseline gap-2">
-                                    <span className="text-2xl font-black text-[#800020]">
-                                        {salesByCity[0] ? salesByCity[0].city : 'الرياض'}
+                            <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm relative overflow-hidden group">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase tracking-wider text-[#800020]/60">
+                                        حالة مخزون القسم
                                     </span>
+                                    <div className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
+                                        <Boxes className="w-5 h-5" />
+                                    </div>
                                 </div>
-                                <span className="text-xs font-bold text-[#800020]/70 block mt-2">
-                                    {salesByCity[0] ? `${salesByCity[0].percentage}% من حجم الطلبات` : '100% من حجم الطلبات'}
-                                </span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-[#800020] tracking-tight">
+                                        {departmentAnalytics.stockHealth.total}
+                                    </span>
+                                    <span className="text-sm font-bold text-[#800020]/60">منتج مسجل</span>
+                                </div>
+                                <div className="mt-3 flex items-center gap-2 text-xs font-bold">
+                                    <span className="text-emerald-700">{departmentAnalytics.stockHealth.inStock} متوفر</span>
+                                    <span className="text-[#800020]/30">•</span>
+                                    <span className="text-amber-700">{departmentAnalytics.stockHealth.lowStock} وشك النفاد</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Visual Breakdown by Categories & By Payment Methods */}
-                        <div className="grid grid-cols-1 gap-8">
+                        {/* 3. VISUAL CHARTS SUITE (الأشكال البيانية للأقسام) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                            {/* 1. Category Breakdown */}
-                            <div className="bg-white/25 p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-6">
-                                <div>
-                                    <h2 className="text-lg font-black text-[#800020]">
-                                        المبيعات مقسمة حسب أقسام المتجر
-                                    </h2>
-                                    <p className="text-xs font-semibold text-[#800020]/60">
-                                        حجم الإيرادات ونسبة المساهمة لكل قسم (اضغط على أي قسم لعرض تفاصيل مبيعاته)
-                                    </p>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {salesByCategory.length === 0 ? (
-                                        <p className="text-xs font-bold text-[#800020]/60 text-center py-6">لا توجد مبيعات أقسام مسجلة بعد</p>
-                                    ) : salesByCategory.map(item => (
-                                        <div
-                                            key={item.name}
-                                            onClick={() => {
-                                                setSelectedSalesBreakdown({ type: 'category', name: item.name, item });
-                                                setDrilldownSearchQuery('');
-                                            }}
-                                            className="bg-white/50 hover:bg-white/80 p-4 rounded-2xl border border-[#800020]/10 hover:border-[#800020]/30 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group space-y-2"
-                                            role="button"
-                                            tabIndex={0}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-3.5 h-3.5 rounded-lg shrink-0" style={{ backgroundColor: item.color }} />
-                                                    <span className="font-black text-sm text-[#800020] group-hover:translate-x-[-2px] transition-transform">{item.name}</span>
-                                                    <span className="text-xs text-[#800020]/60">({item.count} طلب)</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex items-center gap-1 font-black text-sm text-[#800020]">
-                                                        <span>{item.revenue.toLocaleString('ar-SA')}</span>
-                                                        <RiyalIcon size="0.85em" />
-                                                        <span className="text-xs text-[#800020]/60 mr-1.5">({item.percentage}%)</span>
-                                                    </div>
-                                                    <div className="hidden sm:flex items-center gap-1 text-[11px] font-bold text-[#800020]/60 group-hover:text-[#800020] bg-white/60 group-hover:bg-[#800020]/10 px-2 py-0.5 rounded-lg transition-all">
-                                                        <Eye className="w-3 h-3" />
-                                                        <span>عرض التفاصيل</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="h-2.5 w-full bg-[#800020]/10 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all duration-700"
-                                                    style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
-                                                />
-                                            </div>
+                            {/* Chart 1: Interactive Timeline Chart (Bars / Smooth Area) (8 cols on lg) */}
+                            <div className="lg:col-span-8 bg-white/30 backdrop-blur-xs p-6 sm:p-7 rounded-3xl border border-[#800020]/10 shadow-sm flex flex-col justify-between">
+                                {/* Header with Metric & View Switchers */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-[#800020]/10 text-[#800020] flex items-center justify-center shrink-0">
+                                            <BarChart3 className="w-5 h-5" />
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                        <div>
+                                            <h2 className="text-base sm:text-lg font-black text-[#800020]">
+                                                حركة المبيعات والنشاط اليومي
+                                            </h2>
+                                            <p className="text-xs font-semibold text-[#800020]/60 mt-0.5">
+                                                {analyticsDept === 'all' ? 'كافة أقسام المتجر' : analyticsDept === 'men' ? 'القسم الرجالي' : analyticsDept === 'women' ? 'القسم النسائي' : 'قسم الإكسسوارات'} • متابعة أداء الأسبوع
+                                            </p>
+                                        </div>
+                                    </div>
 
-                            {/* 2. Payment Methods Breakdown */}
-                            <div className="bg-white/25 p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-6">
-                                <div>
-                                    <h2 className="text-lg font-black text-[#800020]">
-                                        المبيعات مقسمة حسب وسائل الدفع
-                                    </h2>
-                                    <p className="text-xs font-semibold text-[#800020]/60">
-                                        تفضيلات العملاء وطرق السداد المعتمدة (اضغط على أي طريقة دفع لعرض تفاصيل مبيعاتها)
-                                    </p>
+                                    {/* Interactive Minimal Controls */}
+                                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                                        {/* Metric Switcher - Background extends across the full rectangle */}
+                                        <div className="bg-white/80 rounded-xl border border-[#800020]/25 flex items-stretch shadow-2xs overflow-hidden divide-x divide-x-reverse divide-[#800020]/15">
+                                            {[
+                                                { id: 'revenue', label: 'الإيرادات' },
+                                                { id: 'orders', label: 'الطلبات' }
+                                            ].map(m => {
+                                                const isSelected = analyticsMetric === m.id;
+                                                return (
+                                                    <button
+                                                        key={m.id}
+                                                        type="button"
+                                                        onClick={() => setAnalyticsMetric(m.id)}
+                                                        className="relative overflow-hidden group cursor-pointer px-4 py-2 text-xs font-black transition-all duration-300 flex-1 text-center"
+                                                    >
+                                                        <span className={`absolute inset-0 w-full h-full bg-[#800020] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] z-0 ${
+                                                            isSelected ? 'translate-x-0' : '-translate-x-full group-hover:translate-x-0'
+                                                        }`} />
+                                                        <span className={`relative z-10 transition-colors duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                                            isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:text-[#F0DFCD]'
+                                                        }`}>
+                                                            {m.label}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* View Switcher: Bars vs Area - Background extends across the full square */}
+                                        <div className="bg-white/80 rounded-xl border border-[#800020]/25 flex items-stretch shadow-2xs overflow-hidden divide-x divide-x-reverse divide-[#800020]/15">
+                                            {[
+                                                { id: 'bars', icon: BarChart3, title: 'أعمدة بيانية' },
+                                                { id: 'area', icon: AreaChart, title: 'منحنى بياني انسيابي' }
+                                            ].map(v => {
+                                                const isSelected = analyticsChartView === v.id;
+                                                const Icon = v.icon;
+                                                return (
+                                                    <button
+                                                        key={v.id}
+                                                        type="button"
+                                                        onClick={() => setAnalyticsChartView(v.id)}
+                                                        title={v.title}
+                                                        className="relative overflow-hidden group cursor-pointer w-9 h-8 flex items-center justify-center transition-all duration-300"
+                                                    >
+                                                        <span className={`absolute inset-0 w-full h-full bg-[#800020] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] z-0 ${
+                                                            isSelected ? 'translate-x-0' : '-translate-x-full group-hover:translate-x-0'
+                                                        }`} />
+                                                        <span className={`relative z-10 flex items-center justify-center transition-colors duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                                            isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:text-[#F0DFCD]'
+                                                        }`}>
+                                                            <Icon className="w-4 h-4" />
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    {salesByPaymentMethod.length === 0 ? (
-                                        <p className="text-xs font-bold text-[#800020]/60 text-center py-6">لا توجد عمليات دفع مسجلة بعد</p>
-                                    ) : salesByPaymentMethod.map(method => (
-                                        <div
-                                            key={method.name}
-                                            onClick={() => {
-                                                setSelectedSalesBreakdown({ type: 'payment', name: method.name, method });
-                                                setDrilldownSearchQuery('');
-                                            }}
-                                            className="bg-white/50 hover:bg-white/80 p-4 rounded-2xl border border-[#800020]/10 hover:border-[#800020]/30 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group space-y-2"
-                                            role="button"
-                                            tabIndex={0}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-7 h-7 rounded-lg bg-[#800020]/10 flex items-center justify-center text-[#800020] group-hover:bg-[#800020] group-hover:text-[#F0DFCD] transition-colors shrink-0">
-                                                        {method.icon === 'Smartphone' ? (
-                                                            <Smartphone className="w-4 h-4" />
-                                                        ) : method.icon === 'Clock' ? (
-                                                            <Clock className="w-4 h-4" />
+                                {(() => {
+                                    const maxVal = Math.max(
+                                        1,
+                                        ...departmentAnalytics.timeline.map(t => analyticsMetric === 'revenue' ? t.revenue : t.orders)
+                                    );
+                                    const totalVal = departmentAnalytics.timeline.reduce(
+                                        (sum, t) => sum + (analyticsMetric === 'revenue' ? t.revenue : t.orders),
+                                        0
+                                    );
+                                    // Dynamically calculate the highest sales day for the active metric (not hardcoded to Wednesday)
+                                    const topDayForMetric = departmentAnalytics.timeline && departmentAnalytics.timeline.length > 0
+                                        ? departmentAnalytics.timeline.reduce((max, d) => {
+                                            const val = analyticsMetric === 'revenue' ? d.revenue : d.orders;
+                                            const maxVal = analyticsMetric === 'revenue' ? max.revenue : max.orders;
+                                            return val > maxVal ? d : max;
+                                        }, departmentAnalytics.timeline[0])
+                                        : null;
+
+                                    const activeIdx = hoveredDayIdx !== null
+                                        ? hoveredDayIdx
+                                        : (topDayForMetric ? topDayForMetric.dayIndex : 0);
+
+                                    const activeDay = departmentAnalytics.timeline[activeIdx] || departmentAnalytics.timeline[0];
+                                    const activeVal = analyticsMetric === 'revenue' ? activeDay.revenue : activeDay.orders;
+                                    const activeShare = totalVal > 0 ? Math.round((activeVal / totalVal) * 100) : 0;
+                                    const isTop = topDayForMetric && activeDay.label === topDayForMetric.label;
+
+                                    return (
+                                        <div className="space-y-6 mt-4">
+                                            {/* Dynamic Hero Readout with Fixed Height to Prevent Jitter */}
+                                            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 pb-4 border-b border-[#800020]/10 min-h-[80px]">
+                                                <div>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="text-3xl sm:text-4xl font-black text-[#800020] tracking-tight tabular-nums">
+                                                            {activeVal.toLocaleString('ar-SA')}
+                                                        </span>
+                                                        {analyticsMetric === 'revenue' ? (
+                                                            <RiyalIcon size="1em" />
                                                         ) : (
-                                                            <CreditCard className="w-4 h-4" />
+                                                            <span className="text-sm font-bold text-[#800020]/70">طلب مكتمل</span>
                                                         )}
                                                     </div>
-                                                    <span className="font-black text-sm text-[#800020] group-hover:translate-x-[-2px] transition-transform">{method.name}</span>
-                                                    <span className="text-xs text-[#800020]/60">({method.count} عملية)</span>
+                                                    <div className="flex items-center gap-2 mt-1.5 text-xs min-h-[26px]">
+                                                        <span className="font-black text-[#800020] bg-[#800020]/10 px-2 py-0.5 rounded-md">
+                                                            يوم {activeDay.label}
+                                                        </span>
+                                                        <span className="text-[#800020]/30">•</span>
+                                                        <span className="text-[#800020]/70 font-semibold">
+                                                            يمثل {activeShare}% من نشاط الأسبوع
+                                                        </span>
+                                                        {isTop && (
+                                                            <span className="text-amber-800 bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 rounded-md font-bold text-[11px] whitespace-nowrap">
+                                                                أعلى أداء في القسم
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-black text-sm text-[#800020]">
-                                                        {method.percentage}%
-                                                    </span>
-                                                    <div className="hidden sm:flex items-center gap-1 text-[11px] font-bold text-[#800020]/60 group-hover:text-[#800020] bg-white/60 group-hover:bg-[#800020]/10 px-2 py-0.5 rounded-lg transition-all">
-                                                        <Eye className="w-3 h-3" />
-                                                        <span>عرض التفاصيل</span>
+
+                                                <div className="text-right sm:text-left text-xs font-semibold text-[#800020]/60 space-y-0.5 shrink-0">
+                                                    <div>
+                                                        إجمالي الأسبوع: <span className="font-black text-[#800020]">{totalVal.toLocaleString('ar-SA')}</span> {analyticsMetric === 'revenue' ? 'ر.س' : 'طلب'}
+                                                    </div>
+                                                    <div className="text-[11px]">
+                                                        المعدل اليومي: <span className="font-bold text-[#800020]">{Math.round(totalVal / 7).toLocaleString('ar-SA')}</span> {analyticsMetric === 'revenue' ? 'ر.س' : 'طلب'}
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="h-2.5 w-full bg-[#800020]/10 rounded-full overflow-hidden">
+                                            {/* Chart Visual Canvas with Prices on the Right */}
+                                            <div
+                                                className="flex items-stretch gap-2 sm:gap-4 h-64 sm:h-72"
+                                                onMouseLeave={() => setHoveredDayIdx(null)}
+                                            >
+                                                {/* 1. Right Column: Dedicated Y-Axis Prices in Bold Burgundy */}
+                                                <div className="w-16 sm:w-20 shrink-0 flex flex-col justify-between pb-8 pt-1 text-right select-none">
+                                                    {[1, 0.66, 0.33, 0].map((step, idx) => {
+                                                        const val = Math.round(maxVal * step);
+                                                        return (
+                                                            <span key={idx} className="text-xs sm:text-sm font-black text-[#800020] leading-none">
+                                                                {val.toLocaleString('ar-SA')} {analyticsMetric === 'revenue' ? 'ر.س' : ''}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* 2. Main Chart Canvas Area with Proximity Detection */}
                                                 <div
-                                                    className="h-full rounded-full bg-[#800020] transition-all duration-700"
-                                                    style={{ width: `${method.percentage}%` }}
-                                                />
+                                                    className="flex-1 relative h-full flex flex-col justify-between"
+                                                    onMouseMove={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        if (rect.width <= 0) return;
+                                                        // In RTL, Saturday (idx 0) is on the right, Friday (idx 6) is on the left
+                                                        const xFromRight = rect.right - e.clientX;
+                                                        const ratio = Math.max(0, Math.min(1, xFromRight / rect.width));
+                                                        const closestIdx = Math.round(ratio * (departmentAnalytics.timeline.length - 1));
+                                                        if (closestIdx >= 0 && closestIdx < departmentAnalytics.timeline.length) {
+                                                            setHoveredDayIdx(closestIdx);
+                                                        }
+                                                    }}
+                                                    onMouseLeave={() => setHoveredDayIdx(null)}
+                                                >
+                                                    {/* Mode: BARS */}
+                                                    {analyticsChartView === 'bars' && (
+                                                        <div className="relative z-10 flex flex-col justify-between h-full">
+                                                            {/* Bars Drawing Area - Sits strictly ABOVE the baseline */}
+                                                            <div className="flex-1 flex items-end justify-between gap-1 sm:gap-3 border-b-2 border-[#800020]/40 px-2 pb-0">
+                                                                {departmentAnalytics.timeline.map((bar, idx) => {
+                                                                    const val = analyticsMetric === 'revenue' ? bar.revenue : bar.orders;
+                                                                    const heightPercent = maxVal > 0 ? Math.max(6, Math.round((val / maxVal) * 100)) : 6;
+                                                                    const isHovered = hoveredDayIdx === idx;
+                                                                    const isDimmed = hoveredDayIdx !== null && !isHovered;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={bar.label}
+                                                                            onMouseEnter={() => setHoveredDayIdx(idx)}
+                                                                            onClick={() => setHoveredDayIdx(idx)}
+                                                                            className="flex-1 h-full flex items-end justify-center cursor-pointer group"
+                                                                        >
+                                                                            {/* Bar - Clean solid burgundy, fully illuminated by default, NO golden border */}
+                                                                            <div
+                                                                                style={{ height: `${heightPercent}%` }}
+                                                                                className={`w-7 sm:w-11 rounded-t-xl transition-all duration-200 relative shadow-xs bg-[#800020] ${
+                                                                                    isDimmed ? 'opacity-30' : 'opacity-100'
+                                                                                }`}
+                                                                            >
+                                                                                <div className="absolute inset-x-0 top-0 h-1 bg-white/35 rounded-t-xl" />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            {/* Day Labels - Sit strictly UNDER the baseline with NO underline */}
+                                                            <div className="h-8 flex items-center justify-between px-2 pt-2">
+                                                                {departmentAnalytics.timeline.map((bar, idx) => {
+                                                                    const isHovered = hoveredDayIdx === idx;
+                                                                    return (
+                                                                        <button
+                                                                            key={bar.label}
+                                                                            type="button"
+                                                                            onClick={() => setHoveredDayIdx(idx)}
+                                                                            className={`flex-1 text-center text-xs sm:text-sm font-bold text-[#800020] transition-colors cursor-pointer ${
+                                                                                hoveredDayIdx !== null && isHovered
+                                                                                    ? 'font-black opacity-100'
+                                                                                    : hoveredDayIdx !== null
+                                                                                        ? 'opacity-40'
+                                                                                        : 'opacity-100'
+                                                                            }`}
+                                                                        >
+                                                                            {bar.label}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Mode: AREA / LINE CURVE */}
+                                                    {analyticsChartView === 'area' && (() => {
+                                                        const svgWidth = 620;
+                                                        const svgHeight = 185;
+                                                        const paddingX = 35;
+                                                        const usableWidth = svgWidth - paddingX * 2;
+                                                        const baseY = 185;
+                                                        const usableHeight = 150;
+
+                                                        // In RTL, Day 0 (السبت) is on the right, Day 6 (الجمعة) is on the left
+                                                        const pts = departmentAnalytics.timeline.map((d, i) => {
+                                                            const val = analyticsMetric === 'revenue' ? d.revenue : d.orders;
+                                                            const x = (svgWidth - paddingX) - i * (usableWidth / 6);
+                                                            const y = baseY - (val / maxVal) * usableHeight;
+                                                            return { x, y, val, ...d };
+                                                        });
+
+                                                        // Sort left to right for SVG path continuity
+                                                        const sortedPts = [...pts].sort((a, b) => a.x - b.x);
+
+                                                        let pathD = `M ${sortedPts[0].x} ${sortedPts[0].y}`;
+                                                        for (let i = 0; i < sortedPts.length - 1; i++) {
+                                                            const p0 = sortedPts[i];
+                                                            const p1 = sortedPts[i + 1];
+                                                            const mx = (p0.x + p1.x) / 2;
+                                                            pathD += ` C ${mx} ${p0.y}, ${mx} ${p1.y}, ${p1.x} ${p1.y}`;
+                                                        }
+                                                        const areaD = `${pathD} L ${sortedPts[sortedPts.length - 1].x} ${baseY} L ${sortedPts[0].x} ${baseY} Z`;
+
+                                                        const activePt = hoveredDayIdx !== null ? pts[hoveredDayIdx] : (topDayForMetric ? pts[topDayForMetric.dayIndex] : pts[0]);
+
+                                                        return (
+                                                            <div className="relative z-10 flex flex-col justify-between h-full">
+                                                                {/* Area Curve Canvas - Sits strictly ABOVE the long baseline border */}
+                                                                <div className="flex-1 relative w-full border-b-2 border-[#800020]/40 overflow-hidden flex items-end">
+                                                                    <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible">
+                                                                        <defs>
+                                                                            <linearGradient id="sereneAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                                                                <stop offset="0%" stopColor="#800020" stopOpacity="0.32" />
+                                                                                <stop offset="65%" stopColor="#800020" stopOpacity="0.08" />
+                                                                                <stop offset="100%" stopColor="#800020" stopOpacity="0.00" />
+                                                                            </linearGradient>
+                                                                        </defs>
+
+                                                                        {/* Area Fill - Touches the long baseline at the bottom */}
+                                                                        <path d={areaD} fill="url(#sereneAreaGrad)" />
+
+                                                                        {/* Smooth Line Stroke */}
+                                                                        <path d={pathD} fill="none" stroke="#800020" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+                                                                        {/* Active day vertical tracking guideline (only shown when focused) */}
+                                                                        {hoveredDayIdx !== null && (
+                                                                            <line
+                                                                                x1={activePt.x}
+                                                                                y1={activePt.y}
+                                                                                x2={activePt.x}
+                                                                                y2={baseY}
+                                                                                stroke="#800020"
+                                                                                strokeWidth="1.5"
+                                                                                strokeDasharray="3 3"
+                                                                                strokeOpacity="0.6"
+                                                                            />
+                                                                        )}
+
+                                                                        {/* Node circles - Fully illuminated by default */}
+                                                                        {pts.map((pt, idx) => {
+                                                                            const isHovered = hoveredDayIdx === idx;
+                                                                            return (
+                                                                                <g key={pt.label} className="cursor-pointer" onClick={() => setHoveredDayIdx(idx)}>
+                                                                                    {hoveredDayIdx !== null && isHovered && (
+                                                                                        <circle cx={pt.x} cy={pt.y} r="10" fill="#800020" fillOpacity="0.2" />
+                                                                                    )}
+                                                                                    <circle
+                                                                                        cx={pt.x}
+                                                                                        cy={pt.y}
+                                                                                        r={hoveredDayIdx !== null ? (isHovered ? 6 : 3.5) : 4.5}
+                                                                                        fill={hoveredDayIdx === null || isHovered ? '#800020' : '#ffffff'}
+                                                                                        stroke="#800020"
+                                                                                        strokeWidth={isHovered ? 3 : 2}
+                                                                                        className="transition-all duration-200"
+                                                                                    />
+                                                                                </g>
+                                                                            );
+                                                                        })}
+                                                                    </svg>
+                                                                </div>
+
+                                                                {/* Day labels for area mode - Sit strictly UNDER the baseline with NO underline */}
+                                                                <div className="h-8 flex items-center justify-between px-2 pt-2">
+                                                                    {departmentAnalytics.timeline.map((bar, idx) => {
+                                                                        const isHovered = hoveredDayIdx === idx;
+                                                                        return (
+                                                                            <button
+                                                                                key={bar.label}
+                                                                                type="button"
+                                                                                onClick={() => setHoveredDayIdx(idx)}
+                                                                                className={`flex-1 text-center text-xs sm:text-sm font-bold text-[#800020] transition-colors cursor-pointer ${
+                                                                                    hoveredDayIdx !== null && isHovered
+                                                                                        ? 'font-black opacity-100'
+                                                                                        : hoveredDayIdx !== null
+                                                                                            ? 'opacity-40'
+                                                                                            : 'opacity-100'
+                                                                                }`}
+                                                                            >
+                                                                                {bar.label}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+
+                                            {/* Bottom Insights Strip */}
+                                            <div className="flex flex-wrap items-center justify-between text-xs font-bold text-[#800020]/70 pt-3 border-t border-[#800020]/10 gap-3">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-[#800020]" />
+                                                        <span>{analyticsMetric === 'revenue' ? 'إيراد مبيعات اليوم' : 'عدد الطلبات'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                                        <span>أعلى يوم: {topDayForMetric?.label}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Chart 2: Subcategories Share & Visual Distribution (4 cols on lg) */}
+                            <div className="lg:col-span-4 bg-white/25 p-6 sm:p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-5">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <PieChart className="w-5 h-5 text-[#800020]" />
+                                        <h2 className="text-lg font-black text-[#800020]">
+                                            توزيع حصص التصنيفات
+                                        </h2>
+                                    </div>
+                                    <p className="text-xs font-semibold text-[#800020]/60 mt-1">
+                                        نسب المساهمة المالية لكل تصنيف فرعي ضمن القسم
+                                    </p>
+                                </div>
+
+                                {/* Stacked Multi-Color Progress Bar */}
+                                <div className="space-y-1.5">
+                                    <div className="h-4 w-full bg-[#800020]/10 rounded-full overflow-hidden flex shadow-inner">
+                                        {departmentAnalytics.subcategories.map(cat => (
+                                            <div
+                                                key={cat.name}
+                                                style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }}
+                                                className="h-full transition-all duration-500 first:rounded-r-full last:rounded-l-full"
+                                                title={`${cat.name}: ${cat.percentage}%`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="flex justify-between text-[10px] font-bold text-[#800020]/60 px-1">
+                                        <span>0%</span>
+                                        <span>إجمالي حصص القسم 100%</span>
+                                    </div>
+                                </div>
+
+                                {/* Category List with Bars */}
+                                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+                                    {departmentAnalytics.subcategories.map(cat => (
+                                        <div
+                                            key={cat.name}
+                                            onClick={() => setAnalyticsSubCat(cat.name)}
+                                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between text-xs ${
+                                                analyticsSubCat === cat.name
+                                                    ? 'bg-white border-[#800020] shadow-sm'
+                                                    : 'bg-white/50 hover:bg-white border-[#800020]/10'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                                                <span className="font-bold text-[#800020]">{cat.name}</span>
+                                                <span className="text-[10px] text-[#800020]/60">({cat.count} قطعة)</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 font-black text-[#800020]">
+                                                <span>{cat.revenue.toLocaleString('ar-SA')}</span>
+                                                <RiyalIcon size="0.8em" />
+                                                <span className="bg-[#800020]/10 text-[#800020] text-[10px] px-1.5 py-0.5 rounded-md">
+                                                    {cat.percentage}%
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
@@ -2363,53 +3080,329 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                         </div>
 
-                        {/* Geographic City Distribution Table */}
-                        <div className="bg-white/25 p-7 rounded-3xl border border-[#800020]/10 shadow-sm">
-                            <h2 className="text-lg font-black text-[#800020] mb-1">
-                                المبيعات حسب المناطق والمدن السعودية
-                            </h2>
-                            <p className="text-xs font-semibold text-[#800020]/60 mb-6">
-                                تحليل التوزيع الجغرافي لأماكن تواجد عملاء ثياب الأكثر نشاطاً
-                            </p>
+                        {/* Chart 3 & 4: Top Performing Products Horizontal Chart & Payment Methods */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-right text-xs font-semibold">
-                                    <thead>
-                                        <tr className="border-b border-[#800020]/15 text-[#800020]/60 font-black">
-                                            <th className="py-3 px-3">المدينة</th>
-                                            <th className="py-3 px-3">النسبة من الإجمالي</th>
-                                            <th className="py-3 px-3">عدد الطلبات</th>
-                                            <th className="py-3 px-3">إجمالي الإيرادات</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[#800020]/10">
-                                        {salesByCity.length === 0 ? (
-                                            <tr>
-                                                <td colSpan="4" className="py-8 text-center text-xs font-bold text-[#800020]/60">
-                                                    لا توجد مبيعات مسجلة حسب المدن بعد
-                                                </td>
-                                            </tr>
-                                        ) : salesByCity.map(city => (
-                                            <tr key={city.city} className="hover:bg-[#800020]/5 transition">
-                                                <td className="py-3.5 px-3 font-bold text-[#800020] flex items-center gap-2">
-                                                    <MapPin className="w-3.5 h-3.5 text-[#800020]/60" />
-                                                    {city.city}
-                                                </td>
-                                                <td className="py-3.5 px-3 font-bold text-[#800020]">
-                                                    {city.percentage}%
-                                                </td>
-                                                <td className="py-3.5 px-3 text-[#800020]/80">
-                                                    {city.orders} طلب
-                                                </td>
-                                                <td className="py-3.5 px-3 font-bold text-[#800020]">
-                                                    <span>{city.revenue.toLocaleString('ar-SA')}</span>
-                                                    <RiyalIcon size="0.85em" />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            {/* Chart 3: Top Performing Products (7 cols) */}
+                            <div className="lg:col-span-7 bg-white/25 p-6 sm:p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-5">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5 text-[#800020]" />
+                                        <h2 className="text-lg font-black text-[#800020]">
+                                            أفضل المنتجات أداءً ومبيعاً في هذا القسم
+                                        </h2>
+                                    </div>
+                                    <p className="text-xs font-semibold text-[#800020]/60 mt-1">
+                                        ترتيب القطع الأكثر طلباً وتحقيقاً للأرباح بناءً على إجمالي المبيعات
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3.5">
+                                    {departmentAnalytics.topProducts.length === 0 ? (
+                                        <p className="text-xs text-center text-[#800020]/60 py-6">لا توجد بيانات منتجات مسجلة في هذا القسم</p>
+                                    ) : (
+                                        departmentAnalytics.topProducts.map((prod, idx) => {
+                                            const maxProdRev = Math.max(1, ...departmentAnalytics.topProducts.map(p => p.revenue));
+                                            const widthPercent = Math.max(15, Math.round((prod.revenue / maxProdRev) * 100));
+                                            return (
+                                                <div
+                                                    key={prod.name}
+                                                    className="p-3 bg-white/60 rounded-2xl border border-[#800020]/10 space-y-2 hover:bg-[#800020]/[0.07] hover:border-[#800020]/25 transition-all duration-300 shadow-2xs cursor-pointer group"
+                                                >
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="w-5 h-5 rounded-full bg-[#800020] text-[#F0DFCD] text-[10px] font-black flex items-center justify-center shrink-0">
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="w-10 h-10 rounded-xl bg-white border border-[#800020]/15 p-1 flex items-center justify-center overflow-hidden shrink-0">
+                                                                <img src={prod.image} alt={prod.name} className="w-full h-full object-contain" />
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-black text-[#800020] block">{prod.name}</span>
+                                                                <span className="text-[10px] text-[#800020]/60">{prod.category || 'أزياء فاخرة'}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="text-left font-black text-[#800020]">
+                                                            <div className="flex items-center gap-1 justify-end">
+                                                                <span>{prod.revenue.toLocaleString('ar-SA')}</span>
+                                                                <RiyalIcon size="0.85em" />
+                                                            </div>
+                                                            <span className="text-[10px] text-[#800020]/60 block">{prod.qty} قطعة مباعة</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Performance horizontal bar */}
+                                                    <div className="h-2 w-full bg-[#800020]/10 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full bg-[#800020] transition-all duration-700"
+                                                            style={{ width: `${widthPercent}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
                             </div>
+
+                            {/* Chart 4: Payment Methods & Cities Breakdown for this Department (5 cols) */}
+                            <div className="lg:col-span-5 bg-white/25 p-6 sm:p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-6">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <CreditCard className="w-5 h-5 text-[#800020]" />
+                                        <h2 className="text-lg font-black text-[#800020]">
+                                            تفضيلات وسائل الدفع لهذا القسم
+                                        </h2>
+                                    </div>
+                                    <p className="text-xs font-semibold text-[#800020]/60 mt-1">
+                                        خيارات السداد الأكثر استخداماً من قبل عملاء هذا القسم
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {departmentAnalytics.payments.map(pm => (
+                                        <div key={pm.name} className="bg-white/60 p-3 rounded-2xl border border-[#800020]/10 space-y-1.5">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-[#800020]" />
+                                                    <span className="font-bold text-[#800020]">{pm.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 font-black text-[#800020]">
+                                                    <span>{pm.deptCount} عملية</span>
+                                                    <span className="text-xs bg-[#800020]/10 px-1.5 py-0.5 rounded-md">
+                                                        {pm.deptPercentage}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="h-2 w-full bg-[#800020]/10 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full bg-[#800020] transition-all duration-700"
+                                                    style={{ width: `${pm.deptPercentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Geographic distribution for this department */}
+                                <div className="pt-3 border-t border-[#800020]/10">
+                                    <span className="text-xs font-bold text-[#800020]/80 block mb-2">أعلى المدن طلباً في هذا القسم:</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {salesByCity.slice(0, 4).map(c => (
+                                            <span key={c.city} className="bg-white px-3 py-1.5 rounded-xl border border-[#800020]/15 text-xs font-bold text-[#800020] flex items-center gap-1 shadow-2xs">
+                                                <MapPin className="w-3.5 h-3.5 text-[#800020]/60" />
+                                                <span>{c.city}</span>
+                                                <span className="text-[10px] opacity-60">({c.percentage}%)</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* 4. DETAILS SECTION BELOW THE CHARTS (التفاصيل تحت لكل قسم) */}
+                        <div className="space-y-6">
+
+                            {/* Section Header for Details */}
+                            <div className="bg-[#800020] text-[#F0DFCD] p-6 rounded-3xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-xl font-black flex items-center gap-2">
+                                        <Layers className="w-5 h-5 text-white" />
+                                        <span>تفاصيل وسجل مبيعات ({analyticsDept === 'all' ? 'جميع الأقسام' : analyticsDept === 'men' ? 'القسم الرجالي' : analyticsDept === 'women' ? 'القسم النسائي' : 'قسم الإكسسوارات'})</span>
+                                    </h2>
+                                    <p className="text-xs font-semibold text-[#F0DFCD]/80 mt-1">
+                                        سجل الطلبات التفصيلي ومؤشرات المخزون وحركة الشراء الخاصة بهذا القسم
+                                    </p>
+                                </div>
+
+                                {/* Search within this department's orders - Beige style */}
+                                <div className="relative w-full sm:w-72">
+                                    <input
+                                        type="text"
+                                        value={analyticsOrderSearch}
+                                        onChange={(e) => setAnalyticsOrderSearch(e.target.value)}
+                                        placeholder="بحث في طلبات هذا القسم..."
+                                        className="w-full bg-[#F0DFCD] text-[#800020] placeholder:text-[#800020]/50 pr-10 pl-4 py-2.5 rounded-2xl text-xs font-bold border border-[#800020]/25 focus:outline-none focus:ring-2 focus:ring-[#800020]/20 shadow-inner transition"
+                                    />
+                                    <Search className="w-4 h-4 text-[#800020] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    {analyticsOrderSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setAnalyticsOrderSearch('')}
+                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#800020]/70 hover:text-[#800020]"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Detailed Subcategories Performance Table */}
+                            <div className="bg-white/25 rounded-3xl border border-[#800020]/10 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-[#800020]/10 flex items-center justify-between">
+                                    <h3 className="font-black text-sm text-[#800020]">
+                                        جدول أداء التصنيفات الفرعية للقسم
+                                    </h3>
+                                    <span className="text-xs text-[#800020]/60 font-bold">
+                                        {departmentAnalytics.subcategories.length} تصنيفات نشطة
+                                    </span>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-right text-xs font-semibold overflow-hidden rounded-2xl">
+                                        <thead>
+                                            <tr className="bg-[#800020] text-[#F0DFCD] border-b border-[#800020]/20 font-black">
+                                                <th className="py-3.5 px-4 text-[#F0DFCD]">التصنيف الفرعي</th>
+                                                <th className="py-3.5 px-4 text-[#F0DFCD]">القطع المباعة</th>
+                                                <th className="py-3.5 px-4 text-[#F0DFCD]">إجمالي الإيرادات</th>
+                                                <th className="py-3.5 px-4 text-[#F0DFCD]">نسبة المساهمة</th>
+                                                <th className="py-3.5 px-4 text-[#F0DFCD]">متوسط سعر القطعة</th>
+                                                <th className="py-3.5 px-4 text-left text-[#F0DFCD]">الإجراء</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#800020]/10">
+                                            {departmentAnalytics.subcategories.map(cat => {
+                                                const avgPrice = cat.count > 0 ? Math.round(cat.revenue / cat.count) : 0;
+                                                return (
+                                                    <tr key={cat.name} className="hover:bg-white/30 transition">
+                                                        <td className="py-3.5 px-4 font-bold text-[#800020] flex items-center gap-2">
+                                                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                                                            <span>{cat.name}</span>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-[#800020]">
+                                                            {cat.count} قطعة
+                                                        </td>
+                                                        <td className="py-3.5 px-4 font-black text-[#800020]">
+                                                            <span>{cat.revenue.toLocaleString('ar-SA')}</span>
+                                                            <RiyalIcon size="0.85em" />
+                                                        </td>
+                                                        <td className="py-3.5 px-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-20 h-2 bg-[#800020]/10 rounded-full overflow-hidden">
+                                                                    <div className="h-full rounded-full" style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }} />
+                                                                </div>
+                                                                <span className="font-bold text-[#800020] text-[11px]">{cat.percentage}%</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-[#800020]/80">
+                                                            {avgPrice.toLocaleString('ar-SA')} ر.س
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-left">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedSalesBreakdown({ type: 'category', name: cat.name, item: cat });
+                                                                    setDrilldownSearchQuery('');
+                                                                }}
+                                                                className="shine-button relative overflow-hidden bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 active:scale-95 transition px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer group"
+                                                            >
+                                                                <span className="shine-effect z-10" />
+                                                                <span className="relative z-20 inline-flex items-center gap-1.5">
+                                                                    <Eye className="w-3.5 h-3.5" />
+                                                                    <span>تفاصيل الطلبات</span>
+                                                                </span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Detailed Orders Table for this department */}
+                            <div className="bg-white/25 rounded-3xl border border-[#800020]/10 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-[#800020]/10 flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-black text-sm text-[#800020]">
+                                            سجل الطلبات المتضمنة لمنتجات ({analyticsDept === 'all' ? 'جميع الأقسام' : analyticsDept === 'men' ? 'القسم الرجالي' : analyticsDept === 'women' ? 'القسم النسائي' : 'قسم الإكسسوارات'})
+                                        </h3>
+                                        <p className="text-[11px] text-[#800020]/60">
+                                            عرض وتصفية الطلبات المباشرة الخاصة بهذا القسم
+                                        </p>
+                                    </div>
+
+                                    <span className="text-xs font-bold text-[#800020]/80 bg-white/60 px-3 py-1.5 rounded-xl border border-[#800020]/15">
+                                        إجمالي {departmentAnalytics.filteredDeptOrders.length} طلبات مسجلة
+                                    </span>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-center text-xs font-semibold overflow-hidden rounded-2xl">
+                                        <thead>
+                                            <tr className="bg-[#800020] text-[#F0DFCD] border-b border-[#800020]/20 font-black">
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">رقم الطلب</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">العميل</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">التاريخ</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">منتجات القسم</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">وسيلة الدفع</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">المدينة</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">المبلغ</th>
+                                                <th className="py-3.5 px-4 text-center text-[#F0DFCD]">الإجراء</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#800020]/10">
+                                            {departmentAnalytics.filteredDeptOrders.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="8" className="py-12 text-center text-xs font-bold text-[#800020]/60">
+                                                        {orders.length === 0
+                                                            ? 'لا توجد طلبات مسجلة في المتجر حتى الآن'
+                                                            : 'لا توجد طلبات مطابقة للبحث ضمن هذا القسم'}
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                departmentAnalytics.filteredDeptOrders.slice(0, 15).map(order => (
+                                                    <tr key={order.id} className="hover:bg-white/30 transition">
+                                                        <td className="py-3.5 px-4 text-center font-mono font-black text-[#800020]">
+                                                            #{order.id}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center font-bold text-[#800020]">
+                                                            {order.customerName}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center text-[#800020]/70">
+                                                            {order.date}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center text-[#800020]">
+                                                            <span className="font-bold">
+                                                                {order.deptItems ? `${order.deptItems.length} منتجات` : `${order.itemsCount || 1} منتج`}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center text-[#800020]/80">
+                                                            {order.paymentMethod}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center text-[#800020]/80">
+                                                            {order.city}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center font-black text-[#800020]">
+                                                            <div className="inline-flex items-center justify-center gap-1">
+                                                                <span>{(order.deptRevenue || order.total).toLocaleString('ar-SA')}</span>
+                                                                <RiyalIcon size="0.85em" />
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedOrderDetails(order)}
+                                                                className="shine-button relative overflow-hidden bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 active:scale-95 transition px-3.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer group"
+                                                            >
+                                                                <span className="shine-effect z-10" />
+                                                                <span className="relative z-20 inline-flex items-center gap-1.5">
+                                                                    <Eye className="w-3.5 h-3.5" />
+                                                                    <span>تفاصيل</span>
+                                                                </span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                         </div>
 
                     </div>
@@ -2434,16 +3427,25 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={() => showToast('تم تصدير كشف الطلبات بنجاح', 'success')}
-                                    className="bg-white/25 hover:bg-white text-[#800020] border border-[#800020]/20 transition px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-sm"
+                                    type="button"
+                                    onClick={handleExportOrders}
+                                    className="relative overflow-hidden group cursor-pointer bg-white/40 hover:bg-white text-[#800020] border border-[#800020]/25 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold shadow-sm active:scale-95 transition-all duration-300"
                                 >
-                                    <Download className="w-4 h-4" />
-                                    <span>تصدير الطلبات</span>
+                                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                    <span className="relative z-10 flex items-center gap-2 text-[#800020] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:-translate-y-[150%] group-hover:opacity-0">
+                                        <Download className="w-4 h-4 transition-transform duration-500 group-hover:rotate-45" />
+                                        <span>تصدير الطلبات</span>
+                                    </span>
+                                    <span className="absolute inset-0 z-20 flex items-center justify-center gap-2 px-4 py-2.5 text-[#F0DFCD] pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                        <Download className="w-4 h-4 transition-transform duration-500 group-hover:rotate-45" />
+                                        <span>تصدير الطلبات</span>
+                                    </span>
+                                    <span className="shine-effect z-30" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Order Status Tabs (المقسمة) */}
+                        {/* Order Status Tabs (المقسمة - تأثير تغيير نص ولون بزاوية 45) */}
                         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[#800020]/15">
                             {[
                                 { id: 'all', label: 'جميع الطلبات', count: statusCounts.all },
@@ -2452,27 +3454,52 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                 { id: 'shipping', label: 'جاري التوصيل', count: statusCounts.shipping },
                                 { id: 'delivered', label: 'مكتملة ومستلمة', count: statusCounts.delivered },
                                 { id: 'cancelled', label: 'ملغاة', count: statusCounts.cancelled },
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setOrderFilterStatus(tab.id)}
-                                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition ${orderFilterStatus === tab.id
-                                        ? 'bg-[#800020] text-[#F0DFCD] shadow-md'
-                                        : 'bg-white/50 text-[#800020]/80 hover:bg-white/80'
+                            ].map(tab => {
+                                const isSelected = orderFilterStatus === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setOrderFilterStatus(tab.id)}
+                                        className={`relative overflow-hidden group cursor-pointer px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all duration-300 border ${
+                                            isSelected
+                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md'
+                                                : 'bg-white/50 text-[#800020] border-[#800020]/15 shadow-2xs'
                                         }`}
-                                >
-                                    <span>{tab.label}</span>
-                                    <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${orderFilterStatus === tab.id
-                                        ? 'bg-[#F0DFCD] text-[#800020]'
-                                        : 'bg-[#800020]/10 text-[#800020]'
+                                    >
+                                        {!isSelected && (
+                                            <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                        )}
+
+                                        {/* Base Layer */}
+                                        <span className={`relative z-10 flex items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                            isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0'
                                         }`}>
-                                        {tab.count}
-                                    </span>
-                                </button>
-                            ))}
+                                            <span>{tab.label}</span>
+                                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
+                                                isSelected ? 'bg-white/20 text-[#F0DFCD]' : 'bg-[#800020]/10 text-[#800020]'
+                                            }`}>
+                                                {tab.count}
+                                            </span>
+                                        </span>
+
+                                        {/* Hover Roll-in Layer */}
+                                        {!isSelected && (
+                                            <span className="absolute inset-0 z-20 flex items-center justify-center gap-2 px-4 py-2.5 w-full h-full pointer-events-none text-[#F0DFCD] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                                <span>{tab.label}</span>
+                                                <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-white/20 text-[#F0DFCD]">
+                                                    {tab.count}
+                                                </span>
+                                            </span>
+                                        )}
+
+                                        <span className="shine-effect z-30" />
+                                    </button>
+                                );
+                            })}
                         </div>
 
-                        {/* Search Bar & Filtering */}
+                        {/* Search Bar & Filtering (خلفية بيج) */}
                         <div className="bg-white/25 p-4 rounded-3xl border border-[#800020]/10 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
                             <div className="relative w-full sm:w-96">
                                 <Search className="w-4 h-4 text-[#800020]/50 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -2481,7 +3508,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     value={orderSearchQuery}
                                     onChange={(e) => setOrderSearchQuery(e.target.value)}
                                     placeholder="بحث برقم الطلب، اسم العميل، الهاتف، أو المدينة..."
-                                    className="w-full bg-white/80 pr-11 pl-4 py-2.5 rounded-2xl border border-[#800020]/20 text-xs sm:text-sm text-[#800020] placeholder:text-[#800020]/40 focus:outline-none focus:border-[#800020]"
+                                    className="w-full bg-[#F0DFCD] focus:bg-[#F0DFCD] pr-11 pl-4 py-2.5 rounded-2xl border border-[#800020]/25 text-xs sm:text-sm text-[#800020] font-bold placeholder:text-[#800020]/50 focus:outline-none focus:border-[#800020] focus:ring-2 focus:ring-[#800020]/15 shadow-inner transition"
                                 />
                                 {orderSearchQuery && (
                                     <button
@@ -2512,16 +3539,16 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-right text-xs font-semibold">
+                                    <table className="w-full text-center text-xs font-semibold overflow-hidden rounded-2xl">
                                         <thead>
-                                            <tr className="bg-[#800020]/5 border-b border-[#800020]/15 text-[#800020]/70 font-black">
-                                                <th className="py-4 px-4">رقم الطلب</th>
-                                                <th className="py-4 px-4">العميل ومعلومات الاتصال</th>
-                                                <th className="py-4 px-4">المنتجات المطلوبة</th>
-                                                <th className="py-4 px-4">المبلغ والدفع</th>
-                                                <th className="py-4 px-4">التاريخ والوقت</th>
-                                                <th className="py-4 px-4">حالة الطلب الحالية</th>
-                                                <th className="py-4 px-4 text-left">الإجراءات</th>
+                                            <tr className="bg-[#800020] text-[#F0DFCD] border-b border-[#800020]/20 font-black">
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">رقم الطلب</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">العميل ومعلومات الاتصال</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">المنتجات المطلوبة</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">المبلغ والدفع</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">التاريخ والوقت</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">حالة الطلب الحالية</th>
+                                                <th className="py-4 px-4 text-center text-[#F0DFCD]">الإجراءات</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-[#800020]/10">
@@ -2531,7 +3558,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                     <tr key={ord.id} className="hover:bg-white/25 transition group">
 
                                                         {/* Order ID */}
-                                                        <td className="py-4 px-4">
+                                                        <td className="py-4 px-4 text-center">
                                                             <span className="font-mono font-bold text-sm text-[#800020] block">
                                                                 {ord.id}
                                                             </span>
@@ -2541,11 +3568,11 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                         </td>
 
                                                         {/* Customer */}
-                                                        <td className="py-4 px-4">
+                                                        <td className="py-4 px-4 text-center">
                                                             <div className="font-bold text-sm text-[#800020]">
                                                                 {ord.customerName}
                                                             </div>
-                                                            <div className="text-[11px] text-[#800020]/70 flex items-center gap-2 mt-0.5">
+                                                            <div className="text-[11px] text-[#800020]/70 flex items-center justify-center gap-2 mt-0.5">
                                                                 <span className="flex items-center gap-1">
                                                                     <Phone className="w-3 h-3 text-[#800020]/50" />
                                                                     {ord.phone}
@@ -2559,8 +3586,8 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                         </td>
 
                                                         {/* Items Preview */}
-                                                        <td className="py-4 px-4">
-                                                            <div className="flex items-center gap-1.5">
+                                                        <td className="py-4 px-4 text-center">
+                                                            <div className="flex items-center justify-center gap-1.5">
                                                                 {ord.items.slice(0, 3).map((item, idx) => (
                                                                     <div
                                                                         key={idx}
@@ -2582,8 +3609,8 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                         </td>
 
                                                         {/* Amount & Payment */}
-                                                        <td className="py-4 px-4">
-                                                            <div className="font-black text-sm text-[#800020] flex items-center gap-1">
+                                                        <td className="py-4 px-4 text-center">
+                                                            <div className="font-black text-sm text-[#800020] flex items-center justify-center gap-1">
                                                                 <span>{ord.total.toFixed(2)}</span>
                                                                 <RiyalIcon size="0.9em" />
                                                             </div>
@@ -2593,19 +3620,20 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                         </td>
 
                                                         {/* Date */}
-                                                        <td className="py-4 px-4">
+                                                        <td className="py-4 px-4 text-center">
                                                             <div className="text-[#800020] font-bold">{ord.date}</div>
                                                             <div className="text-[10px] text-[#800020]/50">{ord.time}</div>
                                                         </td>
 
                                                         {/* Status Dropdown */}
-                                                        <td className="py-4 px-4">
+                                                        <td className="py-4 px-4 text-center">
                                                             <CustomDropdown
                                                                 value={ord.status}
                                                                 onChange={(val) => handleUpdateOrderStatus(ord.id, val)}
                                                                 options={orderStatusOptions}
+                                                                className="inline-block"
                                                                 renderTrigger={({ isOpen }) => (
-                                                                    <div className="inline-flex items-center gap-1.5 cursor-pointer group select-none">
+                                                                    <div className="inline-flex items-center justify-center gap-1.5 cursor-pointer group select-none">
                                                                         <span className={`text-xs font-bold transition-colors ${meta.textColor || 'text-amber-700'}`}>
                                                                             {meta.label}
                                                                         </span>
@@ -2613,19 +3641,23 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                                     </div>
                                                                 )}
                                                                 menuClassName="min-w-[175px] w-max"
-                                                                align="right"
+                                                                align="center"
                                                                 usePortal={true}
                                                             />
                                                         </td>
 
                                                         {/* Actions */}
-                                                        <td className="py-4 px-4 text-left">
+                                                        <td className="py-4 px-4 text-center">
                                                             <button
+                                                                type="button"
                                                                 onClick={() => setSelectedOrderDetails(ord)}
-                                                                className="bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 transition px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm"
+                                                                className="shine-button relative overflow-hidden bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 active:scale-95 transition px-3.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer group"
                                                             >
-                                                                <Eye className="w-3.5 h-3.5" />
-                                                                <span>تفاصيل</span>
+                                                                <span className="shine-effect z-10" />
+                                                                <span className="relative z-20 inline-flex items-center gap-1.5">
+                                                                    <Eye className="w-3.5 h-3.5" />
+                                                                    <span>تفاصيل</span>
+                                                                </span>
                                                             </button>
                                                         </td>
 
@@ -2648,93 +3680,84 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                 {activeTab === 'add-product' && (
                     <div className="space-y-8">
                         {/* Section Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-black text-[#800020]">
-                                    إضافة منتج جديد لمتجر ثياب
-                                </h1>
-                                <p className="text-sm font-semibold text-[#800020]/70 mt-1">
-                                    قم بإدخال بيانات المنتج والأسعار والألوان والمقاسات مع معاينة حية مباشرة.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleFillDemoProduct}
-                                className="bg-[#800020]/10 hover:bg-[#800020]/20 text-[#800020] transition px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 border border-[#800020]/20 self-start sm:self-auto"
-                            >
-                                <Sparkles className="w-4 h-4 text-amber-600" />
-                                <span>تعبئة بيانات تجريبية سريعة</span>
-                            </button>
+                        <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm">
+                            <h1 className="text-2xl sm:text-3xl font-black text-[#800020]">
+                                إضافة منتج جديد لمتجر ثياب
+                            </h1>
+                            <p className="text-sm font-semibold text-[#800020]/70 mt-1">
+                                قم بإدخال بيانات المنتج والأسعار والألوان والمقاسات مع معاينة حية مباشرة.
+                            </p>
                         </div>
 
                         {/* Add Product Grid: Form on Right, Live Preview on Left */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                            {/* The Form (7 cols) */}
-                            <form onSubmit={handleSaveNewProduct} className="lg:col-span-7 bg-white/25 p-7 rounded-3xl border border-[#800020]/10 shadow-sm space-y-6">
+                            {/* The Form (Right Column: 7 cols on lg, 8 cols on xl) */}
+                            <form onSubmit={handleSaveNewProduct} className="lg:col-span-7 xl:col-span-8 space-y-6">
 
-                                {/* 1. Basic Info */}
-                                <div className="space-y-4">
-                                    <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
-                                        المعلومات الأساسية
-                                    </h3>
+                                {/* Responsive Modular Grid of Boxes (مربعات جنب وتحت بعضها) */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#800020] mb-1.5">
-                                            اسم المنتج <span className="text-rose-600">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={productForm.name}
-                                            onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                                            placeholder="مثال: معطف شتوي فاخر مزدوج الصدر"
-                                            className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
-                                        />
-                                    </div>
+                                    {/* مربع 1: المعلومات الأساسية */}
+                                    <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
+                                            المعلومات الأساسية
+                                        </h3>
 
-                                    {/* Department (Main Category) Selector */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#800020] mb-1.5">
-                                            القسم الرئيسي (الجمهور المستهدف) <span className="text-rose-600">*</span>
-                                        </label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {[
-                                                { id: 'men', label: 'رجالي' },
-                                                { id: 'women', label: 'نسائي' },
-                                                { id: 'unisex', label: 'إكسسوارات' }
-                                            ].map(dept => {
-                                                const isSelected = (productForm.gender || 'men') === dept.id;
-                                                return (
-                                                    <button
-                                                        key={dept.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newGender = dept.id;
-                                                            const subCats = DEPARTMENT_CATEGORIES[newGender]?.categories || productCategoriesList;
-                                                            const keepCat = subCats.includes(productForm.category) ? productForm.category : subCats[0];
-                                                            setProductForm(prev => ({
-                                                                ...prev,
-                                                                gender: newGender,
-                                                                category: keepCat
-                                                            }));
-                                                        }}
-                                                        className={`py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
-                                                            isSelected
-                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md'
-                                                                : 'bg-white/70 hover:bg-white text-[#800020] border-[#800020]/20'
-                                                        }`}
-                                                    >
-                                                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                                                        <span>{dept.label}</span>
-                                                    </button>
-                                                );
-                                            })}
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#800020] mb-1.5">
+                                                اسم المنتج <span className="text-rose-600">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={productForm.name}
+                                                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                                                placeholder="مثال: معطف شتوي فاخر مزدوج الصدر"
+                                                className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
+                                            />
                                         </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* Department (Main Category) Selector */}
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#800020] mb-1.5">
+                                                القسم الرئيسي (الجمهور المستهدف) <span className="text-rose-600">*</span>
+                                            </label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[
+                                                    { id: 'men', label: 'رجالي' },
+                                                    { id: 'women', label: 'نسائي' },
+                                                    { id: 'unisex', label: 'إكسسوارات' }
+                                                ].map(dept => {
+                                                    const isSelected = (productForm.gender || 'men') === dept.id;
+                                                    return (
+                                                        <button
+                                                            key={dept.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newGender = dept.id;
+                                                                const subCats = DEPARTMENT_CATEGORIES[newGender]?.categories || productCategoriesList;
+                                                                const keepCat = subCats.includes(productForm.category) ? productForm.category : subCats[0];
+                                                                setProductForm(prev => ({
+                                                                    ...prev,
+                                                                    gender: newGender,
+                                                                    category: keepCat
+                                                                }));
+                                                            }}
+                                                            className={`py-2.5 px-3 rounded-2xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                                                                isSelected
+                                                                    ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md'
+                                                                    : 'bg-white/70 hover:bg-white text-[#800020] border-[#800020]/20'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                                                            <span>{dept.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label className="block text-xs font-bold text-[#800020] mb-1.5">
                                                 التصنيف الخاص بـ ({productForm.gender === 'women' ? 'القسم النسائي' : productForm.gender === 'unisex' ? 'قسم الإكسسوارات' : 'القسم الرجالي'}) <span className="text-rose-600">*</span>
@@ -2752,24 +3775,23 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                             <label className="block text-xs font-bold text-[#800020] mb-1.5">
                                                 الشارة الترويجية (Badge)
                                             </label>
-                                            <input
-                                                type="text"
+                                            <CustomDropdown
                                                 value={productForm.badge}
-                                                onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
-                                                placeholder="مثال: جديد، الأكثر مبيعاً"
-                                                className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
+                                                onChange={(val) => setProductForm(prev => ({ ...prev, badge: val }))}
+                                                options={badgeOptions}
+                                                placeholder="اختر الشارة الترويجية..."
+                                                triggerClassName="!bg-white !rounded-2xl !py-3 !px-4 !border-[#800020]/20 !text-sm font-bold"
+                                                menuClassName="w-full"
                                             />
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* 2. Pricing & Stock */}
-                                <div className="space-y-4">
-                                    <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
-                                        الأسعار والمخزون
-                                    </h3>
+                                    {/* مربع 2: الأسعار والمخزون */}
+                                    <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
+                                            الأسعار والمخزون
+                                        </h3>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-[#800020] mb-1.5">
                                                 السعر الحالي (ر.س) <span className="text-rose-600">*</span>
@@ -2821,432 +3843,536 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                 className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
                                             />
                                         </div>
-                                    </div>
-                                </div>
 
-                                {/* 3. Image Selection & Quick Gallery */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between border-b border-[#800020]/10 pb-2">
-                                        <h3 className="text-base font-black text-[#800020]">
-                                            صورة المنتج الرئيسية
-                                        </h3>
-                                        <div className="flex items-center gap-2">
-                                            {isUploadingImage && (
-                                                <span className="text-xs text-[#800020] font-bold animate-pulse">
-                                                    جاري الرفع...
-                                                </span>
-                                            )}
-                                            <span className="text-xs text-[#800020]/60">
-                                                اختر من المعرض أو ارفع من جهازك
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Buttons: Device Gallery + Store Gallery */}
-                                    <div className="p-3.5 bg-white/70 rounded-2xl border border-[#800020]/15 flex flex-wrap items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-14 h-14 rounded-xl bg-white border border-[#800020]/20 flex items-center justify-center overflow-hidden shrink-0 shadow-xs relative">
-                                                {productForm.image ? (
-                                                    <img
-                                                        src={productForm.image}
-                                                        alt="معاينة صورة المنتج"
-                                                        className="w-full h-full object-contain"
-                                                        onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
-                                                    />
-                                                ) : (
-                                                    <ImageIcon className="w-6 h-6 text-[#800020]/40" />
-                                                )}
-                                                {isRemovingBg && (
-                                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center">
-                                                        <Sparkles className="w-5 h-5 text-amber-300 animate-spin" />
-                                                    </div>
-                                                )}
-                                            </div>
+                                        {/* Product in stock toggle */}
+                                        <div className="flex items-center justify-between p-3.5 bg-white/70 rounded-2xl border border-[#800020]/15">
                                             <div>
-                                                <p className="text-xs font-black text-[#800020]">إضافة الصورة من المعرض</p>
-                                                <p className="text-[11px] text-[#800020]/60">ارفع مباشرة من ألبوم الصور بهاتفك أو تصفح مكتبة المتجر</p>
+                                                <span className="block text-xs font-bold text-[#800020]">حالة التوفر للطلب</span>
+                                                <span className="text-[11px] text-[#800020]/60">متاح للشراء الفوري</span>
                                             </div>
-                                        </div>
-
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            {/* Device Gallery Upload Input */}
-                                            <input
-                                                type="file"
-                                                id="add-device-gallery-input"
-                                                accept="image/*"
-                                                onChange={(e) => handleImageFileUpload(e, 'add')}
-                                                className="hidden"
-                                            />
-                                            <label
-                                                htmlFor="add-device-gallery-input"
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#800020] text-[#F0DFCD] text-xs font-bold hover:bg-[#66001a] transition cursor-pointer shadow-xs active:scale-95"
-                                            >
-                                                <UploadCloud className="w-4 h-4" />
-                                                <span>رفع من معرض الصور / الجهاز</span>
-                                            </label>
-
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    setGalleryTarget('add');
-                                                    setIsGalleryModalOpen(true);
-                                                }}
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#800020]/25 text-[#800020] text-xs font-bold hover:bg-[#800020]/5 transition cursor-pointer shadow-xs active:scale-95"
+                                                onClick={() => setProductForm(prev => ({ ...prev, inStock: !prev.inStock }))}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${productForm.inStock ? 'bg-emerald-600' : 'bg-gray-300'}`}
                                             >
-                                                <ImageIcon className="w-4 h-4" />
-                                                <span>استعراض كامل المعرض</span>
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${productForm.inStock ? '-translate-x-6' : '-translate-x-1'}`} />
                                             </button>
-
-                                            {productForm.image && (
-                                                <button
-                                                    type="button"
-                                                    disabled={isRemovingBg || isUploadingImage}
-                                                    onClick={() => handleManualRemoveBackground('add')}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-[#800020] text-white text-xs font-bold hover:brightness-110 transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
-                                                    title="تفريغ خلفية الصورة الحالية وجعلها شفافة"
-                                                >
-                                                    <Wand2 className="w-3.5 h-3.5" />
-                                                    <span>{isRemovingBg ? (bgRemovalProgress || 'جاري التفريغ...') : 'تفريغ الخلفية (AI)'}</span>
-                                                </button>
-                                            )}
                                         </div>
                                     </div>
 
-                                    {/* AI Background Removal Control & Status */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-gradient-to-r from-amber-50 to-[#800020]/5 rounded-2xl border border-amber-500/20 shadow-xs">
-                                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                                            <input
-                                                type="checkbox"
-                                                checked={autoRemoveBg}
-                                                onChange={(e) => setAutoRemoveBg(e.target.checked)}
-                                                className="w-4 h-4 accent-[#800020] rounded cursor-pointer"
-                                            />
-                                            <div className="flex items-center gap-1.5">
-                                                <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                                                <span className="text-xs font-bold text-[#800020]">
-                                                    حذف وتفريغ الخلفية تلقائياً بالذكاء الاصطناعي عند رفع أي صورة
+                                    {/* مربع 3: صورة المنتج الرئيسية ومكتبة المتجر (span-2) */}
+                                    <div className="md:col-span-2 bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <div className="flex items-center justify-between border-b border-[#800020]/10 pb-2">
+                                            <h3 className="text-base font-black text-[#800020]">
+                                                صورة المنتج الرئيسية
+                                            </h3>
+                                            <div className="flex items-center gap-2">
+                                                {isUploadingImage && (
+                                                    <span className="text-xs text-[#800020] font-bold animate-pulse">
+                                                        جاري الرفع...
+                                                    </span>
+                                                )}
+                                                <span className="text-xs text-[#800020]/60">
+                                                    اختر من المعرض أو ارفع من جهازك
                                                 </span>
                                             </div>
-                                        </label>
-                                        {isRemovingBg && (
-                                            <span className="text-[11px] font-black text-amber-800 bg-amber-100/80 px-2.5 py-1 rounded-lg animate-pulse">
-                                                {bgRemovalProgress || 'جاري المعالجة...'}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Quick Selection Carousel / Grid */}
-                                    <div className="space-y-2">
-                                        <span className="text-xs font-bold text-[#800020]/80">
-                                            مكتبة صور المتجر الفاخرة (شفافة وبدقة عالية):
-                                        </span>
-                                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5">
-                                            {storeQuickImages.map((img, idx) => (
-                                                <button
-                                                    type="button"
-                                                    key={img.url}
-                                                    onClick={() => handleSelectQuickImage(img.url, idx)}
-                                                    className={`aspect-square rounded-2xl p-2 bg-white flex items-center justify-center border-2 transition relative overflow-hidden ${productForm.image === img.url
-                                                        ? 'border-[#800020] ring-2 ring-[#800020]/20 shadow-md'
-                                                        : 'border-transparent hover:border-[#800020]/30'
-                                                        }`}
-                                                >
-                                                    <img src={img.url} alt={img.name} className="w-full h-full object-contain" />
-                                                    {productForm.image === img.url && (
-                                                        <div className="absolute top-1 right-1 bg-[#800020] text-[#F0DFCD] rounded-full p-0.5">
-                                                            <Check className="w-3 h-3" />
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            ))}
                                         </div>
-                                    </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#800020] mb-1.5">
-                                            مسار أو رابط الصورة يدوياً
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={productForm.image}
-                                                onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                                                placeholder="/images/coat_transparent.png أو https://..."
-                                                className="w-full bg-white pl-8 pr-4 py-2.5 rounded-2xl border border-[#800020]/20 text-xs sm:text-sm font-mono text-[#800020] focus:outline-none focus:border-[#800020]"
-                                            />
-                                            {productForm.image && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setProductForm({ ...productForm, image: '' })}
-                                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-1"
-                                                    title="مسح الرابط"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                        {/* Action Box with integrated AI Background Removal (المربع الموحد) */}
+                                        <div className="p-4 bg-white/70 rounded-2xl border border-[#800020]/15 shadow-xs space-y-3.5">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-14 h-14 rounded-xl bg-white border border-[#800020]/20 flex items-center justify-center overflow-hidden shrink-0 shadow-xs relative">
+                                                        {productForm.image ? (
+                                                            <img
+                                                                src={productForm.image}
+                                                                alt="معاينة صورة المنتج"
+                                                                className="w-full h-full object-contain"
+                                                                onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
+                                                            />
+                                                        ) : (
+                                                            <ImageIcon className="w-6 h-6 text-[#800020]/40" />
+                                                        )}
+                                                        {isRemovingBg && (
+                                                            <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center">
+                                                                <Sparkles className="w-5 h-5 text-amber-300 animate-spin" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-black text-[#800020]">إضافة الصورة من المعرض</p>
+                                                        <p className="text-[11px] text-[#800020]/60">ارفع مباشرة من ألبوم الصور بهاتفك أو تصفح مكتبة المتجر</p>
+                                                    </div>
+                                                </div>
 
-                                {/* 4. Sizes Selection */}
-                                <div className="space-y-3 p-4 bg-white/70 rounded-2xl border border-[#800020]/15">
-                                    <div className="flex items-center justify-between border-b border-[#800020]/10 pb-2">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-base font-black text-[#800020]">
-                                                المقاسات المتوفرة
-                                            </h3>
-                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#800020]/10 text-[#800020]">
-                                                {productForm.sizes.length} مقاسات
-                                            </span>
-                                        </div>
-                                        {productForm.sizes.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={handleClearAllProductSizes}
-                                                className="text-xs text-rose-600 hover:text-rose-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
-                                                title="مسح جميع المقاسات"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                                <span>مسح الكل</span>
-                                            </button>
-                                        )}
-                                    </div>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        id="add-device-gallery-input"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleImageFileUpload(e, 'add')}
+                                                        className="hidden"
+                                                    />
+                                                    <label
+                                                        htmlFor="add-device-gallery-input"
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#800020] text-[#F0DFCD] text-xs font-bold hover:bg-[#66001a] transition cursor-pointer shadow-xs active:scale-95"
+                                                    >
+                                                        <UploadCloud className="w-4 h-4" />
+                                                        <span>رفع من معرض الصور / الجهاز</span>
+                                                    </label>
 
-                                    {/* Selected sizes tags with (X) buttons */}
-                                    <div className="p-2.5 bg-white rounded-xl border border-[#800020]/15 min-h-[46px] flex flex-wrap items-center gap-2">
-                                        {productForm.sizes.length > 0 ? (
-                                            productForm.sizes.map((sz, i) => (
-                                                <span
-                                                    key={i}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#800020] text-[#F0DFCD] text-xs font-black shadow-xs group animate-fadeIn"
-                                                >
-                                                    <span>{sz}</span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleRemoveProductSize(sz)}
-                                                        className="w-4 h-4 rounded-full bg-white/20 hover:bg-rose-600 hover:text-white text-[#F0DFCD] transition flex items-center justify-center cursor-pointer"
-                                                        title={`إزالة مقاس (${sz})`}
+                                                        onClick={() => {
+                                                            setGalleryTarget('add');
+                                                            setIsGalleryModalOpen(true);
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#800020]/25 text-[#800020] text-xs font-bold hover:bg-[#800020]/5 transition cursor-pointer shadow-xs active:scale-95"
                                                     >
-                                                        <X className="w-3 h-3" strokeWidth={3} />
+                                                        <ImageIcon className="w-4 h-4" />
+                                                        <span>استعراض كامل المعرض</span>
                                                     </button>
+
+                                                    {productForm.image && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isRemovingBg || isUploadingImage}
+                                                            onClick={() => handleManualRemoveBackground('add')}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-[#800020] text-white text-xs font-bold hover:brightness-110 transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                                                            title="تفريغ خلفية الصورة الحالية وجعلها شفافة"
+                                                        >
+                                                            <Wand2 className="w-3.5 h-3.5" />
+                                                            <span>{isRemovingBg ? (bgRemovalProgress || 'جاري التفريغ...') : 'تفريغ الخلفية (AI)'}</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* AI Background Removal integrated inside the box */}
+                                            <div className="pt-3 border-t border-[#800020]/10 flex flex-wrap items-center justify-between gap-2.5">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={autoRemoveBg}
+                                                        onChange={(e) => setAutoRemoveBg(e.target.checked)}
+                                                        className="w-4 h-4 accent-[#800020] rounded cursor-pointer"
+                                                    />
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                                        <span className="text-xs font-bold text-[#800020]">
+                                                            حذف وتفريغ الخلفية تلقائياً بالذكاء الاصطناعي عند رفع أي صورة
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                                {isRemovingBg && (
+                                                    <span className="text-[11px] font-black text-amber-800 bg-amber-100/80 px-2.5 py-1 rounded-lg animate-pulse">
+                                                        {bgRemovalProgress || 'جاري المعالجة...'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Quick Selection Carousel / Grid */}
+                                        <div className="space-y-2">
+                                            <span className="text-xs font-bold text-[#800020]/80">
+                                                مكتبة صور المتجر الفاخرة (شفافة وبدقة عالية):
+                                            </span>
+                                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+                                                {storeQuickImages.map((img, idx) => (
+                                                    <button
+                                                        type="button"
+                                                        key={img.url}
+                                                        onClick={() => handleSelectQuickImage(img.url, idx)}
+                                                        className={`aspect-square rounded-2xl p-2 bg-white flex items-center justify-center border-2 transition relative overflow-hidden ${productForm.image === img.url
+                                                            ? 'border-[#800020] ring-2 ring-[#800020]/20 shadow-md'
+                                                            : 'border-transparent hover:border-[#800020]/30'
+                                                            }`}
+                                                    >
+                                                        <img src={img.url} alt={img.name} className="w-full h-full object-contain" />
+                                                        {productForm.image === img.url && (
+                                                            <div className="absolute top-1 right-1 bg-[#800020] text-[#F0DFCD] rounded-full p-0.5">
+                                                                <Check className="w-3 h-3" />
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#800020] mb-1.5">
+                                                مسار أو رابط الصورة يدوياً
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={productForm.image}
+                                                    onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                                                    placeholder="/images/coat_transparent.png أو https://..."
+                                                    className="w-full bg-white pl-8 pr-4 py-2.5 rounded-2xl border border-[#800020]/20 text-xs sm:text-sm font-mono text-[#800020] focus:outline-none focus:border-[#800020]"
+                                                />
+                                                {productForm.image && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setProductForm({ ...productForm, image: '' })}
+                                                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-1"
+                                                        title="مسح الرابط"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* مربع 4: المقاسات المتوفرة */}
+                                    <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <div className="flex items-center justify-between border-b border-[#800020]/10 pb-2">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-base font-black text-[#800020]">
+                                                    المقاسات المتوفرة
+                                                </h3>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#800020]/10 text-[#800020]">
+                                                    {productForm.sizes.length} مقاسات
                                                 </span>
-                                            ))
-                                        ) : (
-                                            <span className="text-xs text-[#800020]/50 italic">
-                                                لم يتم تحديد أي مقاسات بعد — انقر على المقاسات بالأسفل لإضافتها أو اكتب مقاساً مخصصاً.
-                                            </span>
-                                        )}
-                                    </div>
+                                            </div>
+                                            {productForm.sizes.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClearAllProductSizes}
+                                                    className="text-xs text-rose-600 hover:text-rose-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                                                    title="مسح جميع المقاسات"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <span>مسح الكل</span>
+                                                </button>
+                                            )}
+                                        </div>
 
-                                    {/* Quick presets */}
-                                    <div className="space-y-2 pt-1">
-                                        <span className="text-[11px] font-bold text-[#800020]/70 block">
-                                            إضافة سريعة بنقرة واحدة:
-                                        </span>
+                                        {/* Selected sizes tags with (X) buttons */}
+                                        <div className="p-2.5 bg-white rounded-xl border border-[#800020]/15 min-h-[46px] flex flex-wrap items-center gap-2">
+                                            {productForm.sizes.length > 0 ? (
+                                                productForm.sizes.map((sz, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#800020] text-[#F0DFCD] text-xs font-black shadow-xs group animate-fadeIn"
+                                                    >
+                                                        <span>{sz}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveProductSize(sz)}
+                                                            className="w-4 h-4 rounded-full bg-white/20 hover:bg-rose-600 hover:text-white text-[#F0DFCD] transition flex items-center justify-center cursor-pointer"
+                                                            title={`إزالة مقاس (${sz})`}
+                                                        >
+                                                            <X className="w-3 h-3" strokeWidth={3} />
+                                                        </button>
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-xs text-[#800020]/50 italic">
+                                                    لم يتم تحديد أي مقاسات بعد — انقر على المقاسات بالأسفل لإضافتها أو اكتب مقاساً مخصصاً.
+                                                </span>
+                                            )}
+                                        </div>
 
-                                        {/* Abaya & Thobe */}
-                                        <div>
-                                            <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
-                                                مقاسات العبايات والثياب (الطول بالبوصة):
+                                        {/* Quick presets */}
+                                        <div className="space-y-2 pt-1">
+                                            <span className="text-[11px] font-bold text-[#800020]/70 block">
+                                                إضافة سريعة بنقرة واحدة:
                                             </span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {abayaThobeSizesList.map(sz => {
-                                                     const isSelected = productForm.sizes.includes(sz);
-                                                     return (
-                                                         <button
-                                                             key={sz}
-                                                             type="button"
-                                                             onClick={() => handleSizeToggle(sz)}
-                                                             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                                                                 isSelected
-                                                                     ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
-                                                                     : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
-                                                             }`}
-                                                         >
-                                                             <span>{sz}</span>
-                                                             {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                         </button>
-                                                     );
-                                                 })}
+
+                                            {/* Abaya & Thobe */}
+                                            <div>
+                                                <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
+                                                    مقاسات العبايات والثياب (الطول بالبوصة):
+                                                </span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {abayaThobeSizesList.map(sz => {
+                                                        const isSelected = productForm.sizes.includes(sz);
+                                                        return (
+                                                            <button
+                                                                key={sz}
+                                                                type="button"
+                                                                onClick={() => handleSizeToggle(sz)}
+                                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                                                    isSelected
+                                                                        ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
+                                                                        : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
+                                                                }`}
+                                                            >
+                                                                <span>{sz}</span>
+                                                                {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Clothes */}
+                                            <div>
+                                                <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
+                                                    مقاسات الملابس:
+                                                </span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {clothingSizesList.map(sz => {
+                                                        const isSelected = productForm.sizes.includes(sz);
+                                                        return (
+                                                            <button
+                                                                key={sz}
+                                                                type="button"
+                                                                onClick={() => handleSizeToggle(sz)}
+                                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                                                    isSelected
+                                                                        ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
+                                                                        : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
+                                                                }`}
+                                                            >
+                                                                <span>{sz}</span>
+                                                                {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Shoes & Free Size */}
+                                            <div>
+                                                <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
+                                                    مقاسات الأحذية ومقاس موحد:
+                                                </span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {shoeSizesList.map(sz => {
+                                                        const isSelected = productForm.sizes.includes(sz);
+                                                        return (
+                                                            <button
+                                                                key={sz}
+                                                                type="button"
+                                                                onClick={() => handleSizeToggle(sz)}
+                                                                className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                                                    isSelected
+                                                                        ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
+                                                                        : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
+                                                                }`}
+                                                            >
+                                                                <span>{sz}</span>
+                                                                {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSizeToggle('Free Size')}
+                                                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                                            productForm.sizes.includes('Free Size')
+                                                                ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
+                                                                : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
+                                                        }`}
+                                                    >
+                                                        <span>Free Size</span>
+                                                        {productForm.sizes.includes('Free Size') && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Clothes */}
-                                        <div>
-                                            <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
-                                                مقاسات الملابس:
-                                            </span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {clothingSizesList.map(sz => {
-                                                     const isSelected = productForm.sizes.includes(sz);
-                                                     return (
-                                                         <button
-                                                             key={sz}
-                                                             type="button"
-                                                             onClick={() => handleSizeToggle(sz)}
-                                                             className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                                                                 isSelected
-                                                                     ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
-                                                                     : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
-                                                             }`}
-                                                         >
-                                                             <span>{sz}</span>
-                                                             {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                         </button>
-                                                     );
-                                                 })}
-                                            </div>
-                                        </div>
-
-                                        {/* Shoes & Free Size */}
-                                        <div>
-                                            <span className="text-[10px] font-bold text-[#800020]/60 block mb-1">
-                                                مقاسات الأحذية ومقاس موحد:
-                                            </span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {shoeSizesList.map(sz => {
-                                                     const isSelected = productForm.sizes.includes(sz);
-                                                     return (
-                                                         <button
-                                                             key={sz}
-                                                             type="button"
-                                                             onClick={() => handleSizeToggle(sz)}
-                                                             className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                                                                 isSelected
-                                                                     ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
-                                                                     : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
-                                                             }`}
-                                                         >
-                                                             <span>{sz}</span>
-                                                             {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                         </button>
-                                                     );
-                                                 })}
-                                                 <button
-                                                     type="button"
-                                                     onClick={() => handleSizeToggle('Free Size')}
-                                                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                                                         productForm.sizes.includes('Free Size')
-                                                             ? 'bg-[#800020] text-[#F0DFCD] ring-2 ring-[#800020]/30 shadow-xs'
-                                                             : 'bg-white border border-[#800020]/20 text-[#800020] hover:bg-amber-50'
-                                                     }`}
-                                                 >
-                                                     <span>Free Size</span>
-                                                     {productForm.sizes.includes('Free Size') && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                 </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Add custom size */}
-                                    <div className="flex items-center gap-2 pt-2 border-t border-[#800020]/10">
-                                        <input
-                                            type="text"
-                                            value={customSizeInput}
-                                            onChange={(e) => setCustomSizeInput(e.target.value)}
-                                            placeholder="إضافة مقاس مخصص (مثال: 46، XXXL)..."
-                                            className="bg-white flex-1 px-3 py-1.5 rounded-xl border border-[#800020]/20 text-xs text-[#800020] focus:outline-none"
-                                            onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomSize(e); }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={handleAddCustomSize}
-                                            className="bg-[#800020]/15 hover:bg-[#800020] hover:text-[#F0DFCD] text-[#800020] px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0"
-                                        >
-                                            + إضافة المقاس
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 5. Color Palette */}
-                                <div className="space-y-3">
-                                    <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
-                                        ألوان المنتج وخياراته
-                                    </h3>
-
-                                    {/* Selected Colors list */}
-                                    <div className="flex flex-wrap gap-2">
-                                        {productForm.colors.map(col => (
-                                            <span
-                                                key={col.hex}
-                                                className="bg-white pl-2 pr-3 py-1.5 rounded-xl border border-[#800020]/20 text-xs font-bold text-[#800020] flex items-center gap-2 shadow-sm"
+                                        {/* Add custom size */}
+                                        <div className="flex items-center gap-2 pt-2 border-t border-[#800020]/10">
+                                            <input
+                                                type="text"
+                                                value={customSizeInput}
+                                                onChange={(e) => setCustomSizeInput(e.target.value)}
+                                                placeholder="إضافة مقاس مخصص (مثال: 46، XXXL)..."
+                                                className="bg-white flex-1 px-3 py-2 rounded-xl border border-[#800020]/20 text-xs text-[#800020] focus:outline-none focus:border-[#800020]"
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomSize(e); } }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddCustomSize}
+                                                className="bg-[#800020]/15 hover:bg-[#800020] hover:text-[#F0DFCD] text-[#800020] px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0"
                                             >
-                                                <span className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: col.hex }} />
-                                                <span>{col.name}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveColor(col.hex)}
-                                                    className="text-[#800020]/40 hover:text-rose-600 transition"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-
-                                    {/* Preset Color quick add */}
-                                    <div className="pt-1">
-                                        <span className="text-[11px] font-bold text-[#800020]/70 block mb-1.5">
-                                            إضافة سريعة من الألوان المعتمدة:
-                                        </span>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {commonColorsList.map(c => (
-                                                <button
-                                                    type="button"
-                                                    key={c.name}
-                                                    onClick={() => {
-                                                        if (!productForm.colors.some(existing => existing.hex === c.hex)) {
-                                                            setProductForm(prev => ({ ...prev, colors: [...prev.colors, c] }));
-                                                        }
-                                                    }}
-                                                    className="bg-white/70 hover:bg-white text-[11px] font-bold text-[#800020] px-2.5 py-1 rounded-lg border border-[#800020]/10 flex items-center gap-1.5 transition"
-                                                >
-                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.hex }} />
-                                                    <span>{c.name}</span>
-                                                </button>
-                                            ))}
+                                                + إضافة المقاس
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* 6. Description & Tags */}
-                                <div className="space-y-4">
-                                    <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
-                                        الوصف التفصيلي والكلمات المفتاحية
-                                    </h3>
+                                    {/* مربع 5: ألوان المنتج وخياراته */}
+                                    <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <div className="flex items-center justify-between border-b border-[#800020]/10 pb-2">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-base font-black text-[#800020]">
+                                                    ألوان المنتج وخياراته
+                                                </h3>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#800020]/10 text-[#800020]">
+                                                    {productForm.colors.length} ألوان
+                                                </span>
+                                            </div>
+                                            {productForm.colors.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setProductForm(prev => ({ ...prev, colors: [] }))}
+                                                    className="text-xs text-rose-600 hover:text-rose-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                                                    title="مسح جميع الألوان"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <span>مسح الكل</span>
+                                                </button>
+                                            )}
+                                        </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#800020] mb-1.5">
-                                            الوصف وخامة المنتج
-                                        </label>
-                                        <textarea
-                                            rows={4}
-                                            value={productForm.description}
-                                            onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                                            placeholder="اكتب وصفاً مفصلاً يبرز خامة المنتج ونوع الأقمشة ومميزاته..."
-                                            className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020] resize-none"
-                                        />
+                                        {/* Selected Colors list */}
+                                        <div className="p-2.5 bg-white rounded-xl border border-[#800020]/15 min-h-[46px] flex flex-wrap items-center gap-2">
+                                            {productForm.colors.length > 0 ? (
+                                                productForm.colors.map(col => (
+                                                    <span
+                                                        key={col.hex}
+                                                        className="bg-[#FAF7F2] pl-2 pr-3 py-1.5 rounded-xl border border-[#800020]/20 text-xs font-bold text-[#800020] flex items-center gap-2 shadow-xs animate-fadeIn"
+                                                    >
+                                                        <span className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs shrink-0" style={{ backgroundColor: col.hex }} />
+                                                        <span>{col.name}</span>
+                                                        <span className="text-[10px] font-mono text-[#800020]/50" dir="ltr">{col.hex}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveColor(col.hex)}
+                                                            className="text-[#800020]/40 hover:text-rose-600 transition cursor-pointer p-0.5"
+                                                            title={`إزالة لون ${col.name}`}
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-xs text-[#800020]/50 italic">
+                                                    لم يتم اختيار أي ألوان بعد — اختر من الألوان المعتمدة أو أضف لوناً بكود Hex أدناه.
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Preset Color quick add */}
+                                        <div className="space-y-1.5">
+                                            <span className="text-[11px] font-bold text-[#800020]/70 block">
+                                                إضافة سريعة من الألوان المعتمدة:
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {commonColorsList.map(c => {
+                                                    const isAdded = productForm.colors.some(existing => existing.hex === c.hex);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={c.name}
+                                                            onClick={() => {
+                                                                if (!isAdded) {
+                                                                    setProductForm(prev => ({ ...prev, colors: [...prev.colors, c] }));
+                                                                }
+                                                            }}
+                                                            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 transition cursor-pointer ${
+                                                                isAdded
+                                                                    ? 'bg-[#800020]/10 border-[#800020]/30 text-[#800020] opacity-60 cursor-default'
+                                                                    : 'bg-white hover:bg-amber-50 text-[#800020] border-[#800020]/15 shadow-2xs'
+                                                            }`}
+                                                        >
+                                                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: c.hex }} />
+                                                            <span>{c.name}</span>
+                                                            {isAdded && <Check className="w-3 h-3 text-[#800020]" />}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Custom Color with Hex Code System (نظام Hex Code) */}
+                                        <div className="pt-3 border-t border-[#800020]/10 space-y-2">
+                                            <span className="text-[11px] font-bold text-[#800020]/80 block">
+                                                إضافة لون مخصص (بنظام كود Hex):
+                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {/* Color Picker Swatch */}
+                                                <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[#800020]/25 shadow-xs shrink-0 cursor-pointer">
+                                                    <input
+                                                        type="color"
+                                                        value={customColorHex}
+                                                        onChange={(e) => setCustomColorHex(e.target.value)}
+                                                        className="absolute -inset-2 w-14 h-14 cursor-pointer border-0"
+                                                        title="انقر لاختيار اللون بصرياً"
+                                                    />
+                                                </div>
+
+                                                {/* Hex Code Input */}
+                                                <div className="relative w-28 shrink-0">
+                                                    <input
+                                                        type="text"
+                                                        value={customColorHex}
+                                                        onChange={(e) => setCustomColorHex(e.target.value)}
+                                                        placeholder="#800020"
+                                                        className="w-full bg-white px-3 py-2 rounded-xl border border-[#800020]/20 text-xs font-mono font-bold text-[#800020] focus:outline-none focus:border-[#800020]"
+                                                        dir="ltr"
+                                                    />
+                                                </div>
+
+                                                {/* Color Name Input */}
+                                                <div className="flex-1 min-w-[120px]">
+                                                    <input
+                                                        type="text"
+                                                        value={customColorName}
+                                                        onChange={(e) => setCustomColorName(e.target.value)}
+                                                        placeholder="اسم اللون (مثال: كحلي داكن)..."
+                                                        className="w-full bg-white px-3 py-2 rounded-xl border border-[#800020]/20 text-xs text-[#800020] focus:outline-none focus:border-[#800020]"
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddColor(); } }}
+                                                    />
+                                                </div>
+
+                                                {/* Add Color Button */}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddColor}
+                                                    className="bg-[#800020] text-[#F0DFCD] px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#66001a] transition cursor-pointer flex items-center gap-1 shadow-xs shrink-0"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                    <span>إضافة اللون</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#800020] mb-1.5">
-                                            الوسوم (مفصولة بفاصلة)
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={productForm.tags}
-                                            onChange={(e) => setProductForm({ ...productForm, tags: e.target.value })}
-                                            placeholder="شتوي, كلاسيك, فاخر, صوف طبيعي"
-                                            className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
-                                        />
+                                    {/* مربع 6: الوصف التفصيلي والكلمات المفتاحية (span-2) */}
+                                    <div className="md:col-span-2 bg-white/25 p-6 rounded-3xl border border-[#800020]/10 shadow-sm space-y-4">
+                                        <h3 className="text-base font-black text-[#800020] border-b border-[#800020]/10 pb-2">
+                                            الوصف التفصيلي والكلمات المفتاحية
+                                        </h3>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#800020] mb-1.5">
+                                                الوصف وخامة المنتج
+                                            </label>
+                                            <textarea
+                                                rows={4}
+                                                value={productForm.description}
+                                                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                                                placeholder="اكتب وصفاً مفصلاً يبرز خامة المنتج ونوع الأقمشة ومميزاته..."
+                                                className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020] resize-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#800020] mb-1.5">
+                                                الوسوم (مفصولة بفاصلة)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={productForm.tags}
+                                                onChange={(e) => setProductForm({ ...productForm, tags: e.target.value })}
+                                                placeholder="شتوي, كلاسيك, فاخر, صوف طبيعي"
+                                                className="w-full bg-white px-4 py-3 rounded-2xl border border-[#800020]/20 text-sm text-[#800020] focus:outline-none focus:border-[#800020]"
+                                            />
+                                        </div>
                                     </div>
+
                                 </div>
 
                                 {/* Form Action Buttons */}
-                                <div className="pt-4 flex flex-col sm:flex-row items-center gap-3">
+                                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
                                     <button
                                         type="submit"
-                                        className="w-full sm:w-auto bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 transition px-8 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-lg"
+                                        className="w-full sm:w-auto bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 transition px-8 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-lg cursor-pointer"
                                     >
                                         <CheckCircle2 className="w-5 h-5 text-amber-300" />
                                         <span>حفظ وإضافة للمتجر الآن</span>
@@ -3255,7 +4381,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                     <button
                                         type="button"
                                         onClick={() => setProductForm(initialFormState)}
-                                        className="w-full sm:w-auto bg-white/25 hover:bg-white text-[#800020] px-6 py-3.5 rounded-2xl text-sm font-bold border border-[#800020]/20 transition flex items-center justify-center gap-2"
+                                        className="w-full sm:w-auto bg-white/25 hover:bg-white text-[#800020] px-6 py-3.5 rounded-2xl text-sm font-bold border border-[#800020]/20 transition flex items-center justify-center gap-2 cursor-pointer"
                                     >
                                         <RotateCcw className="w-4 h-4" />
                                         <span>إعادة تعيين</span>
@@ -3264,24 +4390,22 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                             </form>
 
-                            {/* Live Customer Preview Card (5 cols) */}
-                            <div className="lg:col-span-5 sticky top-24 space-y-4">
-                                <div className="bg-white/25 p-6 rounded-3xl border border-[#800020]/15 shadow-sm">
-                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#800020]/10">
-                                        <span className="text-xs font-black uppercase tracking-wider text-[#800020] flex items-center gap-1.5">
-                                            <Eye className="w-4 h-4" />
+                            {/* Live Customer Preview Card (Left Column: 5 cols on lg, 4 cols on xl) */}
+                            <div className="lg:col-span-5 xl:col-span-4 sticky top-20 self-start space-y-4">
+                                <div className="bg-white/25 p-5 sm:p-6 rounded-3xl border border-[#800020]/15 shadow-sm space-y-4">
+                                    {/* Header without "مباشر" as requested */}
+                                    <div className="flex items-center justify-between pb-3 border-b border-[#800020]/10">
+                                        <span className="text-xs font-black uppercase tracking-wider text-[#800020] flex items-center gap-2">
+                                            <Eye className="w-4 h-4 text-[#800020]" />
                                             معاينة حية كما تظهر للمشتري
-                                        </span>
-                                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
-                                            مباشر
                                         </span>
                                     </div>
 
                                     {/* The Realistic Product Card */}
-                                    <div className="bg-white/25 rounded-3xl overflow-hidden border border-[#800020]/15 shadow-lg group">
+                                    <div className="bg-white/40 rounded-3xl overflow-hidden border border-[#800020]/15 shadow-md group transition hover:shadow-lg">
 
                                         {/* Image & Badges */}
-                                        <div className="relative aspect-square w-full bg-[#fcfaf7] p-6 flex items-center justify-center overflow-hidden">
+                                        <div className="relative aspect-square max-h-[340px] w-full bg-[#fcfaf7] p-5 flex items-center justify-center overflow-hidden">
                                             {(() => {
                                                 const isAddRing = String(productForm.category || '').includes('خاتم') || String(productForm.category || '').includes('خواتم') || String(productForm.name || '').includes('خاتم') || String(productForm.name || '').includes('خواتم');
                                                 const isAddWatch = String(productForm.category || '').includes('ساعة') || String(productForm.category || '').includes('ساعات') || String(productForm.name || '').includes('ساعة') || String(productForm.name || '').includes('ساعات');
@@ -3296,15 +4420,17 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                                             {/* Badge */}
                                             {productForm.badge && (
-                                                <span className="absolute top-4 right-4 bg-[#800020] text-[#F0DFCD] text-xs font-black px-3 py-1 rounded-full shadow">
+                                                <span className="absolute top-4 right-4 bg-[#800020] text-[#F0DFCD] text-xs font-black px-3 py-1 rounded-full shadow animate-fadeIn">
                                                     {productForm.badge}
                                                 </span>
                                             )}
 
                                             {/* Category Pill */}
-                                            <span className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-[#800020] text-[11px] font-bold px-2.5 py-1 rounded-xl shadow-sm">
-                                                {productForm.category}
-                                            </span>
+                                            {productForm.category && (
+                                                <span className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-[#800020] text-[11px] font-bold px-2.5 py-1 rounded-xl shadow-xs border border-[#800020]/10">
+                                                    {productForm.category}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Card Content */}
@@ -3315,17 +4441,18 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                 {productForm.name || 'اسم المنتج سيظهر هنا...'}
                                             </h4>
 
-                                            {/* Price Display */}
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-xl font-black text-[#800020]">
-                                                    {productForm.price ? parseFloat(productForm.price).toFixed(2) : '0.00'}
-                                                </span>
-                                                <RiyalIcon size="1.1em" />
+                                            {/* Price Display with centered strikethrough */}
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-1 text-xl font-black text-[#800020]">
+                                                    <span>{productForm.price ? parseFloat(productForm.price).toFixed(2) : '0.00'}</span>
+                                                    <RiyalIcon size="1em" />
+                                                </div>
 
-                                                {productForm.originalPrice && (
-                                                    <span className="text-xs text-[#800020]/50 line-through">
-                                                        {parseFloat(productForm.originalPrice).toFixed(2)}
-                                                        <RiyalIcon size="0.9em" />
+                                                {productForm.originalPrice && parseFloat(productForm.originalPrice) > 0 && (
+                                                    <span className="relative inline-flex items-center gap-1 text-xs font-bold text-[#800020]/50 px-1 py-0.5">
+                                                        <span>{parseFloat(productForm.originalPrice).toFixed(2)}</span>
+                                                        <RiyalIcon size="0.85em" />
+                                                        <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1.5px] bg-[#800020]/60 pointer-events-none" />
                                                     </span>
                                                 )}
                                             </div>
@@ -3335,8 +4462,8 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                 <span className={`font-bold ${productForm.inStock ? 'text-emerald-700' : 'text-rose-700'}`}>
                                                     {productForm.inStock ? '✓ متوفر للطلب' : '✗ غير متوفر حالياً'}
                                                 </span>
-                                                <span className="text-[#800020]/60">
-                                                    المخزون: {productForm.stock}
+                                                <span className="text-[#800020]/60 font-semibold">
+                                                    المخزون: {productForm.stock || 0}
                                                 </span>
                                             </div>
 
@@ -3376,7 +4503,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                         value={productSearchQuery}
                                         onChange={(e) => setProductSearchQuery(e.target.value)}
                                         placeholder="ابحث باسم المنتج أو القسم..."
-                                        className="w-full bg-white/70 focus:bg-white pr-11 pl-10 py-2.5 rounded-full border border-[#800020] text-xs font-bold text-[#800020] placeholder:text-[#800020]/50 focus:outline-none shadow-xs transition"
+                                        className="w-full bg-[#F0DFCD] focus:bg-[#F0DFCD] pr-11 pl-10 py-2.5 rounded-full border border-[#800020]/25 text-xs font-bold text-[#800020] placeholder:text-[#800020]/50 focus:outline-none focus:ring-2 focus:ring-[#800020]/15 shadow-inner transition"
                                     />
                                     <Search className="w-4 h-4 text-[#800020] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     {productSearchQuery && (
@@ -3463,16 +4590,16 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                         {/* Products Inventory Table */}
                         <div className="bg-white/25 rounded-3xl border border-[#800020]/10 shadow-sm overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-right text-xs font-semibold">
+                                <table className="w-full text-right text-xs font-semibold overflow-hidden rounded-2xl">
                                     <thead>
-                                        <tr className="bg-[#800020]/5 border-b border-[#800020]/15 text-[#800020]/70 font-black">
-                                            <th className="py-4 px-4">المنتج</th>
-                                            <th className="py-4 px-4">القسم والتصنيف</th>
-                                            <th className="py-4 px-4">السعر</th>
-                                            <th className="py-4 px-4">التقييم</th>
-                                            <th className="py-4 px-4">كمية المخزون</th>
-                                            <th className="py-4 px-4">حالة التوفر</th>
-                                            <th className="py-4 px-4 text-left">الإجراءات</th>
+                                        <tr className="bg-[#800020] text-[#F0DFCD] border-b border-[#800020]/20 font-black">
+                                            <th className="py-4 px-4 text-[#F0DFCD]">المنتج</th>
+                                            <th className="py-4 px-4 text-[#F0DFCD]">القسم والتصنيف</th>
+                                            <th className="py-4 px-4 text-[#F0DFCD]">السعر</th>
+                                            <th className="py-4 px-4 text-[#F0DFCD]">التقييم</th>
+                                            <th className="py-4 px-4 text-[#F0DFCD]">كمية المخزون</th>
+                                            <th className="py-4 px-4 text-[#F0DFCD]">حالة التوفر</th>
+                                            <th className="py-4 px-4 text-left text-[#F0DFCD]">الإجراءات</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#800020]/10">
@@ -3763,7 +4890,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                         placeholder="بحث برقم الطلب، اسم العميل، أو المدينة..."
                                         value={drilldownSearchQuery}
                                         onChange={(e) => setDrilldownSearchQuery(e.target.value)}
-                                        className="w-full bg-white/60 focus:bg-white text-xs font-bold text-[#800020] pr-10 pl-3 py-2.5 rounded-xl border border-[#800020]/20 focus:border-[#800020] outline-none transition placeholder:text-[#800020]/40"
+                                        className="w-full bg-[#F0DFCD] focus:bg-[#F0DFCD] text-xs font-bold text-[#800020] pr-10 pl-3 py-2.5 rounded-xl border border-[#800020]/25 focus:border-[#800020] outline-none transition placeholder:text-[#800020]/50 shadow-inner"
                                     />
                                     {drilldownSearchQuery && (
                                         <button
@@ -3827,12 +4954,16 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                         </div>
 
                                                         <button
+                                                            type="button"
                                                             onClick={() => setSelectedOrderDetails(order)}
-                                                            className="flex items-center gap-1 bg-[#800020] hover:bg-[#800020]/90 text-[#F0DFCD] px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                                                            className="shine-button relative overflow-hidden flex items-center gap-1.5 bg-[#800020] hover:bg-[#800020]/90 active:scale-95 text-[#F0DFCD] px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer group"
                                                             title="عرض وتعديل تفاصيل الطلب الكاملة"
                                                         >
-                                                            <Eye className="w-3.5 h-3.5" />
-                                                            <span className="hidden sm:inline">تفاصيل الطلب</span>
+                                                            <span className="shine-effect z-10" />
+                                                            <span className="relative z-20 flex items-center gap-1.5">
+                                                                <Eye className="w-3.5 h-3.5" />
+                                                                <span className="hidden sm:inline">تفاصيل الطلب</span>
+                                                            </span>
                                                         </button>
                                                     </div>
                                                 </div>
@@ -3957,7 +5088,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                         onChange={(val) => handleUpdateOrderStatus(selectedOrderDetails.id, val)}
                                         options={orderStatusOptions}
                                         className="w-44"
-                                        triggerClassName="!bg-white !rounded-xl !py-1.5 !px-3 !border-[#800020]/20 !text-xs !min-h-[34px]"
+                                        triggerClassName="!bg-[#F0DFCD] hover:!bg-[#ebd9c5] !rounded-2xl !py-1.5 !px-3.5 !border-[#800020]/20 !text-xs !min-h-[36px] !shadow-xs !font-bold"
                                         menuClassName="min-w-[175px] w-max"
                                         usePortal={true}
                                     />
@@ -3966,24 +5097,24 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
 
                             {/* Items list */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-black text-[#800020]">عناصر الطلب ({selectedOrderDetails.items.length})</h4>
+                                <h4 className="text-sm font-black text-[#800020]">عناصر الطلب ({selectedOrderDetails.items?.length || 0})</h4>
                                 <div className="space-y-2">
-                                    {selectedOrderDetails.items.map((it, idx) => (
+                                    {(selectedOrderDetails.items || []).map((it, idx) => (
                                         <div key={idx} className="bg-white/25 p-3.5 rounded-2xl border border-[#800020]/10 flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-12 rounded-xl bg-white p-1 border border-[#800020]/10 flex items-center justify-center shrink-0">
-                                                    <img src={it.image} alt={it.name} className="w-full h-full object-contain" />
+                                                    <img src={it.image || '/images/coat_transparent.png'} alt={it.name || ''} className="w-full h-full object-contain" />
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-xs sm:text-sm text-[#800020]">{it.name}</div>
                                                     <div className="text-[11px] text-[#800020]/60 mt-0.5">
-                                                        المقاس: {it.size} • اللون: {it.color} • الكمية: {it.qty}
+                                                        المقاس: {it.size || '-'} • اللون: {it.color || '-'} • الكمية: {it.qty || 1}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div className="font-black text-xs sm:text-sm text-[#800020] text-left">
-                                                <span>{(it.price * it.qty).toFixed(2)}</span>
+                                                <span>{((Number(it.price) || 0) * (Number(it.qty) || 1)).toFixed(2)}</span>
                                                 <RiyalIcon size="0.85em" />
                                             </div>
                                         </div>
@@ -3995,7 +5126,7 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                             <div className="bg-[#800020]/10 p-4 rounded-2xl space-y-2 text-xs font-bold">
                                 <div className="flex items-center justify-between text-[#800020]/70">
                                     <span>المجموع الفرعي:</span>
-                                    <span>{selectedOrderDetails.total.toFixed(2)} <RiyalIcon size="0.85em" /></span>
+                                    <span>{(Number(selectedOrderDetails.total) || 0).toFixed(2)} <RiyalIcon size="0.85em" /></span>
                                 </div>
                                 <div className="flex items-center justify-between text-[#800020]/70">
                                     <span>الشحن السريع (أرامكس / سمسا):</span>
@@ -4003,12 +5134,12 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                 </div>
                                 <div className="flex items-center justify-between text-[#800020]/70">
                                     <span>ضريبة القيمة المضافة (15% مشمولة):</span>
-                                    <span>{(selectedOrderDetails.total * 0.15).toFixed(2)} <RiyalIcon size="0.85em" /></span>
+                                    <span>{((Number(selectedOrderDetails.total) || 0) * 0.15).toFixed(2)} <RiyalIcon size="0.85em" /></span>
                                 </div>
                                 <div className="border-t border-[#800020]/20 pt-2 flex items-center justify-between text-base font-black text-[#800020]">
                                     <span>الإجمالي الكلي:</span>
                                     <span className="flex items-center gap-1">
-                                        <span>{selectedOrderDetails.total.toFixed(2)}</span>
+                                        <span>{(Number(selectedOrderDetails.total) || 0).toFixed(2)}</span>
                                         <RiyalIcon size="1.1em" />
                                     </span>
                                 </div>

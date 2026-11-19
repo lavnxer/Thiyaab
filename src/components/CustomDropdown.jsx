@@ -74,11 +74,24 @@ export default function CustomDropdown({
         setOpenUpwards(isUp);
 
         if (usePortal) {
+            let leftVal = undefined;
+            let rightVal = undefined;
+
+            if (align === 'center') {
+                const triggerCenter = rect.left + rect.width / 2;
+                const estHalfWidth = (menuRef.current?.offsetWidth || 190) / 2;
+                leftVal = Math.max(8 + estHalfWidth, Math.min(window.innerWidth - 8 - estHalfWidth, triggerCenter));
+            } else if (align === 'left') {
+                leftVal = Math.max(8, rect.left);
+            } else {
+                rightVal = Math.max(8, window.innerWidth - rect.right);
+            }
+
             setCoords({
                 top: isUp ? undefined : rect.bottom + 6,
                 bottom: isUp ? (window.innerHeight - rect.top + 6) : undefined,
-                left: align === 'left' ? Math.max(8, rect.left) : undefined,
-                right: align === 'right' ? Math.max(8, window.innerWidth - rect.right) : undefined,
+                left: leftVal,
+                right: rightVal,
                 minWidth: rect.width,
                 maxHeight: Math.max(140, Math.min(280, isUp ? (spaceAbove - 16) : (spaceBelow - 16)))
             });
@@ -141,19 +154,38 @@ export default function CustomDropdown({
         };
     }, [isOpen]);
 
+    const isCenter = align === 'center';
+
     const menuContent = (
         <AnimatePresence>
             {isOpen && (!usePortal || coords) && (
                 <motion.div
                     ref={menuRef}
-                    initial={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: openUpwards ? 6 : -6, scale: 0.98 }}
+                    initial={{
+                        opacity: 0,
+                        y: openUpwards ? 6 : -6,
+                        scale: 0.98,
+                        x: isCenter ? '-50%' : 0
+                    }}
+                    animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                        x: isCenter ? '-50%' : 0
+                    }}
+                    exit={{
+                        opacity: 0,
+                        y: openUpwards ? 6 : -6,
+                        scale: 0.98,
+                        x: isCenter ? '-50%' : 0
+                    }}
                     transition={{ duration: 0.16, ease: 'easeOut' }}
                     className={`${
                         usePortal
                             ? 'fixed z-[99999]'
-                            : `absolute ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${align === 'left' ? 'left-0' : 'right-0'} z-50 min-w-full`
+                            : `absolute ${openUpwards ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${
+                                isCenter ? 'left-1/2' : align === 'left' ? 'left-0' : 'right-0'
+                            } z-50 min-w-full`
                     } bg-[#F0DFCD] border border-[#800020]/20 rounded-2xl shadow-2xl py-2 ${maxHeight} overflow-y-auto select-none ${menuClassName || 'w-max max-w-[280px]'}`}
                     style={{
                         ...(usePortal && coords ? {
@@ -204,7 +236,7 @@ export default function CustomDropdown({
     );
 
     return (
-        <div ref={containerRef} className={`relative ${className}`}>
+        <div ref={containerRef} className={`relative ${className || (renderTrigger ? 'inline-block' : 'w-full')}`}>
             {/* Trigger Button or Custom Render Trigger */}
             {renderTrigger ? (
                 <div
