@@ -59,23 +59,23 @@ export default function LegalPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD] text-[#800020] font-arabic selection:bg-[#800020] selection:text-[#F0DFCD]" dir="rtl">
+        <div className="min-h-screen bg-[#800020] text-[#F0DFCD] font-arabic selection:bg-[#F0DFCD] selection:text-[#800020]" dir="rtl">
             {/* Breadcrumb Header */}
-            <div className="bg-[#800020]/5 border-b border-[#800020]/10 py-4 px-6 sm:px-12">
+            <div className="bg-black/15 border-b border-white/10 py-4 px-6 sm:px-12">
                 <div className="container mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#800020]/70">
-                        <Link to="/" className="hover:text-[#800020] transition-colors">الرئيسية</Link>
-                        <ChevronLeft className="w-4 h-4 opacity-50" />
-                        <span className="opacity-70">الشؤون القانونية</span>
-                        <ChevronLeft className="w-4 h-4 opacity-50" />
-                        <span className="text-[#800020] font-black">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#F0DFCD]/75">
+                        <Link to="/" className="hover:text-[#F0DFCD] transition-colors">الرئيسية</Link>
+                        <ChevronLeft className="w-4 h-4 opacity-50 text-[#F0DFCD]" />
+                        <span className="opacity-75">الشؤون القانونية</span>
+                        <ChevronLeft className="w-4 h-4 opacity-50 text-[#F0DFCD]" />
+                        <span className="text-[#F0DFCD] font-black">
                             {activeSection === 'terms' ? 'الشروط' : activeSection === 'conditions' ? 'الأحكام' : 'السياسة'}
                         </span>
                     </div>
 
                     <button
                         onClick={handlePrint}
-                        className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-[#800020]/80 hover:text-[#800020] bg-white/60 hover:bg-white px-3 py-1.5 rounded-lg border border-[#800020]/15 transition-all cursor-pointer"
+                        className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-[#800020] hover:text-[#800020] bg-[#F0DFCD] hover:bg-white px-3 py-1.5 rounded-lg border border-[#F0DFCD]/30 transition-all cursor-pointer shadow-sm"
                     >
                         <Printer className="w-3.5 h-3.5" />
                         <span>طباعة النسخة القانونية</span>
@@ -83,9 +83,9 @@ export default function LegalPage() {
                 </div>
             </div>
 
-            {/* Hero Section */}
-            <section className="pt-10 pb-12 px-6 sm:px-12 border-b border-[#800020]/10 bg-white/40">
-                <div className="container mx-auto max-w-5xl text-center">
+            {/* Hero Section as a prominent Contained Card (الخلفية المربعة لهيرو الصفحة) */}
+            <section className="py-6 sm:py-8 px-4 sm:px-12">
+                <div className="container mx-auto max-w-5xl text-center bg-[#F0DFCD] text-[#800020] rounded-3xl p-8 sm:p-12 shadow-2xl border border-[#F0DFCD]/30">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#800020]/10 border border-[#800020]/20 text-[#800020] text-xs sm:text-sm font-black mb-4">
                         <Scale className="w-4 h-4 text-[#800020]" />
                         <span>الوثيقة النظامية المعتمدة • دار ثياب للأزياء الراقية</span>
@@ -144,7 +144,7 @@ export default function LegalPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Sticky Sidebar Navigation on Large Screens */}
                     <div className="lg:col-span-4 sticky top-24 hidden lg:flex flex-col gap-4">
-                        <div className="bg-white/80 p-6 rounded-3xl border border-[#800020]/15 shadow-sm">
+                        <div className="bg-white p-6 rounded-3xl border border-[#800020]/15 shadow-xl">
                             <h3 className="font-black text-sm text-[#800020] mb-4 pb-2 border-b border-[#800020]/10">
                                 فهرس الوثيقة القانونية
                             </h3>
@@ -153,7 +153,7 @@ export default function LegalPage() {
                                     onClick={() => handleSectionChange('terms')}
                                     className={`text-right px-4 py-2.5 rounded-xl text-xs font-black transition-colors flex items-center justify-between cursor-pointer ${
                                         activeSection === 'terms'
-                                            ? 'bg-[#800020] text-[#F0DFCD]'
+                                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
                                             : 'text-[#800020]/80 hover:bg-[#800020]/5'
                                     }`}
                                 >
@@ -164,7 +164,7 @@ export default function LegalPage() {
                                     onClick={() => handleSectionChange('conditions')}
                                     className={`text-right px-4 py-2.5 rounded-xl text-xs font-black transition-colors flex items-center justify-between cursor-pointer ${
                                         activeSection === 'conditions'
-                                            ? 'bg-[#800020] text-[#F0DFCD]'
+                                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
                                             : 'text-[#800020]/80 hover:bg-[#800020]/5'
                                     }`}
                                 >
@@ -175,7 +175,7 @@ export default function LegalPage() {
                                     onClick={() => handleSectionChange('privacy')}
                                     className={`text-right px-4 py-2.5 rounded-xl text-xs font-black transition-colors flex items-center justify-between cursor-pointer ${
                                         activeSection === 'privacy'
-                                            ? 'bg-[#800020] text-[#F0DFCD]'
+                                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
                                             : 'text-[#800020]/80 hover:bg-[#800020]/5'
                                     }`}
                                 >
@@ -193,8 +193,8 @@ export default function LegalPage() {
                             id="terms" 
                             className={`scroll-mt-24 transition-all duration-300 p-6 sm:p-10 rounded-3xl border ${
                                 activeSection === 'terms'
-                                    ? 'bg-white shadow-lg border-[#800020]/30 ring-2 ring-[#800020]/10'
-                                    : 'bg-white/80 border-[#800020]/10 hover:border-[#800020]/20'
+                                    ? 'bg-white shadow-2xl border-white ring-4 ring-white/10'
+                                    : 'bg-white/95 border-white/20 hover:bg-white'
                             }`}
                         >
                             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#800020]/10">
@@ -257,8 +257,8 @@ export default function LegalPage() {
                             id="conditions" 
                             className={`scroll-mt-24 transition-all duration-300 p-6 sm:p-10 rounded-3xl border ${
                                 activeSection === 'conditions'
-                                    ? 'bg-white shadow-lg border-[#800020]/30 ring-2 ring-[#800020]/10'
-                                    : 'bg-white/80 border-[#800020]/10 hover:border-[#800020]/20'
+                                    ? 'bg-white shadow-2xl border-white ring-4 ring-white/10'
+                                    : 'bg-white/95 border-white/20 hover:bg-white'
                             }`}
                         >
                             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#800020]/10">
@@ -321,8 +321,8 @@ export default function LegalPage() {
                             id="privacy" 
                             className={`scroll-mt-24 transition-all duration-300 p-6 sm:p-10 rounded-3xl border ${
                                 activeSection === 'privacy'
-                                    ? 'bg-white shadow-lg border-[#800020]/30 ring-2 ring-[#800020]/10'
-                                    : 'bg-white/80 border-[#800020]/10 hover:border-[#800020]/20'
+                                    ? 'bg-white shadow-2xl border-white ring-4 ring-white/10'
+                                    : 'bg-white/95 border-white/20 hover:bg-white'
                             }`}
                         >
                             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#800020]/10">
