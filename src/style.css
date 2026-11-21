@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        overflow-x: clip;
+        width: 100%;
+        min-width: 320px;
+    }
+
+    /* Prevent horizontal overflow on root wrappers */
+    #root {
+        overflow-x: clip;
+        width: 100%;
+    }
+}
+
 @layer utilities {
     .text-shadow-hero {
         text-shadow: 0 10px 30px rgba(156, 15, 55, 0.2);
@@ -133,5 +152,65 @@
 .admin-sharp-theme,
 .admin-sharp-theme * {
     border-radius: 0 !important;
+}
+
+/* Moving shine sweep for buttons - Triggers on hover only without background darkening */
+.animated-shine-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.animated-shine-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 65%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 20%,
+        rgba(255, 255, 255, 0.75) 50%,
+        rgba(255, 255, 255, 0.15) 80%,
+        transparent 100%
+    );
+    transform: translateX(-160%) skewX(-25deg);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 20;
+}
+
+.animated-shine-btn:hover::after {
+    opacity: 1;
+    animation: shineSweep 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Ensure no darkening on hover for all shine buttons */
+.animated-shine-btn:hover,
+.shine-button:hover {
+    background-color: #800020 !important;
+    filter: none !important;
+}
+
+/* Hide scrollbar for Chrome, Safari, and Opera */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Ensure unified Tajawal font on form inputs and controls */
+input, textarea, select, button {
+    font-family: 'Tajawal', 'Cairo', 'Almarai', sans-serif;
+}
+
+/* Prevent any underline appearing under buttons or admin action elements */
+button, button *, .admin-sharp-theme button, .admin-sharp-theme a {
+    text-decoration: none !important;
 }
 

@@ -9,7 +9,7 @@ export default function Footer() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="w-full bg-[#800020] text-white pt-8 sm:pt-12 md:pt-16 lg:pt-20 pb-6 sm:pb-8 md:pb-10 lg:pb-12 px-2.5 min-[360px]:px-3 min-[390px]:px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 relative overflow-hidden mt-12 sm:mt-16 border-t border-[#800020]/20"
+            className="w-full max-w-full bg-[#800020] text-white pt-[clamp(2rem,6vw,5rem)] pb-[clamp(1.5rem,4vw,3rem)] px-3 min-[390px]:px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 relative overflow-hidden mt-12 sm:mt-16 border-t border-[#800020]/20"
             style={{ boxShadow: '-4px 0 0 0 #800020, 4px 0 0 0 #800020' }}
             dir="rtl"
         >
@@ -19,7 +19,7 @@ export default function Footer() {
                 {/* 1. Brand Info */}
                 <div className="col-span-1 min-w-0">
                     <Link to="/" className="inline-block group">
-                        <h2 className="text-sm min-[360px]:text-base min-[390px]:text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black mb-1 sm:mb-2 md:mb-3 text-white tracking-tight group-hover:opacity-90 transition-opacity">
+                        <h2 className="text-[clamp(0.95rem,2.5vw,2.25rem)] font-black mb-1 sm:mb-2 md:mb-3 text-white tracking-tight group-hover:opacity-90 transition-opacity">
                             ثياب
                         </h2>
                     </Link>

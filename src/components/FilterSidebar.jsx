@@ -61,8 +61,78 @@ const toEnglishDigits = (val) => {
         .replace(/[^0-9]/g, '');
 };
 
-export default function FilterSidebar({ filters, setFilters, totalProducts, isMen = true, isOpen, onClose }) {
+export default function FilterSidebar({ filters, setFilters, totalProducts, isMen = true, isOpen, onClose, products = [] }) {
     const { colors, sizes, priceMax, priceMin } = filters;
+
+    // Dynamically derive approved colors from the department products
+    const displayColors = React.useMemo(() => {
+        if (!products || products.length === 0) return COLORS;
+
+        const colorMap = new Map();
+        const knownHex = new Map(COLORS.map(c => [c.label.trim(), c.hex]));
+        knownHex.set('أسود ملكي', '#111111');
+        knownHex.set('رمادي غامق', '#4a4a4c');
+        knownHex.set('رمادي فاتح', '#d1d5db');
+        knownHex.set('كحلي داكن', '#0f172a');
+        knownHex.set('بني قهوة', '#452b1f');
+        knownHex.set('جملي دافئ', '#b48454');
+        knownHex.set('أزرق ملكي', '#1e40af');
+        knownHex.set('أبيض ناصع', '#ffffff');
+        knownHex.set('زيتوني هادئ', '#4d5d43');
+        knownHex.set('بيج رملي', '#e5dccb');
+        knownHex.set('عنابي ثياب', '#800020');
+
+        products.forEach(p => {
+            if (Array.isArray(p.colors)) {
+                p.colors.forEach(col => {
+                    if (typeof col === 'string') {
+                        const label = col.trim();
+                        if (label && !colorMap.has(label)) {
+                            colorMap.set(label, { label, hex: knownHex.get(label) || '#800020' });
+                        }
+                    } else if (col && typeof col === 'object') {
+                        const label = (col.name || col.label || '').trim();
+                        const hex = col.hex || knownHex.get(label) || '#800020';
+                        if (label && !colorMap.has(label)) {
+                            colorMap.set(label, { label, hex });
+                        }
+                    }
+                });
+            }
+        });
+
+        if (colorMap.size === 0) return COLORS;
+        return Array.from(colorMap.values());
+    }, [products]);
+
+    // Dynamically derive approved sizes from the department products
+    const displaySizes = React.useMemo(() => {
+        if (!products || products.length === 0) return SIZES_CLOTHES;
+
+        const sizeSet = new Set();
+        products.forEach(p => {
+            if (Array.isArray(p.sizes)) {
+                p.sizes.forEach(sz => {
+                    if (sz && typeof sz === 'string') {
+                        const trimmed = sz.trim();
+                        if (trimmed) sizeSet.add(trimmed);
+                    }
+                });
+            }
+        });
+
+        if (sizeSet.size === 0) return SIZES_CLOTHES;
+
+        const standardOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '50', '52', '54', '56', '58', '60', '62', 'Free Size'];
+        return Array.from(sizeSet).sort((a, b) => {
+            const idxA = standardOrder.indexOf(a);
+            const idxB = standardOrder.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.localeCompare(b);
+        });
+    }, [products]);
 
     const toggleArr = (arr, val) =>
         arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
@@ -147,28 +217,23 @@ export default function FilterSidebar({ filters, setFilters, totalProducts, isMe
                         key="filter"
                         variants={drawerVariants}
                         initial="hidden" animate="visible" exit="exit"
-                        className="fixed top-0 right-0 h-full w-[350px] bg-[#F0DFCD] z-[70] flex flex-col overflow-hidden shadow-[-20px_0_40px_rgba(128,0,32,0.15)]"
+                        className="fixed top-0 right-0 h-[100dvh] w-full max-w-[350px] bg-[#F0DFCD] z-[70] flex flex-col overflow-hidden shadow-[-20px_0_40px_rgba(128,0,32,0.15)]"
                         dir="rtl"
                     >
                         {/* Header */}
                         <motion.div variants={childVariants} className="flex items-center justify-between p-6 border-b border-[#800020]/10 shrink-0">
                             <div className="flex items-center gap-3 text-[#800020]">
-                                <motion.div
-                                    animate={{ rotate: [0, -10, 10, 0] }}
-                                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                                >
-                                    <SlidersHorizontal className="w-5 h-5" />
-                                </motion.div>
+                                <SlidersHorizontal className="w-5 h-5" />
                                 <span className="font-black text-xl">الفلاتر</span>
                             </div>
-                            <motion.button
-                                whileHover={{ scale: 1.1, rotate: 90 }}
-                                whileTap={{ scale: 0.9 }}
+                            <button
+                                type="button"
                                 onClick={onClose}
-                                className="text-[#800020]/60 hover:text-[#800020] transition p-1 bg-[#800020]/5 rounded-full"
+                                className="text-[#800020]/60 hover:text-[#800020] transition p-1 cursor-pointer"
+                                aria-label="إغلاق الفلاتر"
                             >
                                 <X className="w-5 h-5" />
-                            </motion.button>
+                            </button>
                         </motion.div>
 
                         {/* Scrollable Content */}
@@ -273,7 +338,7 @@ export default function FilterSidebar({ filters, setFilters, totalProducts, isMe
                             <motion.div variants={childVariants}>
                                 <Section title="اللون">
                                     <div className="grid grid-cols-4 gap-4">
-                                        {COLORS.map(c => {
+                                        {displayColors.map(c => {
                                             const active = colors.includes(c.label);
                                             return (
                                                 <motion.button
@@ -314,7 +379,7 @@ export default function FilterSidebar({ filters, setFilters, totalProducts, isMe
                             <motion.div variants={childVariants}>
                                 <Section title="المقاس">
                                     <div className="flex flex-wrap gap-2 relative">
-                                        {SIZES_CLOTHES.map(s => {
+                                        {displaySizes.map(s => {
                                             const active = sizes.includes(s);
                                             return (
                                                 <motion.button

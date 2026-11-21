@@ -208,12 +208,9 @@ function App() {
 
 
             {/* Hero Section */}
-            <section className="relative w-full h-[72vh] sm:h-[85vh] flex items-center justify-center overflow-hidden">
+            <section className="relative w-full min-h-[72dvh] sm:min-h-[85dvh] h-[72dvh] sm:h-[85dvh] flex items-center justify-center overflow-hidden">
                 <div className="absolute z-0 text-[#800020] font-black select-none top-[55%] -translate-y-1/2 whitespace-nowrap w-full text-center flex justify-center tracking-normal pointer-events-none">
-                    <span className="hidden sm:inline text-7xl md:text-8xl lg:text-9xl">
-                        ثيـــــــــــــــــــــــــــــــــــــــــاب
-                    </span>
-                    <span className="sm:hidden text-5xl min-[390px]:text-6xl font-black">
+                    <span className="text-[clamp(3.5rem,13vw,9.5rem)] font-black">
                         ثيـــــــــــــــــاب
                     </span>
                 </div>
@@ -229,7 +226,7 @@ function App() {
                     initial="hidden" animate="visible" custom={2} variants={staggerVariants}
                     className="absolute right-4 sm:right-8 lg:right-12 top-8 sm:top-14 md:top-14 lg:top-32 z-20 flex flex-col items-start gap-2 sm:gap-6"
                 >
-                    <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-[#800020] leading-tight">مزيج بين الأصالة والحداثة</h2>
+                    <h2 className="text-[clamp(1.2rem,3.5vw,2.5rem)] font-bold text-[#800020] leading-tight">مزيج بين الأصالة والحداثة</h2>
                 </motion.div>
 
                 <motion.div
@@ -257,7 +254,7 @@ function App() {
             {homeOffer?.isActive !== false && (
                 <motion.section
                     initial="hidden" whileInView="visible" viewport={{ once: true }} custom={4} variants={staggerVariants}
-                    className="w-full bg-[#800020] text-white mt-8 sm:mt-16 md:mt-24 relative overflow-hidden flex items-stretch group/banner min-h-[145px] xs:min-h-[155px] sm:min-h-[220px] md:min-h-[250px] lg:min-h-[280px]"
+                    className="w-full max-w-full bg-[#800020] text-white mt-8 sm:mt-16 md:mt-24 relative overflow-hidden flex items-stretch group/banner min-h-[145px] xs:min-h-[155px] sm:min-h-[220px] md:min-h-[250px] lg:min-h-[280px]"
                     style={{ boxShadow: '-4px 0 0 0 #800020, 4px 0 0 0 #800020' }}
                 >
                     <div className="container mx-auto px-2 sm:px-6 lg:px-12 flex flex-row items-center justify-between relative w-full gap-1.5 sm:gap-4 md:gap-0 py-0">

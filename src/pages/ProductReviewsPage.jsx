@@ -160,9 +160,21 @@ export default function ProductReviewsPage() {
     const [newComment, setNewComment] = useState('');
     const [newSize, setNewSize] = useState('M');
     const { showToast } = useToast();
-    const [isVerifiedBuyer, setIsVerifiedBuyer] = useState(() => {
-        return (product?.id && localStorage.getItem(`verified_buyer_${product.id}`) === 'true') || true; // Allow for verified test flow
-    });
+    const isVerifiedBuyer = useMemo(() => {
+        if (!product?.id) return false;
+        const explicit = localStorage.getItem(`verified_buyer_${product.id}`);
+        if (explicit !== null) return explicit === 'true';
+        try {
+            const cached = JSON.parse(localStorage.getItem('thyiaab_orders_cache') || '{}');
+            const orders = Object.values(cached);
+            const found = orders.some(ord => {
+                const items = ord.items || ord.order_items || [];
+                return items.some(it => String(it.id || it.product_id) === String(product.id));
+            });
+            if (found) return true;
+        } catch (e) {}
+        return Boolean(user?.email && (user?.hasPurchased || user?.orders?.some(o => o.productId === product.id)));
+    }, [product?.id, user]);
 
     const handleOpenReviewModal = () => {
         if (!isVerifiedBuyer) {
@@ -270,123 +282,123 @@ export default function ProductReviewsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD] text-[#800020] font-arabic pt-8 pb-24" dir="rtl">
-            <div className="container mx-auto px-6 max-w-6xl">
+        <div className="min-h-screen bg-[#F0DFCD] text-[#800020] font-arabic pt-6 sm:pt-8 pb-24" dir="rtl">
+            <div className="container mx-auto px-3.5 sm:px-6 max-w-6xl">
 
                 {/* ─── Breadcrumb & Back Navigation ─── */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-2 text-sm font-bold opacity-75">
-                        <Link to="/" className="hover:opacity-100 transition">الرئيسية</Link>
-                        <span>/</span>
-                        <Link to={`/product/${product.id}`} className="hover:opacity-100 transition">{product.name}</Link>
-                        <span>/</span>
-                        <span className="opacity-100">جميع المراجعات</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold opacity-75 overflow-hidden text-ellipsis whitespace-nowrap">
+                        <Link to="/" className="hover:opacity-100 transition shrink-0">الرئيسية</Link>
+                        <span className="shrink-0">/</span>
+                        <Link to={`/product/${product.id}`} className="hover:opacity-100 transition truncate max-w-[140px] sm:max-w-none">{product.name}</Link>
+                        <span className="shrink-0">/</span>
+                        <span className="opacity-100 shrink-0">جميع المراجعات</span>
                     </div>
 
                     <button 
                         onClick={() => navigate(`/product/${product.id}`)}
-                        className="shine-button relative overflow-hidden group text-sm font-bold flex items-center gap-2 text-[#F0DFCD] bg-[#800020] hover:bg-[#600018] px-4 py-2.5 rounded-xl shadow-md transition-all duration-300 cursor-pointer active:scale-95"
+                        className="shine-button relative overflow-hidden group text-xs sm:text-sm font-bold flex items-center justify-center gap-2 text-[#F0DFCD] bg-[#800020] hover:bg-[#600018] px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-md transition-all duration-300 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap w-full sm:w-auto"
                     >
                         <span className="shine-effect" />
                         <span className="relative z-10">العودة لصفحة المنتج</span>
-                        <ArrowRight className="w-4 h-4 text-[#F0DFCD] relative z-10 group-hover:translate-x-1 transition-transform" />
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F0DFCD] relative z-10 group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>
 
                 {/* ─── Product Header Card ─── */}
-                <div className="bg-white/25 backdrop-blur-sm border border-[#800020]/10 rounded-3xl p-6 md:p-8 mb-12 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-6 w-full md:w-auto">
-                        <div className="w-24 h-28 rounded-2xl bg-[#F0DFCD]/60 border border-[#800020]/10 overflow-hidden flex items-center justify-center p-2 shrink-0">
+                <div className="bg-white/25 backdrop-blur-sm border border-[#800020]/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 mb-8 sm:mb-12 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 sm:gap-6">
+                    <div className="flex items-center gap-3.5 sm:gap-6 w-full lg:w-auto">
+                        <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl sm:rounded-2xl bg-[#F0DFCD]/60 border border-[#800020]/10 overflow-hidden flex items-center justify-center p-2 shrink-0">
                             <img 
                                 src={product.imgs[0]} 
                                 alt={product.name} 
                                 className="w-full h-full object-contain mix-blend-multiply"
                             />
                         </div>
-                        <div>
-                            <span className="text-xs font-black bg-[#800020]/10 text-[#800020] px-2.5 py-0.5 rounded-md">
+                        <div className="min-w-0 flex-1">
+                            <span className="text-[10px] sm:text-xs font-black bg-[#800020]/10 text-[#800020] px-2 py-0.5 rounded-md inline-block">
                                 {product.category}
                             </span>
-                            <h1 className="text-2xl md:text-3xl font-black text-[#800020] mt-1.5 mb-1">
+                            <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-[#800020] mt-1 mb-1 truncate">
                                 {product.name}
                             </h1>
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 font-bold text-lg">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                <div className="flex items-center gap-1 font-bold text-base sm:text-lg">
                                     <span>{product.price}</span>
-                                    <RiyalIcon className="w-4 h-4 text-[#800020]" />
+                                    <RiyalIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#800020]" />
                                 </div>
                                 <span className="opacity-40">•</span>
-                                <div className="flex items-center gap-1.5">
-                                    <StarRating rating={product.rating} />
-                                    <span className="font-black text-sm">{product.rating} من 5</span>
-                                    <span className="text-xs font-bold opacity-70">({reviews.length} مراجعة)</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <StarRating rating={product.rating} size="w-3.5 h-3.5" />
+                                    <span className="font-black text-xs sm:text-sm">{product.rating} من 5</span>
+                                    <span className="text-[10px] sm:text-xs font-bold opacity-70">({reviews.length} مراجعة)</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
                         <button
                             onClick={handleOpenReviewModal}
-                            className="shine-button relative overflow-hidden group flex-1 md:flex-none bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] px-6 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                            className="shine-button relative overflow-hidden group flex-1 lg:flex-none bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] px-3.5 sm:px-6 py-2.5 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-98 whitespace-nowrap"
                         >
                             <span className="shine-effect" />
-                            <MessageSquarePlus className="w-4 h-4 text-[#F0DFCD] relative z-10" />
+                            <MessageSquarePlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F0DFCD] relative z-10" />
                             <span className="relative z-10">كتابة مراجعة</span>
                         </button>
                         <button
                             onClick={() => navigate(`/product/${product.id}`)}
-                            className="shine-button relative overflow-hidden group flex-1 md:flex-none bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] px-6 py-3.5 rounded-xl font-bold text-sm shadow-md transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                            className="shine-button relative overflow-hidden group flex-1 lg:flex-none bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] px-3.5 sm:px-6 py-2.5 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm shadow-md transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-98 whitespace-nowrap"
                         >
                             <span className="shine-effect" />
-                            <ShoppingBag className="w-4 h-4 text-[#F0DFCD] relative z-10" />
+                            <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F0DFCD] relative z-10" />
                             <span className="relative z-10">شراء المنتج</span>
                         </button>
-                        <button
-                            onClick={() => {
-                                const next = !isVerifiedBuyer;
-                                setIsVerifiedBuyer(next);
-                                localStorage.setItem(`verified_buyer_${product.id}`, String(next));
-                                showToast(next ? 'تم تفعيل حالة: مشتري موثق' : 'تم تفعيل حالة: غير مشتري');
-                            }}
-                            className="shine-button relative overflow-hidden group text-xs font-bold px-3.5 py-3.5 rounded-xl border border-[#800020]/25 bg-white/40 hover:bg-white/70 text-[#800020] flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        {/* Verified Buyer Status Indicator (Not a button) */}
+                        <div
+                            className={`text-xs font-bold px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all shadow-2xs shrink-0 select-none ${
+                                isVerifiedBuyer
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300/80'
+                                    : 'bg-white/40 text-[#800020]/60 border-[#800020]/15'
+                            }`}
+                            title={isVerifiedBuyer ? 'حساب موثق كمشتري لهذا المنتج' : 'حساب غير مشتري لهذا المنتج'}
                         >
-                            <ShieldCheck className={`w-4 h-4 ${isVerifiedBuyer ? 'text-emerald-700' : 'text-stone-400'}`} />
-                            <span className="hidden sm:inline">{isVerifiedBuyer ? 'مشتري موثق' : 'غير مشتري'}</span>
-                        </button>
+                            <ShieldCheck className={`w-4 h-4 shrink-0 ${isVerifiedBuyer ? 'text-emerald-700' : 'text-[#800020]/40'}`} />
+                            <span>{isVerifiedBuyer ? 'مشتري' : 'غير مشتري'}</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* ─── Ratings Summary & Analytics ─── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8 mb-8 sm:mb-12">
                     {/* Big Score Card */}
-                    <div className="bg-[#800020] text-[#F0DFCD] rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
-                        <div className="text-6xl md:text-7xl font-black mb-2 tracking-tight">
+                    <div className="bg-[#800020] text-[#F0DFCD] rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
+                        <div className="text-5xl sm:text-6xl md:text-7xl font-black mb-2 tracking-tight">
                             {product.rating}
                         </div>
                         <div className="flex justify-center mb-3">
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1 sm:gap-1.5">
                                 {[1, 2, 3, 4, 5].map(i => (
                                     <Star 
                                         key={i} 
-                                        className={`w-5 h-5 ${i <= Math.round(product.rating) ? 'text-[#F0DFCD] fill-[#F0DFCD]' : 'text-[#F0DFCD]/20'}`} 
+                                        className={`w-4 h-4 sm:w-5 sm:h-5 ${i <= Math.round(product.rating) ? 'text-[#F0DFCD] fill-[#F0DFCD]' : 'text-[#F0DFCD]/20'}`} 
                                     />
                                 ))}
                             </div>
                         </div>
-                        <p className="font-bold text-sm opacity-90 mb-4">
+                        <p className="font-bold text-xs sm:text-sm opacity-90 mb-3 sm:mb-4">
                             بناءً على {reviews.length} تقييماً موثقاً من مشترين حقيقيين
                         </p>
-                        <div className="flex items-center gap-2 bg-[#F0DFCD]/15 px-4 py-1.5 rounded-full text-xs font-bold">
-                            <ShieldCheck className="w-4 h-4" />
+                        <div className="flex items-center gap-1.5 sm:gap-2 bg-[#F0DFCD]/15 px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold">
+                            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                             <span>100% تقييمات بمشتريات مؤكدة</span>
                         </div>
                     </div>
 
                     {/* Star Breakdown Bars */}
-                    <div className="lg:col-span-2 bg-white/25 backdrop-blur-sm border border-[#800020]/10 rounded-3xl p-8 flex flex-col justify-center">
-                        <h3 className="font-black text-lg text-[#800020] mb-4">توزيع التقييمات</h3>
-                        <div className="space-y-3">
+                    <div className="lg:col-span-2 bg-white/25 backdrop-blur-sm border border-[#800020]/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+                        <h3 className="font-black text-base sm:text-lg text-[#800020] mb-3 sm:mb-4">توزيع التقييمات</h3>
+                        <div className="space-y-2.5 sm:space-y-3">
                             {[5, 4, 3, 2, 1].map(stars => {
                                 const count = starCounts[stars] || 0;
                                 const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
@@ -394,21 +406,21 @@ export default function ProductReviewsPage() {
                                     <button
                                         key={stars}
                                         onClick={() => setSelectedStarFilter(selectedStarFilter === String(stars) ? 'all' : String(stars))}
-                                        className={`w-full flex items-center gap-4 text-sm font-bold transition p-1.5 rounded-xl text-right ${
+                                        className={`w-full flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-bold transition p-1.5 rounded-xl text-right ${
                                             selectedStarFilter === String(stars) ? 'bg-[#800020]/10' : 'hover:bg-white/25'
                                         }`}
                                     >
-                                        <div className="flex items-center gap-1.5 w-16 shrink-0 justify-end">
+                                        <div className="flex items-center gap-1 w-10 sm:w-14 shrink-0 justify-end">
                                             <span>{stars}</span>
-                                            <Star className="w-3.5 h-3.5 fill-[#800020] text-[#800020]" />
+                                            <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-[#800020] text-[#800020]" />
                                         </div>
-                                        <div className="flex-1 h-3 bg-[#800020]/10 rounded-full overflow-hidden">
+                                        <div className="flex-1 h-2.5 sm:h-3 bg-[#800020]/10 rounded-full overflow-hidden">
                                             <div 
                                                 className="h-full bg-[#800020] rounded-full transition-all duration-500" 
                                                 style={{ width: `${percentage}%` }}
                                             />
                                         </div>
-                                        <div className="w-16 text-left shrink-0 font-bold opacity-75 text-xs">
+                                        <div className="w-12 sm:w-16 text-left shrink-0 font-bold opacity-75 text-[10px] sm:text-xs">
                                             {count} ({percentage}%)
                                         </div>
                                     </button>
@@ -419,12 +431,12 @@ export default function ProductReviewsPage() {
                 </div>
 
                 {/* ─── Filters & Search Toolbar ─── */}
-                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-8 bg-white/25 p-4 rounded-2xl border border-[#800020]/10">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 mb-8 bg-white/25 p-3 sm:p-4 rounded-2xl border border-[#800020]/10">
                     {/* Star Filter Pills */}
-                    <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-1 md:pb-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-1 sm:pb-0">
                         <button
                             onClick={() => setSelectedStarFilter('all')}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0 ${
                                 selectedStarFilter === 'all'
                                     ? 'bg-[#800020] text-[#F0DFCD]'
                                     : 'bg-[#800020]/10 text-[#800020] hover:bg-[#800020]/20'
@@ -436,7 +448,7 @@ export default function ProductReviewsPage() {
                             <button
                                 key={stars}
                                 onClick={() => setSelectedStarFilter(String(stars))}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1 ${
+                                className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1 shrink-0 ${
                                     selectedStarFilter === String(stars)
                                         ? 'bg-[#800020] text-[#F0DFCD]'
                                         : 'bg-[#800020]/10 text-[#800020] hover:bg-[#800020]/20'
@@ -450,7 +462,7 @@ export default function ProductReviewsPage() {
                     </div>
 
                     {/* Sort */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
                         <CustomDropdown
                             value={sortBy}
                             onChange={(val) => setSortBy(val)}
@@ -459,9 +471,9 @@ export default function ProductReviewsPage() {
                                 { value: 'highest', label: 'الأعلى تقييماً' },
                                 { value: 'helpful', label: 'الأكثر فائدة' }
                             ]}
-                            className="w-40"
+                            className="w-full sm:w-40"
                             triggerClassName="py-1.5 px-3.5 text-xs bg-white/25 rounded-xl border border-[#800020]/15"
-                            menuClassName="w-40"
+                            menuClassName="w-full sm:w-40"
                         />
                     </div>
                 </div>
@@ -541,7 +553,7 @@ export default function ProductReviewsPage() {
                                     {/* ─── أزرار التفاعل ─── */}
                                     <div className="pt-4 border-t border-[#800020]/10 flex items-center justify-between">
                                         {rev.verifiedPurchase ? (
-                                            <div className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-500/15 border border-emerald-600/30 px-3 py-1 rounded-lg">
+                                            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                                                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                                                 <span>{rev.verifiedText || 'مشتري موثق'}</span>
                                             </div>

@@ -105,7 +105,7 @@ export default function SizeGuidePage() {
 
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD] text-[#800020] font-arabic pt-8 pb-24" dir="rtl">
+        <div className="min-h-[100dvh] bg-[#F0DFCD] text-[#800020] font-arabic pt-8 pb-24 w-full overflow-x-clip" dir="rtl">
             <div className="container mx-auto px-6 max-w-6xl">
 
                 {/* ─── Breadcrumb & Header ─── */}

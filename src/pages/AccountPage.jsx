@@ -341,7 +341,7 @@ const formatOrderRecord = (o, fallbackName = 'العميل') => {
                 ? 'تم الإلغاء'
                 : rawStatus === 'processing'
                     ? 'قيد التجهيز'
-                    : 'تم تأكيد الطلب';
+                    : 'طلب جديد';
 
     const statusColor = rawStatus === 'shipping' || rawStatus === 'shipped'
         ? 'text-orange-500'
@@ -351,7 +351,7 @@ const formatOrderRecord = (o, fallbackName = 'العميل') => {
                 ? 'text-rose-600'
                 : rawStatus === 'processing'
                     ? 'text-blue-600'
-                    : 'text-emerald-600';
+                    : 'text-amber-500';
 
     const dateObj = o.created_at ? new Date(o.created_at) : new Date();
 
@@ -1195,7 +1195,7 @@ export default function AccountPage() {
     });
 
     return (
-        <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-2.5 sm:px-6 lg:px-8 font-arabic">
+        <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-3 sm:px-6 lg:px-8 font-arabic w-full overflow-x-clip">
             {/* Address Modal (Edit or Add) */}
             <AnimatePresence>
                 {addressModal.isOpen && (
@@ -1215,7 +1215,7 @@ export default function AccountPage() {
                                 backgroundColor: '#F0DFCD',
                                 backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25))'
                             }}
-                            className="relative rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right z-10 text-[#800020] max-h-[92vh] overflow-y-auto"
+                            className="relative rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right z-10 text-[#800020] max-h-[92dvh] overflow-y-auto"
                         >
                             {/* Modal Header */}
                             <div className="flex items-center justify-between pb-3 border-b border-[#800020]/15">
@@ -1652,7 +1652,7 @@ export default function AccountPage() {
                                 backgroundColor: '#F0DFCD',
                                 backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25))'
                             }}
-                            className="rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right relative max-h-[90vh] overflow-y-auto"
+                            className="rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right relative max-h-[90dvh] overflow-y-auto"
                         >
                             {/* Header */}
                             <div className="flex items-start justify-between pb-3 border-b border-[#800020]/15">
@@ -1810,7 +1810,7 @@ export default function AccountPage() {
                                 backgroundColor: '#F0DFCD',
                                 backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25))'
                             }}
-                            className="rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right relative max-h-[90vh] overflow-y-auto"
+                            className="rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#800020]/25 flex flex-col gap-5 text-right relative max-h-[90dvh] overflow-y-auto"
                         >
                             {/* Header: Warning Icon + Title + Close Button */}
                             <div className="flex items-start justify-between gap-4">
@@ -2056,7 +2056,7 @@ export default function AccountPage() {
                                     {[
                                         { key: 'current', label: 'الحالية', count: statusCounts.current },
                                         { key: 'previous', label: 'السابقة', count: statusCounts.previous },
-                                        { key: 'cancelled', label: 'الملغاة', count: statusCounts.cancelled },
+                                        { key: 'cancelled', label: 'الملغي', count: statusCounts.cancelled },
                                         { key: 'all', label: 'جميع الطلبات', count: statusCounts.all },
                                     ].map((tab) => (
                                         <button

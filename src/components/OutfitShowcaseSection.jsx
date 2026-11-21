@@ -343,7 +343,7 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
             )}
 
             <div 
-                className="relative"
+                className="@container relative w-full"
                 onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                 onTouchEnd={(e) => {
                     if (touchStartX.current === null) return;
@@ -359,7 +359,7 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                 <button
                     onClick={handlePrev}
                     aria-label="الطقم السابق"
-                    className="flex absolute right-3 min-[400px]:right-4 sm:right-1.5 md:right-2 lg:right-3 top-40 sm:top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm sm:shadow-none border-0"
+                    className="flex absolute right-2 @[400px]:right-4 @[680px]:right-2 lg:right-3 top-36 @[680px]:top-1/2 -translate-y-1/2 z-30 w-8 h-8 @[400px]:w-9 @[400px]:h-9 @[680px]:w-10 @[680px]:h-10 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm @[680px]:shadow-none border-0"
                 >
                     <div className="absolute inset-0 flex items-center justify-center text-[#800020] z-0 transition-all duration-500 ease-in-out group-hover:translate-x-6 group-hover:opacity-0">
                         <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -377,7 +377,7 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                 <button
                     onClick={handleNext}
                     aria-label="الطقم التالي"
-                    className="flex absolute left-3 min-[400px]:left-4 sm:left-1.5 md:left-2 lg:left-3 top-40 sm:top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm sm:shadow-none border-0"
+                    className="flex absolute left-2 @[400px]:left-4 @[680px]:left-2 lg:left-3 top-36 @[680px]:top-1/2 -translate-y-1/2 z-30 w-8 h-8 @[400px]:w-9 @[400px]:h-9 @[680px]:w-10 @[680px]:h-10 lg:w-12 lg:h-12 rounded-sm overflow-hidden bg-[#ebd5c1] items-center justify-center active:scale-95 group cursor-pointer focus:outline-none shadow-sm @[680px]:shadow-none border-0"
                 >
                     <div className="absolute inset-0 flex items-center justify-center text-[#800020] z-0 transition-all duration-500 ease-in-out group-hover:-translate-x-6 group-hover:opacity-0">
                         <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -401,8 +401,8 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                         variants={containerVariants}
                         className="origin-center"
                     >
-                        {/* ─── Mobile View (< 640px) ─── */}
-                        <div className="block sm:hidden flex flex-col gap-4 overflow-hidden">
+                        {/* ─── Mobile View (< 680px Container) ─── */}
+                        <div className="block @[680px]:hidden flex flex-col gap-4 overflow-hidden">
                             {/* Main Center Model Hero */}
                             <motion.div
                                 variants={centerVariants}
@@ -411,8 +411,8 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                             >
                                 <div className={`relative bg-[#f0dfcd]/25 overflow-hidden rounded-2xl flex items-center justify-center shadow-xs ${
                                     isWomen || currentOutfit.mainImage?.includes('women')
-                                        ? 'h-[320px]'
-                                        : 'h-[300px]'
+                                        ? 'h-[280px] @[400px]:h-[320px]'
+                                        : 'h-[260px] @[400px]:h-[300px]'
                                 }`}>
                                     <div className="absolute top-3 left-3 z-20 shadow-md">
                                         <InteractiveButton 
@@ -476,8 +476,8 @@ export default function OutfitShowcaseSection({ title = "", outfits = null, sect
                             </div>
                         </div>
 
-                        {/* ─── Desktop & Tablet View (>= 640px) ─── */}
-                        <div className={`hidden sm:grid gap-4 md:gap-6 lg:gap-8 origin-center items-stretch sm:px-14 md:px-14 lg:px-20 ${
+                        {/* ─── Desktop & Tablet View (>= 680px Container) ─── */}
+                        <div className={`hidden @[680px]:grid gap-4 @[850px]:gap-6 lg:gap-8 origin-center items-stretch @[680px]:px-10 md:px-14 lg:px-20 ${
                             isWomen || currentOutfit.mainImage?.includes('women')
                                 ? 'grid-cols-[1fr_1.6fr_1fr] md:grid-cols-[1fr_1.85fr_1fr] lg:grid-cols-[1fr_1.75fr_1fr]'
                                 : 'grid-cols-3 md:grid-cols-[1fr_1.4fr_1fr] lg:grid-cols-3'

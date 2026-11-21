@@ -59,7 +59,7 @@ export default function LegalPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD] text-[#800020] font-arabic selection:bg-[#800020] selection:text-[#F0DFCD]" dir="rtl">
+        <div className="min-h-[100dvh] bg-[#F0DFCD] text-[#800020] font-arabic selection:bg-[#800020] selection:text-[#F0DFCD] w-full overflow-x-clip" dir="rtl">
             {/* Breadcrumb Header */}
             <div className="bg-[#800020]/5 border-b border-[#800020]/10 py-4 px-6 sm:px-12">
                 <div className="container mx-auto flex items-center justify-between">

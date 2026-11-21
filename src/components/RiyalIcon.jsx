@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * RiyalIcon: Smart Saudi Riyal Symbol component.
- * Uses /Saudi_Riyal_Symbol.png and dynamically scales with the font-size of adjacent price text using `em` units.
+ * Uses /images/Saudi_Riyal_Symbol.png.webp and dynamically scales with the font-size of adjacent price text using `em` units.
  * Inherits the parent text color automatically via `currentColor`.
  */
 const RiyalIcon = ({ className = "", style = {}, size = "0.95em" }) => {
@@ -13,11 +13,11 @@ const RiyalIcon = ({ className = "", style = {}, size = "0.95em" }) => {
                 width: size,
                 height: `calc(${size} * 1.12)`,
                 backgroundColor: 'currentColor',
-                WebkitMaskImage: 'url(/Saudi_Riyal_Symbol.png)',
+                WebkitMaskImage: 'url(/images/Saudi_Riyal_Symbol.png.webp)',
                 WebkitMaskSize: 'contain',
                 WebkitMaskRepeat: 'no-repeat',
                 WebkitMaskPosition: 'center',
-                maskImage: 'url(/Saudi_Riyal_Symbol.png)',
+                maskImage: 'url(/images/Saudi_Riyal_Symbol.png.webp)',
                 maskSize: 'contain',
                 maskRepeat: 'no-repeat',
                 maskPosition: 'center',
@@ -28,7 +28,7 @@ const RiyalIcon = ({ className = "", style = {}, size = "0.95em" }) => {
         >
             {/* SEO and fallback */}
             <img 
-                src="/Saudi_Riyal_Symbol.png" 
+                src="/images/Saudi_Riyal_Symbol.png.webp" 
                 alt="ر.س" 
                 className="w-full h-full object-contain opacity-0 pointer-events-none" 
             />

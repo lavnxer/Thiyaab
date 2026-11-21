@@ -20,13 +20,13 @@ import {
     CheckCircle2,
     AlertCircle,
     Info,
-    Flame
+    Flame,
+    Save
 } from 'lucide-react';
 import RiyalIcon from './RiyalIcon';
 import OfferManagementSection from './OfferManagementSection';
 import { useShop } from '../context/ShopContext';
 import { useToast } from '../context/ToastContext';
-import { storeQuickImages } from '../data/mockAdminData';
 
 export default function HomeSectionsManagement({ productsList = [], initialSectionTab }) {
     const {
@@ -64,13 +64,24 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
     const [isChoosingMenMainProduct, setIsChoosingMenMainProduct] = useState(false);
     const [isChoosingWomenMainProduct, setIsChoosingWomenMainProduct] = useState(false);
 
-    // Safe getters
+    // Safe getters & local draft state (to prevent lag and auto-saving after every character)
     const menOutfitSection = homeSections?.menOutfit || {};
     const womenOutfitSection = homeSections?.womenOutfit || {};
     const bestSellersSection = homeSections?.bestSellers || {};
 
-    const menOutfits = menOutfitSection.outfits || [];
-    const womenOutfits = womenOutfitSection.outfits || [];
+    const [draftMenOutfits, setDraftMenOutfits] = useState(() => menOutfitSection.outfits || []);
+    const [draftWomenOutfits, setDraftWomenOutfits] = useState(() => womenOutfitSection.outfits || []);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+    useEffect(() => {
+        if (!hasUnsavedChanges) {
+            if (menOutfitSection.outfits) setDraftMenOutfits(menOutfitSection.outfits);
+            if (womenOutfitSection.outfits) setDraftWomenOutfits(womenOutfitSection.outfits);
+        }
+    }, [menOutfitSection.outfits, womenOutfitSection.outfits, hasUnsavedChanges]);
+
+    const menOutfits = draftMenOutfits;
+    const womenOutfits = draftWomenOutfits;
 
     const currentMenOutfit = menOutfits[selectedMenOutfitIdx] || menOutfits[0] || {};
     const currentWomenOutfit = womenOutfits[selectedWomenOutfitIdx] || womenOutfits[0] || {};
@@ -88,42 +99,57 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
     }, [productsList, currentWomenOutfit?.mainProductId, currentWomenOutfit?.title]);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Handlers for Men & Women Outfits
+    // Handlers for Men & Women Outfits (Draft updates - no per-letter auto-save)
     // ─────────────────────────────────────────────────────────────────────────
 
     const handleUpdateOutfitField = (sectionKey, outfitIndex, field, value) => {
-        updateHomeSection(sectionKey, prev => {
-            const currentOutfits = [...(prev.outfits || [])];
-            if (!currentOutfits[outfitIndex]) return prev;
-            currentOutfits[outfitIndex] = {
-                ...currentOutfits[outfitIndex],
-                [field]: value
-            };
-            return {
-                ...prev,
-                outfits: currentOutfits
-            };
-        });
-        showToast('تم تحديث بيانات الطقم بنجاح', 'sparkle');
+        if (sectionKey === 'menOutfit') {
+            setDraftMenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = { ...copy[outfitIndex], [field]: value };
+                return copy;
+            });
+        } else if (sectionKey === 'womenOutfit') {
+            setDraftWomenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = { ...copy[outfitIndex], [field]: value };
+                return copy;
+            });
+        }
+        setHasUnsavedChanges(true);
     };
 
     const handleUpdateCornerItem = (sectionKey, outfitIndex, cornerKey, itemData) => {
-        updateHomeSection(sectionKey, prev => {
-            const currentOutfits = [...(prev.outfits || [])];
-            if (!currentOutfits[outfitIndex]) return prev;
-            currentOutfits[outfitIndex] = {
-                ...currentOutfits[outfitIndex],
-                [cornerKey]: {
-                    ...(currentOutfits[outfitIndex][cornerKey] || {}),
-                    ...itemData
-                }
-            };
-            return {
-                ...prev,
-                outfits: currentOutfits
-            };
-        });
-        showToast('تم تحديث عنصر الطقم بنجاح');
+        if (sectionKey === 'menOutfit') {
+            setDraftMenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = {
+                    ...copy[outfitIndex],
+                    [cornerKey]: {
+                        ...(copy[outfitIndex][cornerKey] || {}),
+                        ...itemData
+                    }
+                };
+                return copy;
+            });
+        } else if (sectionKey === 'womenOutfit') {
+            setDraftWomenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = {
+                    ...copy[outfitIndex],
+                    [cornerKey]: {
+                        ...(copy[outfitIndex][cornerKey] || {}),
+                        ...itemData
+                    }
+                };
+                return copy;
+            });
+        }
+        setHasUnsavedChanges(true);
     };
 
     const handleSelectProductForCorner = (sectionKey, outfitIndex, cornerKey, product) => {
@@ -136,22 +162,54 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
     };
 
     const handleSelectProductForMainModel = (sectionKey, outfitIndex, product) => {
-        updateHomeSection(sectionKey, prev => {
-            const currentOutfits = [...(prev.outfits || [])];
-            if (!currentOutfits[outfitIndex]) return prev;
-            currentOutfits[outfitIndex] = {
-                ...currentOutfits[outfitIndex],
-                title: product.name,
-                price: Number(product.price),
-                mainImage: product.image_url || product.image || currentOutfits[outfitIndex].mainImage,
-                mainProductId: product.id
-            };
-            return {
-                ...prev,
-                outfits: currentOutfits
-            };
-        });
-        showToast(`تم ربط المودل بمنتج "${product.name}" بنجاح`, 'sparkle');
+        if (sectionKey === 'menOutfit') {
+            setDraftMenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = {
+                    ...copy[outfitIndex],
+                    title: product.name,
+                    price: Number(product.price),
+                    mainImage: product.image_url || product.image || copy[outfitIndex].mainImage,
+                    mainProductId: product.id
+                };
+                return copy;
+            });
+        } else if (sectionKey === 'womenOutfit') {
+            setDraftWomenOutfits(prev => {
+                const copy = [...prev];
+                if (!copy[outfitIndex]) return prev;
+                copy[outfitIndex] = {
+                    ...copy[outfitIndex],
+                    title: product.name,
+                    price: Number(product.price),
+                    mainImage: product.image_url || product.image || copy[outfitIndex].mainImage,
+                    mainProductId: product.id
+                };
+                return copy;
+            });
+        }
+        setHasUnsavedChanges(true);
+    };
+
+    const handleSaveChanges = () => {
+        updateHomeSection('menOutfit', prev => ({
+            ...prev,
+            outfits: draftMenOutfits
+        }));
+        updateHomeSection('womenOutfit', prev => ({
+            ...prev,
+            outfits: draftWomenOutfits
+        }));
+        setHasUnsavedChanges(false);
+        showToast('تم حفظ جميع التعديلات بنجاح ✨', 'sparkle');
+    };
+
+    const handleDiscardChanges = () => {
+        setDraftMenOutfits(menOutfitSection.outfits || []);
+        setDraftWomenOutfits(womenOutfitSection.outfits || []);
+        setHasUnsavedChanges(false);
+        showToast('تم التراجع عن التعديلات غير المحفوظة', 'info');
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -191,115 +249,63 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
     }, [productsList, productSearchQuery]);
 
     return (
-        <div className="space-y-8 select-none" dir="rtl">
+        <div className="space-y-8 select-none pb-6" dir="rtl">
 
             {/* Header Hero Banner */}
             <div className="bg-[#800020] text-[#F0DFCD] rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-[#F0DFCD]/20">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-black/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="relative z-10">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F0DFCD]/15 border border-[#F0DFCD]/25 text-xs font-bold text-[#F0DFCD] mb-3 backdrop-blur-xs">
-                            <Layers className="w-3.5 h-3.5 text-amber-300" />
-                            <span>التحكم الموحد بأقسام المتجر</span>
-                        </div>
                         <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-[#F0DFCD]">
                             إدارة أقسام الصفحة الرئيسية
                         </h2>
                         <p className="text-xs sm:text-sm text-[#F0DFCD]/80 mt-1 max-w-2xl leading-relaxed">
-                            تخصيص كامل للأقسام الرئيسية: طقم رجالي متكامل، الأكثر مبيعاً (بربط تلقائي ذكي بالمبيعات)، طقم نسائي متكامل، وبانر العرض الترويجي.
+                            تخصيص كامل للأقسام الرئيسية: الإطلالات الرجالية, الأكثر مبيعًا, الإطلالات النسائية, بانر العرض الرئيسي
                         </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => {
-                                if (window.confirm('هل أنت متأكد من استعادة كافة الأقسام للإعدادات الافتراضية؟')) {
-                                    resetAllHomeSections();
-                                    showToast('تمت استعادة كافة أقسام الصفحة الرئيسية للافتراضي', 'sparkle');
-                                }
-                            }}
-                            className="bg-[#F0DFCD]/10 hover:bg-[#F0DFCD]/20 text-[#F0DFCD] px-4 py-2.5 rounded-2xl font-bold text-xs transition border border-[#F0DFCD]/20 flex items-center gap-2 cursor-pointer shadow-sm"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            <span>استعادة الافتراضي</span>
-                        </button>
-
-                        <a
-                            href="/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-[#F0DFCD] text-[#800020] hover:bg-[#F0DFCD]/90 px-4 py-2.5 rounded-2xl font-black text-xs transition flex items-center gap-2 shadow-lg cursor-pointer"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>معاينة المتجر المباشر</span>
-                        </a>
                     </div>
                 </div>
 
                 {/* Sub-tabs Navigation */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mt-8 pt-6 border-t border-[#F0DFCD]/20">
-                    <button
-                        onClick={() => setActiveSectionTab('menOutfit')}
-                        className={`p-3.5 rounded-2xl text-right transition-all flex flex-col gap-1 border cursor-pointer ${
-                            activeSectionTab === 'menOutfit'
-                                ? 'bg-[#F0DFCD] text-[#800020] shadow-lg border-transparent scale-[1.02]'
-                                : 'bg-white/5 hover:bg-white/10 text-[#F0DFCD] border-[#F0DFCD]/15'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="font-black text-xs sm:text-sm">طقم رجالي متكامل</span>
-                            <span className={`w-2 h-2 rounded-full ${menOutfitSection.isActive !== false ? 'bg-emerald-400' : 'bg-gray-400'}`} />
-                        </div>
-                        <span className="text-[11px] opacity-70 truncate">{menOutfitSection.title || 'أطقم رجالية كاملة'}</span>
-                    </button>
+                    {[
+                        { id: 'menOutfit', label: 'الأطقم الرجالية' },
+                        { id: 'bestSellers', label: 'الأكثر مبيعاً' },
+                        { id: 'womenOutfit', label: 'الأطقم النسائية' },
+                        { id: 'offer', label: 'العرض الرئيسي' }
+                    ].map(tab => {
+                        const isSelected = activeSectionTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveSectionTab(tab.id)}
+                                className={`relative overflow-hidden group p-3.5 rounded-2xl text-center transition-all duration-300 flex items-center justify-center border border-transparent cursor-pointer font-black text-xs sm:text-sm outline-none ${
+                                    isSelected
+                                        ? 'bg-[#800020] text-[#F0DFCD] shadow-lg scale-[1.02]'
+                                        : 'bg-[#F0DFCD] text-[#800020] shadow-xs'
+                                }`}
+                            >
+                                {!isSelected && (
+                                    <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                )}
 
-                    <button
-                        onClick={() => setActiveSectionTab('bestSellers')}
-                        className={`p-3.5 rounded-2xl text-right transition-all flex flex-col gap-1 border cursor-pointer ${
-                            activeSectionTab === 'bestSellers'
-                                ? 'bg-[#F0DFCD] text-[#800020] shadow-lg border-transparent scale-[1.02]'
-                                : 'bg-white/5 hover:bg-white/10 text-[#F0DFCD] border-[#F0DFCD]/15'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="font-black text-xs sm:text-sm flex items-center gap-1.5">
-                                <span>الأكثر مبيعاً</span>
-                                <span className="bg-amber-400/20 text-amber-300 text-[9px] px-1.5 py-0.2 rounded font-mono">تلقائي</span>
-                            </span>
-                            <span className={`w-2 h-2 rounded-full ${bestSellersSection.isActive !== false ? 'bg-emerald-400' : 'bg-gray-400'}`} />
-                        </div>
-                        <span className="text-[11px] opacity-70 truncate">{bestSellersSection.title || 'الأكثر مبيعاً'}</span>
-                    </button>
+                                {/* Base Layer */}
+                                <span className={`relative z-10 transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                    isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0'
+                                }`}>
+                                    {tab.label}
+                                </span>
 
-                    <button
-                        onClick={() => setActiveSectionTab('womenOutfit')}
-                        className={`p-3.5 rounded-2xl text-right transition-all flex flex-col gap-1 border cursor-pointer ${
-                            activeSectionTab === 'womenOutfit'
-                                ? 'bg-[#F0DFCD] text-[#800020] shadow-lg border-transparent scale-[1.02]'
-                                : 'bg-white/5 hover:bg-white/10 text-[#F0DFCD] border-[#F0DFCD]/15'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="font-black text-xs sm:text-sm">طقم نسائي متكامل</span>
-                            <span className={`w-2 h-2 rounded-full ${womenOutfitSection.isActive !== false ? 'bg-emerald-400' : 'bg-gray-400'}`} />
-                        </div>
-                        <span className="text-[11px] opacity-70 truncate">{womenOutfitSection.title || 'أطقم نسائية كاملة'}</span>
-                    </button>
+                                {/* Hover Roll-in Layer (عنابي عند التمرير) */}
+                                {!isSelected && (
+                                    <span className="absolute inset-0 z-20 flex items-center justify-center p-3.5 w-full h-full pointer-events-none text-[#F0DFCD] font-black transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                        {tab.label}
+                                    </span>
+                                )}
 
-                    <button
-                        onClick={() => setActiveSectionTab('offer')}
-                        className={`p-3.5 rounded-2xl text-right transition-all flex flex-col gap-1 border cursor-pointer ${
-                            activeSectionTab === 'offer'
-                                ? 'bg-[#F0DFCD] text-[#800020] shadow-lg border-transparent scale-[1.02]'
-                                : 'bg-white/5 hover:bg-white/10 text-[#F0DFCD] border-[#F0DFCD]/15'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="font-black text-xs sm:text-sm">عرض وتوقيت الصفحة الرئيسية</span>
-                            <span className={`w-2 h-2 rounded-full ${homeOffer?.isActive !== false ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'}`} />
-                        </div>
-                        <span className="text-[11px] opacity-70 truncate">{homeOffer?.productName || 'حذاء جلدي فاخر'}</span>
-                    </button>
+                                <span className="shine-effect z-30" />
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -308,42 +314,8 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
             {/* ═══════════════════════════════════════════════════════════════════════ */}
             {activeSectionTab === 'menOutfit' && (
                 <div className="space-y-6">
-                    {/* Section Visibility & Title Bar */}
-                    <div className="bg-white/60 p-5 rounded-3xl border border-[#800020]/15 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={menOutfitSection.isActive !== false}
-                                    onChange={(e) => updateHomeSection('menOutfit', { isActive: e.target.checked })}
-                                    className="w-5 h-5 rounded-md accent-[#800020] cursor-pointer"
-                                />
-                                <span className="font-black text-sm text-[#800020]">تفعيل ظهور قسم الأطقم الرجالية</span>
-                            </label>
-
-                            <button
-                                onClick={() => resetHomeSection('menOutfit')}
-                                className="text-xs text-[#800020]/70 hover:text-[#800020] flex items-center gap-1 font-bold underline cursor-pointer"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                <span>استعادة الطقم الافتراضي</span>
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <label className="text-xs font-bold text-[#800020]">عنوان القسم:</label>
-                            <input
-                                type="text"
-                                value={menOutfitSection.title || ''}
-                                onChange={(e) => updateHomeSection('menOutfit', { title: e.target.value })}
-                                className="px-3.5 py-1.5 rounded-xl bg-white border border-[#800020]/25 text-xs font-bold text-[#800020] focus:outline-none focus:border-[#800020] w-56"
-                                placeholder="مثال: أطقم رجالية كاملة"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Outfit Switcher Tabs */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {/* Outfit Switcher Tabs (Vertical stack on mobile, horizontal on sm+) */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pb-1">
                         {menOutfits.map((outfit, idx) => (
                             <button
                                 key={idx}
@@ -351,14 +323,14 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     setSelectedMenOutfitIdx(idx);
                                     setIsChoosingMenMainProduct(false);
                                 }}
-                                className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                                className={`w-full sm:w-auto px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer ${
                                     selectedMenOutfitIdx === idx
                                         ? 'bg-[#800020] text-[#F0DFCD] shadow-md scale-102'
                                         : 'bg-white/60 text-[#800020] hover:bg-white border border-[#800020]/15'
                                 }`}
                             >
-                                <span>طقم {idx + 1}: {outfit.title}</span>
-                                <span className="text-[10px] opacity-70">({Number(outfit.price).toFixed(0)} ر.س)</span>
+                                <span>{idx === 0 ? 'الإطلالة الأولى' : idx === 1 ? 'الإطلالة الثانية' : `الإطلالة ${idx + 1}`}: {outfit.title}</span>
+                                <span className="text-[10px] opacity-70 inline-flex items-center gap-0.5">({Number(outfit.price).toFixed(0)} <RiyalIcon size="0.85em" />)</span>
                             </button>
                         ))}
                     </div>
@@ -373,54 +345,131 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     <Eye className="w-4 h-4 text-[#800020]" />
                                     <span>معاينة حية لشكل الطقم</span>
                                 </span>
-                                <span className="text-xs font-mono font-bold text-[#800020]/70 bg-[#800020]/10 px-2 py-0.5 rounded-md">
-                                    {Number(currentMenOutfit.price || 0).toFixed(2)} ر.س
+                                <span className="text-xs font-mono font-bold text-[#800020]/70 bg-[#800020]/10 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                    <span>{Number(currentMenOutfit.price || 0).toFixed(2)}</span>
+                                    <RiyalIcon size="0.85em" />
                                 </span>
                             </div>
 
-                            {/* Miniature of the outfit grid */}
-                            <div className="grid grid-cols-3 gap-2.5 bg-[#f0dfcd]/40 p-4 rounded-2xl border border-[#800020]/15 relative">
-                                
-                                {/* Right Column (Top & Bottom) */}
-                                <div className="flex flex-col gap-2">
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentMenOutfit.rightTop?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentMenOutfit.rightTop?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentMenOutfit.rightTop?.price || 0).toFixed(0)} ر.س</span>
+                            {/* Mobile Layout (< md): Hero Model on top, 4 products underneath */}
+                            <div className="md:hidden space-y-3 bg-[#f0dfcd]/40 p-3.5 sm:p-4 rounded-2xl border border-[#800020]/15">
+                                {/* Main Outfit Model Hero */}
+                                <div className="bg-white/90 p-3 rounded-2xl text-center flex flex-col items-center justify-between border-2 border-[#800020]/30 shadow-xs relative overflow-hidden min-h-[250px]">
+                                    <span className="absolute top-2 right-2 bg-[#800020] text-[#F0DFCD] text-[9px] font-bold px-2.5 py-0.5 rounded-md z-20 shadow-xs">
+                                        شراء الطقم كامل
+                                    </span>
+                                    <div className="w-full flex-1 flex items-center justify-center p-2 min-h-[170px]">
+                                        <img 
+                                            src={currentMenOutfit.mainImage} 
+                                            alt="" 
+                                            className="max-h-52 sm:max-h-60 w-auto object-contain drop-shadow-md" 
+                                        />
                                     </div>
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentMenOutfit.rightBottom?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentMenOutfit.rightBottom?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentMenOutfit.rightBottom?.price || 0).toFixed(0)} ر.س</span>
+                                    <div className="text-center mt-2 relative z-20 w-full px-2">
+                                        <span className="text-xs font-black text-[#800020] block truncate">{currentMenOutfit.title}</span>
+                                        <span className="text-xs font-mono font-bold text-[#800020] inline-flex items-center justify-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.price || 0).toFixed(2)}</span>
+                                            <RiyalIcon size="0.85em" />
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* 4 Items in 2x2 Grid */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { item: currentMenOutfit.rightTop, label: 'أعلى اليمين' },
+                                        { item: currentMenOutfit.leftTop, label: 'أعلى اليسار' },
+                                        { item: currentMenOutfit.rightBottom, label: 'أسفل اليمين' },
+                                        { item: currentMenOutfit.leftBottom, label: 'أسفل اليسار' }
+                                    ].filter(x => x.item).map((c, idx) => (
+                                        <div key={idx} className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between">
+                                            <div className="w-full aspect-square bg-[#f0dfcd]/20 rounded-lg p-1.5 flex items-center justify-center mb-1">
+                                                <img src={c.item.image} alt="" className="w-full h-full object-contain" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{c.item.name}</span>
+                                            <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                                <span>{Number(c.item.price || 0).toFixed(0)}</span>
+                                                <RiyalIcon size="0.75em" />
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* iPad & Laptop Layout (>= md): 3 Columns (Right items | Center Model | Left items) */}
+                            <div className="hidden md:grid md:grid-cols-3 gap-2.5 bg-[#f0dfcd]/40 p-4 rounded-2xl border border-[#800020]/15 relative items-center">
+                                {/* Right Column (Top & Bottom) */}
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentMenOutfit.rightTop?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentMenOutfit.rightTop?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.rightTop?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
+                                    </div>
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentMenOutfit.rightBottom?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentMenOutfit.rightBottom?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.rightBottom?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
                                 </div>
 
                                 {/* Center: Main Outfit Model */}
-                                <div className="bg-white/90 p-2 rounded-2xl text-center flex flex-col items-center justify-center border-2 border-[#800020]/30 shadow-sm relative overflow-hidden">
-                                    <span className="absolute top-1.5 right-1.5 bg-[#800020] text-[#F0DFCD] text-[8px] font-bold px-1.5 py-0.2 rounded">
-                                        شراء الطقم
+                                <div className="bg-white/90 p-2.5 rounded-2xl text-center flex flex-col items-center justify-between border-2 border-[#800020]/30 shadow-xs relative overflow-hidden min-h-[235px]">
+                                    <span className="absolute top-1.5 right-1.5 bg-[#800020] text-[#F0DFCD] text-[8px] font-bold px-2 py-0.5 rounded shadow-xs">
+                                        شراء الطقم كامل
                                     </span>
-                                    <img src={currentMenOutfit.mainImage} alt="" className="w-full h-32 object-contain drop-shadow-md" />
-                                    <span className="text-[11px] font-black text-[#800020] block mt-1 truncate">{currentMenOutfit.title}</span>
+                                    <div className="w-full flex-1 flex items-center justify-center p-1 min-h-[150px]">
+                                        <img 
+                                            src={currentMenOutfit.mainImage} 
+                                            alt="" 
+                                            className="max-h-48 w-auto object-contain drop-shadow-md" 
+                                        />
+                                    </div>
+                                    <div className="text-center mt-1 w-full px-1">
+                                        <span className="text-[11px] font-black text-[#800020] block truncate">{currentMenOutfit.title}</span>
+                                        <span className="text-[10px] font-mono font-bold text-[#800020] inline-flex items-center justify-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.price || 0).toFixed(2)}</span>
+                                            <RiyalIcon size="0.8em" />
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Left Column (Top & Bottom) */}
-                                <div className="flex flex-col gap-2">
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentMenOutfit.leftTop?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentMenOutfit.leftTop?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentMenOutfit.leftTop?.price || 0).toFixed(0)} ر.س</span>
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentMenOutfit.leftTop?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentMenOutfit.leftTop?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.leftTop?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentMenOutfit.leftBottom?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentMenOutfit.leftBottom?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentMenOutfit.leftBottom?.price || 0).toFixed(0)} ر.س</span>
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentMenOutfit.leftBottom?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentMenOutfit.leftBottom?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentMenOutfit.leftBottom?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
                             <p className="text-[11px] text-[#800020]/70 text-center leading-relaxed">
-                                يتم تحديث هذا القسم فورياً في الصفحة الرئيسية للمتجر بمجرد التعديل.
+                                يتم تطبيق التعديلات عند الضغط على زر "حفظ التعديلات".
                             </p>
                         </div>
 
@@ -430,25 +479,42 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                             {/* Main Outfit Settings */}
                             <div className="p-4 rounded-2xl bg-white border border-[#800020]/15 space-y-4">
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
-                                        <Sparkles className="w-4 h-4 text-amber-500" />
-                                        <span>بيانات المودل الأساسي للطقم (الوسط)</span>
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsChoosingMenMainProduct(!isChoosingMenMainProduct);
-                                            if (!isChoosingMenMainProduct) setShowMenMainQuickImgs(false);
-                                        }}
-                                        className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
-                                            isChoosingMenMainProduct
-                                                ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
-                                                : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
-                                        }`}
-                                    >
-                                        <Search className="w-3.5 h-3.5" />
-                                        <span>{isChoosingMenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-xs font-black text-[#800020]">
+                                            بيانات الإطلالة
+                                        </h3>
+                                        {hasUnsavedChanges && (
+                                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                                                تعديل غير محفوظ
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveChanges}
+                                            className="text-[10px] sm:text-[11px] font-black px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 bg-[#800020] text-[#F0DFCD] shadow-sm hover:bg-[#600018] cursor-pointer active:scale-95"
+                                        >
+                                            <Save className="w-3.5 h-3.5" />
+                                            <span>حفظ التعديلات</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsChoosingMenMainProduct(!isChoosingMenMainProduct);
+                                                if (!isChoosingMenMainProduct) setShowMenMainQuickImgs(false);
+                                            }}
+                                            className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                                                isChoosingMenMainProduct
+                                                    ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
+                                                    : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
+                                            }`}
+                                        >
+                                            <Search className="w-3.5 h-3.5" />
+                                            <span>{isChoosingMenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {isChoosingMenMainProduct && (
@@ -463,26 +529,23 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
 
                                 {currentMenOutfit.mainProductId && (
                                     <div className="text-[10px] text-[#800020]/80 bg-[#800020]/5 px-3 py-1.5 rounded-xl flex items-center justify-between border border-[#800020]/10">
-                                        <span className="flex items-center gap-1.5">
-                                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                            <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentMenOutfit.title}</strong></span>
-                                        </span>
-                                        <span className="font-mono text-[9px] opacity-60">ID: {currentMenOutfit.mainProductId.slice(0, 8)}...</span>
+                                        <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentMenOutfit.title}</strong></span>
+                                        <span className="font-mono text-[9px] opacity-60" dir="ltr">ID: {currentMenOutfit.mainProductId.slice(0, 8)}</span>
                                     </div>
                                 )}
 
                                 {linkedMenMainProduct?.colors && linkedMenMainProduct.colors.length > 0 && (
-                                    <div className="p-2.5 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1.5 animate-fadeIn">
-                                        <div className="flex items-center justify-between text-xs font-bold text-[#800020]">
-                                            <span className="flex items-center gap-1.5">
-                                                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                                                <span>لون عرض المودل في الطقم (من ألوان المنتج):</span>
+                                    <div className="p-2 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1 animate-fadeIn">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-[#800020]">
+                                            <span className="flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
+                                                <span>لون عرض المودل في الطقم:</span>
                                             </span>
-                                            <span className="text-[11px] font-bold text-[#800020]/80 bg-white px-2 py-0.5 rounded-md border border-[#800020]/10">
+                                            <span className="text-[9px] font-bold text-[#800020]/80 bg-white px-1.5 py-0.2 rounded border border-[#800020]/10">
                                                 {currentMenOutfit.selectedColor || linkedMenMainProduct.colors.find(c => c.image === currentMenOutfit.mainImage || c.image_url === currentMenOutfit.mainImage)?.name || linkedMenMainProduct.colors[0]?.name}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {linkedMenMainProduct.colors.map((c, cIdx) => {
                                                 const isSelected = (currentMenOutfit.mainImage && (currentMenOutfit.mainImage === c.image || currentMenOutfit.mainImage === c.image_url)) || (currentMenOutfit.selectedColor === c.name);
                                                 return (
@@ -494,21 +557,21 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                                                 handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', c.image || c.image_url);
                                                             }
                                                             handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'selectedColor', c.name);
-                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`, 'sparkle');
+                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`);
                                                         }}
-                                                        className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition cursor-pointer border ${
+                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
                                                             isSelected
-                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-2xs'
                                                                 : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
                                                         }`}
                                                         title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
                                                     >
                                                         <span
-                                                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-inner"
+                                                            className="w-3 h-3 rounded-full border border-black/20 shrink-0"
                                                             style={{ backgroundColor: c.hex }}
                                                         />
-                                                        <span className="text-[11px] font-bold">{c.name}</span>
-                                                        {isSelected && <Check className="w-3 h-3 text-[#F0DFCD]" />}
+                                                        <span>{c.name}</span>
+                                                        {isSelected && <Check className="w-2.5 h-2.5 text-[#F0DFCD]" />}
                                                     </button>
                                                 );
                                             })}
@@ -527,7 +590,12 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                         />
                                     </div>
                                     <div>
-                                        <label className="block font-bold text-[#800020] mb-1">سعر الطقم الكامل (ر.س):</label>
+                                        <label className="font-bold text-[#800020] mb-1 flex items-center gap-1">
+                                            <span>سعر الطقم الكامل</span>
+                                            <span>(</span>
+                                            <RiyalIcon size="0.85em" />
+                                            <span>):</span>
+                                        </label>
                                         <input
                                             type="number"
                                             value={currentMenOutfit.price || ''}
@@ -535,47 +603,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                             className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-bold text-[#800020]"
                                         />
                                     </div>
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="block font-bold text-[#800020] text-xs">رابط صورة المودل الأساسي:</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowMenMainQuickImgs(!showMenMainQuickImgs)}
-                                            className="text-[10px] text-[#800020] hover:underline font-bold cursor-pointer"
-                                        >
-                                            {showMenMainQuickImgs ? 'إغلاق الكتالوج' : 'اختر من صور الكتالوج'}
-                                        </button>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={currentMenOutfit.mainImage || ''}
-                                        onChange={(e) => handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-mono text-xs text-[#800020]"
-                                        placeholder="/images/winter_outfit_transparent.png أو رابط صورة"
-                                    />
-                                    {showMenMainQuickImgs && (
-                                        <div className="mt-2 p-2.5 bg-[#f0dfcd]/30 rounded-xl border border-[#800020]/15 space-y-1.5 animate-fadeIn">
-                                            <span className="text-[10px] font-bold text-[#800020]">انقر لاختيار صورة المودل:</span>
-                                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-36 overflow-y-auto p-1 custom-scrollbar">
-                                                {storeQuickImages.map((qi, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            handleUpdateOutfitField('menOutfit', selectedMenOutfitIdx, 'mainImage', qi.url);
-                                                            setShowMenMainQuickImgs(false);
-                                                        }}
-                                                        className="p-1.5 rounded-xl bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-1 transition cursor-pointer"
-                                                    >
-                                                        <img src={qi.url} alt="" className="w-9 h-9 object-contain" />
-                                                        <span className="text-[9px] text-[#800020] truncate w-full text-center font-bold">{qi.name}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -637,43 +664,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
             {/* ═══════════════════════════════════════════════════════════════════════ */}
             {activeSectionTab === 'bestSellers' && (
                 <div className="space-y-6">
-                    {/* Settings Header Bar */}
-                    <div className="bg-white/60 p-5 rounded-3xl border border-[#800020]/15 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={bestSellersSection.isActive !== false}
-                                    onChange={(e) => updateHomeSection('bestSellers', { isActive: e.target.checked })}
-                                    className="w-5 h-5 rounded-md accent-[#800020] cursor-pointer"
-                                />
-                                <span className="font-black text-sm text-[#800020]">تفعيل ظهور قسم الأكثر مبيعاً</span>
-                            </label>
-
-                            <button
-                                onClick={() => resetHomeSection('bestSellers')}
-                                className="text-xs text-[#800020]/70 hover:text-[#800020] flex items-center gap-1 font-bold underline cursor-pointer"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                <span>استعادة الافتراضي</span>
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <label className="text-xs font-bold text-[#800020]">عدد المنتجات المعروضة:</label>
-                            <select
-                                value={bestSellersSection.limit || 8}
-                                onChange={(e) => updateHomeSection('bestSellers', { limit: Number(e.target.value) })}
-                                className="px-3 py-1.5 rounded-xl bg-white border border-[#800020]/25 text-xs font-bold text-[#800020] focus:outline-none"
-                            >
-                                <option value={4}>4 منتجات</option>
-                                <option value={6}>6 منتجات</option>
-                                <option value={8}>8 منتجات (موصى به)</option>
-                                <option value={12}>12 منتج</option>
-                            </select>
-                        </div>
-                    </div>
-
                     {/* Auto Mode Switch Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div
@@ -684,12 +674,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     : 'bg-white/60 text-[#800020] border-[#800020]/20 hover:bg-white'
                             }`}
                         >
-                            {bestSellersSection.autoMode !== false && (
-                                <span className="absolute top-4 left-4 bg-emerald-400 text-emerald-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    مفعل حالياً
-                                </span>
-                            )}
                             <div className="flex items-center gap-2 mb-2">
                                 <Flame className="w-5 h-5 text-amber-400" />
                                 <h3 className="font-black text-base">الربط التلقائي بالأعلى مبيعاً (موصى به)</h3>
@@ -707,12 +691,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     : 'bg-white/60 text-[#800020] border-[#800020]/20 hover:bg-white'
                             }`}
                         >
-                            {bestSellersSection.autoMode === false && (
-                                <span className="absolute top-4 left-4 bg-emerald-400 text-emerald-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    مفعل حالياً
-                                </span>
-                            )}
                             <div className="flex items-center gap-2 mb-2">
                                 <SlidersHorizontal className="w-5 h-5 text-cyan-400" />
                                 <h3 className="font-black text-base">تحديد يدوي مخصص للمنتجات</h3>
@@ -771,8 +749,9 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
 
                                         <div className="min-w-0 flex-1 pl-6">
                                             <span className="font-bold text-xs text-[#800020] block truncate">{p.name}</span>
-                                            <span className="text-[11px] font-mono text-[#800020]/70 block mt-0.5">
-                                                {Number(p.price).toFixed(2)} ر.س
+                                            <span className="text-[11px] font-mono text-[#800020]/70 inline-flex items-center gap-1 mt-0.5">
+                                                <span>{Number(p.price).toFixed(2)}</span>
+                                                <RiyalIcon size="0.85em" />
                                             </span>
                                             <span className="inline-block mt-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.2 rounded-full">
                                                 {p.salesCount ? `${p.salesCount} مبيعة` : 'طلب متكرر'}
@@ -801,7 +780,10 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <span className="font-bold text-xs text-[#800020] block truncate">{p.name}</span>
-                                                <span className="text-[10px] font-mono text-[#800020]/70">{Number(p.price).toFixed(2)} ر.س</span>
+                                                <span className="text-[10px] font-mono text-[#800020]/70 inline-flex items-center gap-0.5">
+                                                    <span>{Number(p.price).toFixed(2)}</span>
+                                                    <RiyalIcon size="0.8em" />
+                                                </span>
                                             </div>
                                             <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
                                                 isSelected ? 'bg-[#800020] text-white border-[#800020]' : 'border-[#800020]/30'
@@ -822,42 +804,8 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
             {/* ═══════════════════════════════════════════════════════════════════════ */}
             {activeSectionTab === 'womenOutfit' && (
                 <div className="space-y-6">
-                    {/* Section Visibility & Title Bar */}
-                    <div className="bg-white/60 p-5 rounded-3xl border border-[#800020]/15 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={womenOutfitSection.isActive !== false}
-                                    onChange={(e) => updateHomeSection('womenOutfit', { isActive: e.target.checked })}
-                                    className="w-5 h-5 rounded-md accent-[#800020] cursor-pointer"
-                                />
-                                <span className="font-black text-sm text-[#800020]">تفعيل ظهور قسم الأطقم النسائية</span>
-                            </label>
-
-                            <button
-                                onClick={() => resetHomeSection('womenOutfit')}
-                                className="text-xs text-[#800020]/70 hover:text-[#800020] flex items-center gap-1 font-bold underline cursor-pointer"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                <span>استعادة الطقم الافتراضي</span>
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <label className="text-xs font-bold text-[#800020]">عنوان القسم:</label>
-                            <input
-                                type="text"
-                                value={womenOutfitSection.title || ''}
-                                onChange={(e) => updateHomeSection('womenOutfit', { title: e.target.value })}
-                                className="px-3.5 py-1.5 rounded-xl bg-white border border-[#800020]/25 text-xs font-bold text-[#800020] focus:outline-none focus:border-[#800020] w-56"
-                                placeholder="مثال: أطقم نسائية كاملة"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Outfit Switcher Tabs */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {/* Outfit Switcher Tabs (Vertical stack on mobile, horizontal on sm+) */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pb-1">
                         {womenOutfits.map((outfit, idx) => (
                             <button
                                 key={idx}
@@ -865,14 +813,14 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     setSelectedWomenOutfitIdx(idx);
                                     setIsChoosingWomenMainProduct(false);
                                 }}
-                                className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                                className={`w-full sm:w-auto px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer ${
                                     selectedWomenOutfitIdx === idx
                                         ? 'bg-[#800020] text-[#F0DFCD] shadow-md scale-102'
                                         : 'bg-white/60 text-[#800020] hover:bg-white border border-[#800020]/15'
                                 }`}
                             >
-                                <span>طقم {idx + 1}: {outfit.title}</span>
-                                <span className="text-[10px] opacity-70">({Number(outfit.price).toFixed(0)} ر.س)</span>
+                                <span>{idx === 0 ? 'الإطلالة الأولى' : idx === 1 ? 'الإطلالة الثانية' : `الإطلالة ${idx + 1}`}: {outfit.title}</span>
+                                <span className="text-[10px] opacity-70 inline-flex items-center gap-0.5">({Number(outfit.price).toFixed(0)} <RiyalIcon size="0.85em" />)</span>
                             </button>
                         ))}
                     </div>
@@ -887,51 +835,132 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                     <Eye className="w-4 h-4 text-[#800020]" />
                                     <span>معاينة حية لشكل الطقم النسائي</span>
                                 </span>
-                                <span className="text-xs font-mono font-bold text-[#800020]/70 bg-[#800020]/10 px-2 py-0.5 rounded-md">
-                                    {Number(currentWomenOutfit.price || 0).toFixed(2)} ر.س
+                                <span className="text-xs font-mono font-bold text-[#800020]/70 bg-[#800020]/10 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                    <span>{Number(currentWomenOutfit.price || 0).toFixed(2)}</span>
+                                    <RiyalIcon size="0.85em" />
                                 </span>
                             </div>
 
-                            {/* Miniature of the outfit grid */}
-                            <div className="grid grid-cols-3 gap-2.5 bg-[#f0dfcd]/40 p-4 rounded-2xl border border-[#800020]/15 relative">
-                                
-                                {/* Right Column */}
-                                <div className="flex flex-col gap-2">
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentWomenOutfit.rightTop?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentWomenOutfit.rightTop?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentWomenOutfit.rightTop?.price || 0).toFixed(0)} ر.س</span>
+                            {/* Mobile Layout (< md): Hero Model on top, 4 products underneath */}
+                            <div className="md:hidden space-y-3 bg-[#f0dfcd]/40 p-3.5 sm:p-4 rounded-2xl border border-[#800020]/15">
+                                {/* Main Outfit Model Hero */}
+                                <div className="bg-white/90 p-3 rounded-2xl text-center flex flex-col items-center justify-between border-2 border-[#800020]/30 shadow-xs relative overflow-hidden min-h-[250px]">
+                                    <span className="absolute top-2 right-2 bg-[#800020] text-[#F0DFCD] text-[9px] font-bold px-2.5 py-0.5 rounded-md z-20 shadow-xs">
+                                        شراء الطقم كامل
+                                    </span>
+                                    <div className="w-full flex-1 flex items-center justify-center p-2 min-h-[170px]">
+                                        <img 
+                                            src={currentWomenOutfit.mainImage} 
+                                            alt="" 
+                                            className="max-h-52 sm:max-h-60 w-auto object-contain drop-shadow-md" 
+                                        />
                                     </div>
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentWomenOutfit.rightBottom?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentWomenOutfit.rightBottom?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentWomenOutfit.rightBottom?.price || 0).toFixed(0)} ر.س</span>
+                                    <div className="text-center mt-2 relative z-20 w-full px-2">
+                                        <span className="text-xs font-black text-[#800020] block truncate">{currentWomenOutfit.title}</span>
+                                        <span className="text-xs font-mono font-bold text-[#800020] inline-flex items-center justify-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.price || 0).toFixed(2)}</span>
+                                            <RiyalIcon size="0.85em" />
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* 4 Items in 2x2 Grid */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { item: currentWomenOutfit.rightTop, label: 'أعلى اليمين' },
+                                        { item: currentWomenOutfit.leftTop, label: 'أعلى اليسار' },
+                                        { item: currentWomenOutfit.rightBottom, label: 'أسفل اليمين' },
+                                        { item: currentWomenOutfit.leftBottom, label: 'أسفل اليسار' }
+                                    ].filter(x => x.item).map((c, idx) => (
+                                        <div key={idx} className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between">
+                                            <div className="w-full aspect-square bg-[#f0dfcd]/20 rounded-lg p-1.5 flex items-center justify-center mb-1">
+                                                <img src={c.item.image} alt="" className="w-full h-full object-contain" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{c.item.name}</span>
+                                            <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                                <span>{Number(c.item.price || 0).toFixed(0)}</span>
+                                                <RiyalIcon size="0.75em" />
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* iPad & Laptop Layout (>= md): 3 Columns (Right items | Center Model | Left items) */}
+                            <div className="hidden md:grid md:grid-cols-3 gap-2.5 bg-[#f0dfcd]/40 p-4 rounded-2xl border border-[#800020]/15 relative items-center">
+                                {/* Right Column (Top & Bottom) */}
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentWomenOutfit.rightTop?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentWomenOutfit.rightTop?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.rightTop?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
+                                    </div>
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentWomenOutfit.rightBottom?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentWomenOutfit.rightBottom?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.rightBottom?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
                                 </div>
 
                                 {/* Center: Main Outfit Model */}
-                                <div className="bg-white/90 p-2 rounded-2xl text-center flex flex-col items-center justify-center border-2 border-[#800020]/30 shadow-sm relative overflow-hidden">
-                                    <span className="absolute top-1.5 right-1.5 bg-[#800020] text-[#F0DFCD] text-[8px] font-bold px-1.5 py-0.2 rounded">
-                                        شراء الطقم
+                                <div className="bg-white/90 p-2.5 rounded-2xl text-center flex flex-col items-center justify-between border-2 border-[#800020]/30 shadow-xs relative overflow-hidden min-h-[235px]">
+                                    <span className="absolute top-1.5 right-1.5 bg-[#800020] text-[#F0DFCD] text-[8px] font-bold px-2 py-0.5 rounded shadow-xs">
+                                        شراء الطقم كامل
                                     </span>
-                                    <img src={currentWomenOutfit.mainImage} alt="" className="w-full h-32 object-contain drop-shadow-md" />
-                                    <span className="text-[11px] font-black text-[#800020] block mt-1 truncate">{currentWomenOutfit.title}</span>
+                                    <div className="w-full flex-1 flex items-center justify-center p-1 min-h-[150px]">
+                                        <img 
+                                            src={currentWomenOutfit.mainImage} 
+                                            alt="" 
+                                            className="max-h-48 w-auto object-contain drop-shadow-md" 
+                                        />
+                                    </div>
+                                    <div className="text-center mt-1 w-full px-1">
+                                        <span className="text-[11px] font-black text-[#800020] block truncate">{currentWomenOutfit.title}</span>
+                                        <span className="text-[10px] font-mono font-bold text-[#800020] inline-flex items-center justify-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.price || 0).toFixed(2)}</span>
+                                            <RiyalIcon size="0.8em" />
+                                        </span>
+                                    </div>
                                 </div>
 
-                                {/* Left Column */}
-                                <div className="flex flex-col gap-2">
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentWomenOutfit.leftTop?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentWomenOutfit.leftTop?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentWomenOutfit.leftTop?.price || 0).toFixed(0)} ر.س</span>
+                                {/* Left Column (Top & Bottom) */}
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentWomenOutfit.leftTop?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentWomenOutfit.leftTop?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.leftTop?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
-                                    <div className="bg-white/80 p-2 rounded-xl text-center border border-[#800020]/10">
-                                        <img src={currentWomenOutfit.leftBottom?.image} alt="" className="w-12 h-12 object-contain mx-auto" />
-                                        <span className="text-[10px] font-bold text-[#800020] block truncate mt-1">{currentWomenOutfit.leftBottom?.name}</span>
-                                        <span className="text-[9px] font-mono text-[#800020]/70">{Number(currentWomenOutfit.leftBottom?.price || 0).toFixed(0)} ر.س</span>
+                                    <div className="bg-white/90 p-2 rounded-xl text-center border border-[#800020]/10 shadow-2xs flex flex-col items-center justify-between min-h-[110px]">
+                                        <div className="w-full aspect-square max-w-[70px] bg-[#f0dfcd]/20 rounded-lg p-1 flex items-center justify-center mx-auto mb-1">
+                                            <img src={currentWomenOutfit.leftBottom?.image} alt="" className="w-full h-full object-contain" />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-[#800020] block truncate w-full">{currentWomenOutfit.leftBottom?.name}</span>
+                                        <span className="text-[9px] font-mono font-bold text-[#800020]/75 inline-flex items-center gap-0.5 mt-0.5">
+                                            <span>{Number(currentWomenOutfit.leftBottom?.price || 0).toFixed(0)}</span>
+                                            <RiyalIcon size="0.75em" />
+                                        </span>
                                     </div>
                                 </div>
                             </div>
+
+                            <p className="text-[11px] text-[#800020]/70 text-center leading-relaxed">
+                                يتم تطبيق التعديلات عند الضغط على زر "حفظ التعديلات".
+                            </p>
                         </div>
 
                         {/* Right: Controls & Item Configs (7 Cols) */}
@@ -940,25 +969,42 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                             {/* Main Outfit Settings */}
                             <div className="p-4 rounded-2xl bg-white border border-[#800020]/15 space-y-4">
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <h3 className="text-xs font-black text-[#800020] flex items-center gap-1.5">
-                                        <Sparkles className="w-4 h-4 text-pink-600" />
-                                        <span>بيانات المودل الأساسي للطقم النسائي (الوسط)</span>
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsChoosingWomenMainProduct(!isChoosingWomenMainProduct);
-                                            if (!isChoosingWomenMainProduct) setShowWomenMainQuickImgs(false);
-                                        }}
-                                        className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
-                                            isChoosingWomenMainProduct
-                                                ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
-                                                : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
-                                        }`}
-                                    >
-                                        <Search className="w-3.5 h-3.5" />
-                                        <span>{isChoosingWomenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-xs font-black text-[#800020]">
+                                            بيانات الإطلالة
+                                        </h3>
+                                        {hasUnsavedChanges && (
+                                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                                                تعديل غير محفوظ
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveChanges}
+                                            className="text-[10px] sm:text-[11px] font-black px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 bg-[#800020] text-[#F0DFCD] shadow-sm hover:bg-[#600018] cursor-pointer active:scale-95"
+                                        >
+                                            <Save className="w-3.5 h-3.5" />
+                                            <span>حفظ التعديلات</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsChoosingWomenMainProduct(!isChoosingWomenMainProduct);
+                                                if (!isChoosingWomenMainProduct) setShowWomenMainQuickImgs(false);
+                                            }}
+                                            className={`text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                                                isChoosingWomenMainProduct
+                                                    ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
+                                                    : 'text-[#800020] bg-[#800020]/10 hover:bg-[#800020] hover:text-[#F0DFCD]'
+                                            }`}
+                                        >
+                                            <Search className="w-3.5 h-3.5" />
+                                            <span>{isChoosingWomenMainProduct ? 'إغلاق القائمة' : 'اختر من المنتجات لتحديث الإطلالة'}</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {isChoosingWomenMainProduct && (
@@ -973,26 +1019,23 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
 
                                 {currentWomenOutfit.mainProductId && (
                                     <div className="text-[10px] text-[#800020]/80 bg-[#800020]/5 px-3 py-1.5 rounded-xl flex items-center justify-between border border-[#800020]/10">
-                                        <span className="flex items-center gap-1.5">
-                                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                            <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentWomenOutfit.title}</strong></span>
-                                        </span>
-                                        <span className="font-mono text-[9px] opacity-60">ID: {currentWomenOutfit.mainProductId.slice(0, 8)}...</span>
+                                        <span>المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{currentWomenOutfit.title}</strong></span>
+                                        <span className="font-mono text-[9px] opacity-60" dir="ltr">ID: {currentWomenOutfit.mainProductId.slice(0, 8)}</span>
                                     </div>
                                 )}
 
                                 {linkedWomenMainProduct?.colors && linkedWomenMainProduct.colors.length > 0 && (
-                                    <div className="p-2.5 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1.5 animate-fadeIn">
-                                        <div className="flex items-center justify-between text-xs font-bold text-[#800020]">
-                                            <span className="flex items-center gap-1.5">
-                                                <Sparkles className="w-3.5 h-3.5 text-pink-600" />
-                                                <span>لون عرض المودل في الطقم (من ألوان المنتج):</span>
+                                    <div className="p-2 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1 animate-fadeIn">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-[#800020]">
+                                            <span className="flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
+                                                <span>لون عرض المودل في الطقم:</span>
                                             </span>
-                                            <span className="text-[11px] font-bold text-[#800020]/80 bg-white px-2 py-0.5 rounded-md border border-[#800020]/10">
+                                            <span className="text-[9px] font-bold text-[#800020]/80 bg-white px-1.5 py-0.2 rounded border border-[#800020]/10">
                                                 {currentWomenOutfit.selectedColor || linkedWomenMainProduct.colors.find(c => c.image === currentWomenOutfit.mainImage || c.image_url === currentWomenOutfit.mainImage)?.name || linkedWomenMainProduct.colors[0]?.name}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {linkedWomenMainProduct.colors.map((c, cIdx) => {
                                                 const isSelected = (currentWomenOutfit.mainImage && (currentWomenOutfit.mainImage === c.image || currentWomenOutfit.mainImage === c.image_url)) || (currentWomenOutfit.selectedColor === c.name);
                                                 return (
@@ -1004,21 +1047,21 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                                                 handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', c.image || c.image_url);
                                                             }
                                                             handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'selectedColor', c.name);
-                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`, 'sparkle');
+                                                            showToast(`تم اختيار لون "${c.name}" لعرض المودل في الطقم`);
                                                         }}
-                                                        className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition cursor-pointer border ${
+                                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
                                                             isSelected
-                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-2xs'
                                                                 : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
                                                         }`}
                                                         title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
                                                     >
                                                         <span
-                                                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-inner"
+                                                            className="w-3 h-3 rounded-full border border-black/20 shrink-0"
                                                             style={{ backgroundColor: c.hex }}
                                                         />
-                                                        <span className="text-[11px] font-bold">{c.name}</span>
-                                                        {isSelected && <Check className="w-3 h-3 text-[#F0DFCD]" />}
+                                                        <span>{c.name}</span>
+                                                        {isSelected && <Check className="w-2.5 h-2.5 text-[#F0DFCD]" />}
                                                     </button>
                                                 );
                                             })}
@@ -1037,7 +1080,12 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                         />
                                     </div>
                                     <div>
-                                        <label className="block font-bold text-[#800020] mb-1">سعر الطقم الكامل (ر.س):</label>
+                                        <label className="font-bold text-[#800020] mb-1 flex items-center gap-1">
+                                            <span>سعر الطقم الكامل</span>
+                                            <span>(</span>
+                                            <RiyalIcon size="0.85em" />
+                                            <span>):</span>
+                                        </label>
                                         <input
                                             type="number"
                                             value={currentWomenOutfit.price || ''}
@@ -1045,47 +1093,6 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                                             className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-bold text-[#800020]"
                                         />
                                     </div>
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="block font-bold text-[#800020] text-xs">رابط صورة المودل الأساسي:</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowWomenMainQuickImgs(!showWomenMainQuickImgs)}
-                                            className="text-[10px] text-[#800020] hover:underline font-bold cursor-pointer"
-                                        >
-                                            {showWomenMainQuickImgs ? 'إغلاق الكتالوج' : 'اختر من صور الكتالوج'}
-                                        </button>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={currentWomenOutfit.mainImage || ''}
-                                        onChange={(e) => handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', e.target.value)}
-                                        className="w-full px-3 py-2 rounded-xl border border-[#800020]/20 font-mono text-xs text-[#800020]"
-                                        placeholder="/images/women_new_bg_removed.png أو رابط صورة"
-                                    />
-                                    {showWomenMainQuickImgs && (
-                                        <div className="mt-2 p-2.5 bg-[#f0dfcd]/30 rounded-xl border border-[#800020]/15 space-y-1.5 animate-fadeIn">
-                                            <span className="text-[10px] font-bold text-[#800020]">انقر لاختيار صورة المودل النسائي:</span>
-                                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-36 overflow-y-auto p-1 custom-scrollbar">
-                                                {storeQuickImages.map((qi, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            handleUpdateOutfitField('womenOutfit', selectedWomenOutfitIdx, 'mainImage', qi.url);
-                                                            setShowWomenMainQuickImgs(false);
-                                                        }}
-                                                        className="p-1.5 rounded-xl bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-1 transition cursor-pointer"
-                                                    >
-                                                        <img src={qi.url} alt="" className="w-9 h-9 object-contain" />
-                                                        <span className="text-[9px] text-[#800020] truncate w-full text-center font-bold">{qi.name}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -1150,6 +1157,25 @@ export default function HomeSectionsManagement({ productsList = [], initialSecti
                     showToast={showToast}
                 />
             )}
+
+            {/* Static Save & Cancel Buttons at the Bottom of the Page */}
+            <div className="pt-6 border-t border-[#800020]/15 flex items-center justify-end gap-3">
+                <button
+                    type="button"
+                    onClick={handleDiscardChanges}
+                    className="px-4 sm:px-5 py-2.5 rounded-xl border border-[#800020]/30 text-[#800020] hover:bg-white text-xs font-bold transition cursor-pointer active:scale-95"
+                >
+                    إلغاء التعديلات
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSaveChanges}
+                    className="px-6 sm:px-7 py-2.5 rounded-xl font-black text-xs transition flex items-center gap-2 shadow-md bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] cursor-pointer active:scale-95 shadow-sm"
+                >
+                    <Save className="w-4 h-4" />
+                    <span>حفظ التعديلات</span>
+                </button>
+            </div>
 
         </div>
     );
@@ -1333,7 +1359,8 @@ function ProductChooserPanel({
                                     )}
                                 </div>
                                 <div className="font-black text-[#800020] text-xs shrink-0 font-mono flex items-center gap-1">
-                                    {Number(p.price).toFixed(0)} <span className="text-[10px] font-sans">ر.س</span>
+                                    <span>{Number(p.price).toFixed(0)}</span>
+                                    <RiyalIcon size="0.85em" />
                                     {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-600 mr-1" />}
                                 </div>
                             </div>
@@ -1358,7 +1385,6 @@ function CornerItemEditorCard({
 }) {
     const { showToast } = useToast();
     const [isChoosingProduct, setIsChoosingProduct] = useState(false);
-    const [showQuickImages, setShowQuickImages] = useState(false);
 
     const linkedProduct = useMemo(() => {
         if (!item?.id && !item?.name) return null;
@@ -1369,7 +1395,7 @@ function CornerItemEditorCard({
     const availableColors = linkedProduct?.colors || [];
 
     return (
-        <div className="bg-white p-3.5 rounded-2xl border border-[#800020]/15 space-y-2.5 text-xs shadow-2xs">
+        <div className="bg-white p-3.5 rounded-2xl border border-[#800020]/15 space-y-3 text-xs shadow-2xs">
             {/* Header: Label + Choose Button */}
             <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-[#800020] text-[11px] flex items-center gap-1.5">
@@ -1378,10 +1404,7 @@ function CornerItemEditorCard({
                 </span>
                 <button
                     type="button"
-                    onClick={() => {
-                        setIsChoosingProduct(!isChoosingProduct);
-                        if (!isChoosingProduct) setShowQuickImages(false);
-                    }}
+                    onClick={() => setIsChoosingProduct(!isChoosingProduct)}
                     className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
                         isChoosingProduct
                             ? 'bg-[#800020] text-[#F0DFCD] shadow-xs'
@@ -1407,131 +1430,103 @@ function CornerItemEditorCard({
                 />
             )}
 
-            {/* Current Item Preview & Direct Inputs (Always available for custom products) */}
-            <div className="space-y-2 pt-1">
-                <div className="flex items-center gap-2">
-                    <div className="w-11 h-11 rounded-xl bg-[#f0dfcd]/40 p-1 shrink-0 flex items-center justify-center border border-[#800020]/15 relative">
-                        <img
-                            src={item.image || '/images/coat_transparent.png'}
-                            alt=""
-                            className="w-full h-full object-contain"
-                            onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
-                        />
+            {/* Linked Product Info Banner (Matching Image 10 Style) */}
+            {(item?.name || linkedProduct) && (
+                <div className="text-[10px] text-[#800020]/80 bg-[#800020]/5 px-3 py-1.5 rounded-xl flex items-center justify-between border border-[#800020]/10">
+                    <div className="flex items-center gap-2 min-w-0">
+                        {item.image && (
+                            <img
+                                src={item.image}
+                                alt=""
+                                className="w-7 h-7 object-contain rounded-md bg-[#f0dfcd]/30 p-0.5 border border-[#800020]/10 shrink-0"
+                                onError={(e) => { e.target.src = '/images/coat_transparent.png'; }}
+                            />
+                        )}
+                        <span className="truncate">
+                            المنتج المرتبط بالمتجر: <strong className="font-bold text-[#800020]">{item.name || linkedProduct?.name}</strong>
+                        </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <input
-                            type="text"
-                            value={item.name || ''}
-                            onChange={(e) => onUpdateField('name', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
-                            placeholder="اسم المنتج أو القطعة"
-                            title="يمكنك كتابة اسم أي منتج مخصص تريده هنا"
-                        />
-                    </div>
+                    {(linkedProduct?.id || item.id) && (
+                        <span className="font-mono text-[9px] opacity-60 shrink-0 mr-2" dir="ltr">
+                            ID: {(linkedProduct?.id || item.id).slice(0, 8)}
+                        </span>
+                    )}
                 </div>
+            )}
 
-                {/* Available Product Colors Selector */}
-                {availableColors.length > 0 && (
-                    <div className="p-2 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1 animate-fadeIn">
-                        <div className="flex items-center justify-between text-[10px] font-bold text-[#800020]">
-                            <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
-                                <span>لون عرض القطعة في الطقم:</span>
-                            </span>
-                            <span className="text-[9px] font-bold text-[#800020]/80 bg-white px-1.5 py-0.2 rounded border border-[#800020]/10">
-                                {item.selectedColor || availableColors.find(c => c.image === item.image || c.image_url === item.image)?.name || availableColors[0]?.name}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {availableColors.map((c, cIdx) => {
-                                const isSelected = (item.image && (item.image === c.image || item.image === c.image_url)) || (item.selectedColor === c.name);
-                                return (
-                                    <button
-                                        key={cIdx}
-                                        type="button"
-                                        onClick={() => {
-                                            if (c.image || c.image_url) {
-                                                onUpdateField('image', c.image || c.image_url);
-                                            }
-                                            onUpdateField('selectedColor', c.name);
-                                            showToast(`تم اختيار لون "${c.name}" كـ لون عرض للقطعة`);
-                                        }}
-                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                                            isSelected
-                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-2xs'
-                                                : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
-                                        }`}
-                                        title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
-                                    >
-                                        <span
-                                            className="w-3 h-3 rounded-full border border-black/20 shrink-0"
-                                            style={{ backgroundColor: c.hex }}
-                                        />
-                                        <span>{c.name}</span>
-                                        {isSelected && <Check className="w-2.5 h-2.5 text-[#F0DFCD]" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
+            {/* Available Product Colors Selector */}
+            {availableColors.length > 0 && (
+                <div className="p-2 rounded-xl bg-[#800020]/5 border border-[#800020]/15 space-y-1 animate-fadeIn">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-[#800020]">
+                        <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#800020]" />
+                            <span>لون عرض القطعة في الطقم:</span>
+                        </span>
+                        <span className="text-[9px] font-bold text-[#800020]/80 bg-white px-1.5 py-0.2 rounded border border-[#800020]/10">
+                            {item.selectedColor || availableColors.find(c => c.image === item.image || c.image_url === item.image)?.name || availableColors[0]?.name}
+                        </span>
                     </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <label className="block text-[9px] font-bold text-[#800020]/70 mb-0.5">السعر (ر.س)</label>
-                        <input
-                            type="number"
-                            value={item.price || ''}
-                            onChange={(e) => onUpdateField('price', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
-                            placeholder="السعر"
-                        />
-                    </div>
-                    <div>
-                        <div className="flex items-center justify-between mb-0.5">
-                            <label className="block text-[9px] font-bold text-[#800020]/70">الصورة</label>
-                            <button
-                                type="button"
-                                onClick={() => setShowQuickImages(!showQuickImages)}
-                                className="text-[9px] text-[#800020] hover:underline font-bold cursor-pointer"
-                            >
-                                {showQuickImages ? 'إغلاق الكتالوج' : 'صور الكتالوج'}
-                            </button>
-                        </div>
-                        <input
-                            type="text"
-                            value={item.image || ''}
-                            onChange={(e) => onUpdateField('image', e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-xl border border-[#800020]/20 font-mono text-[10px] text-[#800020] focus:outline-none focus:border-[#800020]"
-                            placeholder="رابط الصورة /images/..."
-                        />
-                    </div>
-                </div>
-
-                {/* Quick Catalog Images Strip */}
-                {showQuickImages && (
-                    <div className="p-2 bg-[#f0dfcd]/20 rounded-xl border border-[#800020]/10 space-y-1 animate-fadeIn">
-                        <span className="text-[9px] font-bold text-[#800020]/70">اختر صورة سريعة من الكتالوج:</span>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 custom-scrollbar">
-                            {storeQuickImages.map((qi, qIdx) => (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {availableColors.map((c, cIdx) => {
+                            const isSelected = (item.image && (item.image === c.image || item.image === c.image_url)) || (item.selectedColor === c.name);
+                            return (
                                 <button
-                                    key={qIdx}
+                                    key={cIdx}
                                     type="button"
                                     onClick={() => {
-                                        onUpdateField('image', qi.url);
-                                        if (!item.name) onUpdateField('name', qi.name);
-                                        setShowQuickImages(false);
+                                        if (c.image || c.image_url) {
+                                            onUpdateField('image', c.image || c.image_url);
+                                        }
+                                        onUpdateField('selectedColor', c.name);
+                                        showToast(`تم اختيار لون "${c.name}" كـ لون عرض للقطعة`);
                                     }}
-                                    className="p-1 rounded-lg bg-white hover:bg-[#800020]/15 border border-[#800020]/10 flex flex-col items-center gap-0.5 transition cursor-pointer"
-                                    title={qi.name}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
+                                        isSelected
+                                            ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-2xs'
+                                            : 'bg-white hover:bg-[#800020]/10 text-[#800020] border-[#800020]/15'
+                                    }`}
+                                    title={`${c.name} ${c.image ? '(يحتوي على صورة مخصصة)' : ''}`}
                                 >
-                                    <img src={qi.url} alt="" className="w-7 h-7 object-contain" />
-                                    <span className="text-[8px] text-[#800020] truncate w-full text-center">{qi.name}</span>
+                                    <span
+                                        className="w-3 h-3 rounded-full border border-black/20 shrink-0"
+                                        style={{ backgroundColor: c.hex }}
+                                    />
+                                    <span>{c.name}</span>
+                                    {isSelected && <Check className="w-2.5 h-2.5 text-[#F0DFCD]" />}
                                 </button>
-                            ))}
-                        </div>
+                            );
+                        })}
                     </div>
-                )}
+                </div>
+            )}
+
+            {/* Inputs Row: Name and Price Side-by-Side (Matching Image 10) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs pt-0.5">
+                <div>
+                    <label className="block text-[10px] font-bold text-[#800020] mb-1">اسم القطعة:</label>
+                    <input
+                        type="text"
+                        value={item.name || ''}
+                        onChange={(e) => onUpdateField('name', e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
+                        placeholder="اسم القطعة"
+                    />
+                </div>
+                <div>
+                    <label className="text-[10px] font-bold text-[#800020] mb-1 flex items-center gap-1">
+                        <span>سعر القطعة</span>
+                        <span>(</span>
+                        <RiyalIcon size="0.85em" />
+                        <span>):</span>
+                    </label>
+                    <input
+                        type="number"
+                        value={item.price || ''}
+                        onChange={(e) => onUpdateField('price', parseFloat(e.target.value) || 0)}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-[#800020]/20 font-bold text-[#800020] text-xs focus:outline-none focus:border-[#800020]"
+                        placeholder="السعر"
+                    />
+                </div>
             </div>
         </div>
     );

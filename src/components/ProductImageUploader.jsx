@@ -124,7 +124,7 @@ export default function ProductImageUploader({
     const isBusy = status === 'compressing' || status === 'uploading';
 
     return (
-        <div className={`w-full ${className}`} dir="rtl">
+        <div className={`@container w-full ${className}`} dir="rtl">
             <input
                 ref={fileInputRef}
                 type="file"
@@ -139,7 +139,7 @@ export default function ProductImageUploader({
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onClick={() => !isBusy && !disabled && fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 ${
+                className={`relative border-2 border-dashed rounded-xl p-4 @[340px]:p-6 text-center transition-all duration-300 ${
                     disabled
                         ? 'opacity-50 cursor-not-allowed bg-gray-100/30 border-gray-300'
                         : isBusy
@@ -184,12 +184,12 @@ export default function ProductImageUploader({
                             <CheckCircle2 className="w-7 h-7" />
                         </div>
                         <h4 className="font-bold text-emerald-800 text-sm">تم الرفع بنجاح وبسرعة فائقة!</h4>
-                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs px-3 py-1 rounded-full border border-emerald-200">
+                        <div className="inline-flex flex-col @[340px]:flex-row items-center gap-1.5 @[340px]:gap-2 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 @[340px]:py-1 rounded-2xl @[340px]:rounded-full border border-emerald-200">
                             <span>الحجم قبل: <strong>{stats.original}</strong></span>
-                            <span>←</span>
+                            <span className="hidden @[340px]:inline">←</span>
                             <span>بعد الضغط: <strong>{stats.compressed}</strong></span>
                             {stats.savings > 0 && (
-                                <span className="bg-emerald-600 text-white font-bold px-1.5 py-0.2 rounded-xs">
+                                <span className="bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded-xs">
                                     توفير {stats.savings}%
                                 </span>
                             )}
@@ -200,7 +200,7 @@ export default function ProductImageUploader({
                                 e.stopPropagation();
                                 resetState();
                             }}
-                            className="mt-2 text-xs text-[#800020] hover:underline font-semibold"
+                            className="mt-2 text-xs text-[#800020] hover:opacity-80 no-underline hover:no-underline font-semibold transition"
                         >
                             رفع صورة أخرى
                         </button>

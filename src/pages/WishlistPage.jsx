@@ -46,7 +46,7 @@ export default function WishlistPage() {
     };
 
     return (
-        <div dir="rtl" className="min-h-screen bg-brand-cream/20 text-[#800020] font-arabic pt-24 sm:pt-28 pb-16 sm:pb-20">
+        <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/20 text-[#800020] font-arabic pt-20 sm:pt-28 pb-16 sm:pb-20 w-full overflow-x-clip">
             <div className="container mx-auto px-2.5 sm:px-6 max-w-7xl">
                 {wishlistItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-6 py-20 opacity-60">

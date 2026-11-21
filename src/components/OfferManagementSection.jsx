@@ -21,6 +21,8 @@ import {
     AlertCircle,
     Layers,
     ChevronDown,
+    ChevronLeft,
+    ChevronRight,
     Save
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -209,13 +211,19 @@ export default function OfferManagementSection({
         return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
     };
 
+    // Helper to ensure English numerals
+    const toEnglishDigits = (str) => {
+        if (!str && str !== 0) return '';
+        return String(str).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    };
+
     // Helper to format Arabic date string for display
     const formatEndDateArabic = (timestamp) => {
         if (!timestamp) return 'غير محدد';
         const date = new Date(Number(timestamp));
         if (isNaN(date.getTime())) return 'غير محدد';
         try {
-            return date.toLocaleDateString('ar-SA', {
+            return toEnglishDigits(date.toLocaleDateString('ar-SA-u-nu-latn', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -223,9 +231,9 @@ export default function OfferManagementSection({
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: true
-            });
+            }));
         } catch {
-            return date.toLocaleString();
+            return toEnglishDigits(date.toLocaleString('en-US'));
         }
     };
 
@@ -260,6 +268,24 @@ export default function OfferManagementSection({
                 endTimestamp: newEnd
             };
         });
+    };
+
+    // Handler: set exact end date & time timestamp directly from custom calendar
+    const handleSetExactTimestamp = (target) => {
+        if (!target || isNaN(target)) return;
+        const diff = Math.max(0, target - Date.now());
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setOfferForm(prev => ({
+            ...prev,
+            endTimestamp: target,
+            durationDays: d,
+            durationHours: h,
+            durationMinutes: m,
+            durationSeconds: s
+        }));
     };
 
     // Handler: set exact end date & time from datetime-local input
@@ -349,93 +375,6 @@ export default function OfferManagementSection({
     return (
         <div className="space-y-8 animate-fadeIn pb-16">
 
-            {/* 1. Header Banner & Status Bar */}
-            <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 sm:p-8 shadow-sm backdrop-blur-md">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2.5">
-                            <span className="w-10 h-10 rounded-2xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center shadow-md">
-                                <Tag className="w-5 h-5" />
-                            </span>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-2xl sm:text-3xl font-black text-[#800020]">
-                                        إدارة عرض الصفحة الرئيسية (Offer Section)
-                                    </h2>
-                                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                        offerForm.isActive
-                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                            : 'bg-rose-100 text-rose-800 border-rose-300'
-                                    }`}>
-                                        {offerForm.isActive ? 'مفعل على المتجر' : 'معطل'}
-                                    </span>
-                                </div>
-                                <p className="text-xs sm:text-sm font-semibold text-[#800020]/70 mt-1">
-                                    تغيير المنتج المعروض في البانر الترويجي الكبير على الصفحة الرئيسية، مع التحكم بنسب الخصم والأسعار والعداد التنازلي.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                        {/* Toggle Active status */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const nextState = !offerForm.isActive;
-                                setOfferForm(prev => ({ ...prev, isActive: nextState }));
-                                if (showToast) showToast(nextState ? 'تم تفعيل العرض' : 'تم تعطيل العرض', 'info');
-                            }}
-                            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-xs cursor-pointer ${
-                                offerForm.isActive
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
-                                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                            }`}
-                        >
-                            <span className={`w-2 h-2 rounded-full ${offerForm.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                            <span>{offerForm.isActive ? 'العرض مفعل' : 'العرض متوقف'}</span>
-                        </button>
-
-                        {/* Reset to default */}
-                        <button
-                            type="button"
-                            onClick={handleReset}
-                            className="px-4 py-2.5 rounded-2xl border border-[#800020]/20 text-[#800020] hover:bg-[#800020]/10 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>استعادة الافتراضي</span>
-                        </button>
-
-                        {/* View in Store */}
-                        <Link
-                            to="/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2.5 rounded-2xl border border-[#800020]/20 text-[#800020] hover:bg-[#800020]/10 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>معاينة في المتجر</span>
-                        </Link>
-
-                        {/* Save Button */}
-                        <button
-                            type="button"
-                            onClick={handleSaveOffer}
-                            disabled={isSaving}
-                            className={`px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shadow-md active:scale-95 ${
-                                hasUnsavedChanges
-                                    ? 'bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] ring-2 ring-[#800020]/30 animate-pulse'
-                                    : 'bg-[#800020] text-[#F0DFCD] hover:bg-[#600018]'
-                            }`}
-                        >
-                            <Save className="w-4 h-4" />
-                            <span>{isSaving ? 'جاري الحفظ...' : hasUnsavedChanges ? 'حفظ التعديلات الآن *' : 'حفظ التعديلات'}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             {/* 2. LIVE INTERACTIVE BANNER PREVIEW (معاينة حية دقيقة) */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between px-2">
@@ -449,31 +388,31 @@ export default function OfferManagementSection({
                 </div>
 
                 {/* Banner Replica */}
-                <div className="w-full bg-[#800020] text-white rounded-3xl overflow-hidden relative shadow-2xl flex items-stretch border-2 border-[#800020]">
-                    <div className="container mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between relative w-full py-8 md:py-0">
+                <div className="@container w-full bg-[#800020] text-white rounded-3xl overflow-hidden relative shadow-2xl flex items-stretch border-2 border-[#800020]">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-12 flex flex-col @[740px]:flex-row items-center justify-between relative w-full py-6 @[740px]:py-0">
 
                         {/* Right: Timer blocks */}
-                        <div className="flex gap-4 text-center items-center py-6 md:py-9" dir="ltr">
+                        <div className="flex gap-2 @[400px]:gap-4 text-center items-center py-4 @[740px]:py-9" dir="ltr">
                             <div className="flex flex-col items-center gap-1.5">
-                                <div className="w-[44px] h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-xl lg:text-2xl font-bold rounded shadow-inner">
+                                <div className="w-[38px] h-[38px] @[400px]:w-[44px] @[400px]:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-lg @[400px]:text-xl lg:text-2xl font-bold rounded shadow-inner">
                                     {previewTimer.days}
                                 </div>
                                 <span className="text-[10px] lg:text-xs font-bold opacity-90">أيام</span>
                             </div>
                             <div className="flex flex-col items-center gap-1.5">
-                                <div className="w-[44px] h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-xl lg:text-2xl font-bold rounded shadow-inner">
+                                <div className="w-[38px] h-[38px] @[400px]:w-[44px] @[400px]:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-lg @[400px]:text-xl lg:text-2xl font-bold rounded shadow-inner">
                                     {previewTimer.hours}
                                 </div>
                                 <span className="text-[10px] lg:text-xs font-bold opacity-90">ساعات</span>
                             </div>
                             <div className="flex flex-col items-center gap-1.5">
-                                <div className="w-[44px] h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-xl lg:text-2xl font-bold rounded shadow-inner">
+                                <div className="w-[38px] h-[38px] @[400px]:w-[44px] @[400px]:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-lg @[400px]:text-xl lg:text-2xl font-bold rounded shadow-inner">
                                     {previewTimer.minutes}
                                 </div>
                                 <span className="text-[10px] lg:text-xs font-bold opacity-90">دقائق</span>
                             </div>
                             <div className="flex flex-col items-center gap-1.5">
-                                <div className="w-[44px] h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-xl lg:text-2xl font-bold rounded shadow-inner">
+                                <div className="w-[38px] h-[38px] @[400px]:w-[44px] @[400px]:h-[44px] lg:w-[48px] lg:h-[48px] flex items-center justify-center bg-black/25 text-lg @[400px]:text-xl lg:text-2xl font-bold rounded shadow-inner">
                                     {previewTimer.seconds}
                                 </div>
                                 <span className="text-[10px] lg:text-xs font-bold opacity-90">ثواني</span>
@@ -481,19 +420,19 @@ export default function OfferManagementSection({
                         </div>
 
                         {/* Center: Text & Pricing */}
-                        <div className="flex-1 flex justify-center items-center my-4 md:my-0 md:translate-x-12">
-                            <div className="flex items-center gap-8 text-[#E2D3C0]">
+                        <div className="flex-1 flex justify-center items-center my-4 @[740px]:my-0 @[740px]:translate-x-12">
+                            <div className="flex items-center gap-4 @[400px]:gap-8 text-[#E2D3C0]">
                                 <div className="text-center">
-                                    <span className="text-2xl lg:text-3xl font-black block">{offerForm.badgeText || 'خصم'}</span>
-                                    <span className="text-3xl lg:text-4xl font-black block text-amber-300">{offerForm.discount || '70%'}</span>
+                                    <span className="text-xl @[400px]:text-2xl lg:text-3xl font-black block">{offerForm.badgeText || 'خصم'}</span>
+                                    <span className="text-2xl @[400px]:text-3xl lg:text-4xl font-black block text-[#E2D3C0]">{offerForm.discount || '70%'}</span>
                                 </div>
-                                <div className="flex flex-col items-center justify-center border-r-2 border-[#E2D3C0]/30 pr-8">
+                                <div className="flex flex-col items-center justify-center border-r-2 border-[#E2D3C0]/30 pr-4 @[400px]:pr-8">
                                     {offerForm.originalPrice && (
-                                        <span className="line-through opacity-70 text-lg block mb-1">
+                                        <span className="line-through opacity-70 text-base @[400px]:text-lg block mb-1">
                                             {offerForm.originalPrice} <RiyalIcon />
                                         </span>
                                     )}
-                                    <span className="font-bold text-2xl lg:text-3xl block text-[#E2D3C0]">
+                                    <span className="font-bold text-xl @[400px]:text-2xl lg:text-3xl block text-[#E2D3C0]">
                                         {offerForm.salePrice} <RiyalIcon />
                                     </span>
                                 </div>
@@ -501,12 +440,12 @@ export default function OfferManagementSection({
                         </div>
 
                         {/* Left: Product Card Block with image */}
-                        <div className="w-[280px] sm:w-[310px] min-h-[240px] sm:min-h-[280px] shrink-0 bg-[#f0dfcd] text-[#800020] flex flex-row items-stretch rounded-2xl md:rounded-none relative z-10 md:-ml-20 md:mr-20 shadow-lg md:shadow-none overflow-visible">
+                        <div className="w-full max-w-[280px] @[400px]:max-w-[310px] min-h-[220px] @[400px]:min-h-[260px] @[740px]:min-h-[280px] shrink-0 bg-[#f0dfcd] text-[#800020] flex flex-row items-stretch rounded-2xl @[740px]:rounded-none relative z-10 @[740px]:-ml-20 @[740px]:mr-20 shadow-lg @[740px]:shadow-none overflow-visible">
                             <div className="flex-1 relative z-20 flex items-center justify-center p-2 group hover:scale-105 transition-transform duration-500">
                                 <img
                                     src={offerForm.imageUrl || '/new_offer_shoes_transparent.png'}
                                     alt={offerForm.productName}
-                                    className="w-[360px] sm:w-[415px] max-w-none h-auto object-contain origin-center absolute translate-x-8 sm:translate-x-12 transition-transform duration-500 drop-shadow-2xl"
+                                    className="w-full max-w-[340px] @[400px]:max-w-[400px] h-auto object-contain origin-center absolute translate-x-4 @[400px]:translate-x-8 @[740px]:translate-x-12 transition-transform duration-500 drop-shadow-2xl"
                                     style={{ transform: `scale(${offerForm.imageScale || 1.1}) translateX(${offerForm.imageOffsetX !== undefined ? `${offerForm.imageOffsetX}px` : '45px'})` }}
                                 />
                             </div>
@@ -517,116 +456,57 @@ export default function OfferManagementSection({
             </div>
 
             {/* 3. Section Navigation Tabs (اختيار المنتج، الأسعار، الصور، العداد) */}
-            <div className="flex items-center gap-2 border-b border-[#800020]/15 pb-2 overflow-x-auto">
-                <button
-                    type="button"
-                    onClick={() => setActiveSection('picker')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer ${
-                        activeSection === 'picker'
-                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
-                            : 'bg-white/50 text-[#800020] hover:bg-white/80'
-                    }`}
-                >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>1. اختيار المنتج من المتجر</span>
-                </button>
+            <div className="flex items-center gap-2 border-b border-[#800020]/15 pb-2 overflow-x-auto no-scrollbar scroll-smooth">
+                {[
+                    { id: 'picker', label: 'اختيار المنتج من المتجر', icon: ShoppingBag },
+                    { id: 'details', label: 'الأسعار ونسبة الخصم والشارة', icon: Percent },
+                    { id: 'images', label: 'صورة العرض ومكتبة الصور', icon: ImageIcon },
+                    { id: 'timer', label: 'العداد التنازلي وتاريخ الانتهاء', icon: Clock }
+                ].map(tab => {
+                    const isSelected = activeSection === tab.id;
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveSection(tab.id)}
+                            className={`shrink-0 whitespace-nowrap relative overflow-hidden group px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 border transition-all duration-300 cursor-pointer ${
+                                isSelected
+                                    ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-sm'
+                                    : 'bg-white/50 text-[#800020] border-[#800020]/15'
+                            }`}
+                        >
+                            {!isSelected && (
+                                <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                            )}
 
-                <button
-                    type="button"
-                    onClick={() => setActiveSection('details')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer ${
-                        activeSection === 'details'
-                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
-                            : 'bg-white/50 text-[#800020] hover:bg-white/80'
-                    }`}
-                >
-                    <Percent className="w-4 h-4" />
-                    <span>2. الأسعار ونسبة الخصم والشارة</span>
-                </button>
+                            {/* Base Layer */}
+                            <span className={`relative z-10 flex items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0'
+                            }`}>
+                                <Icon className="w-4 h-4" />
+                                <span>{tab.label}</span>
+                            </span>
 
-                <button
-                    type="button"
-                    onClick={() => setActiveSection('images')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer ${
-                        activeSection === 'images'
-                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
-                            : 'bg-white/50 text-[#800020] hover:bg-white/80'
-                    }`}
-                >
-                    <ImageIcon className="w-4 h-4" />
-                    <span>3. صورة العرض ومكتبة الصور</span>
-                </button>
+                            {/* Hover Roll-in Layer (زاوية 45) */}
+                            {!isSelected && (
+                                <span className="absolute inset-0 z-20 flex items-center justify-center gap-2 px-4 py-2.5 w-full h-full pointer-events-none text-[#F0DFCD] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                    <Icon className="w-4 h-4" />
+                                    <span>{tab.label}</span>
+                                </span>
+                            )}
 
-                <button
-                    type="button"
-                    onClick={() => setActiveSection('timer')}
-                    className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer ${
-                        activeSection === 'timer'
-                            ? 'bg-[#800020] text-[#F0DFCD] shadow-sm'
-                            : 'bg-white/50 text-[#800020] hover:bg-white/80'
-                    }`}
-                >
-                    <Clock className="w-4 h-4" />
-                    <span>4. العداد التنازلي وتاريخ الانتهاء</span>
-                </button>
+                            <span className="shine-effect z-30" />
+                        </button>
+                    );
+                })}
             </div>
 
             {/* ================================================================= */}
-            {/* SUBSECTION 1: PRODUCT PICKER & QUICK PRESETS                      */}
+            {/* SUBSECTION 1: PRODUCT PICKER & CATALOG                            */}
             {/* ================================================================= */}
             {activeSection === 'picker' && (
                 <div className="space-y-6">
-
-                    {/* Quick deal presets */}
-                    <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 shadow-sm">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Sparkles className="w-4 h-4 text-amber-600" />
-                            <h3 className="text-base font-black text-[#800020]">
-                                نماذج عروض سريعة جاهزة (تطبيق بنقرة واحدة)
-                            </h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                            {QUICK_OFFER_PRESETS.map((preset, idx) => {
-                                const isCurrent = offerForm.productId === preset.productId && offerForm.salePrice === preset.salePrice;
-                                return (
-                                    <div
-                                        key={idx}
-                                        onClick={() => handleApplyPreset(preset)}
-                                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 relative ${
-                                            isCurrent
-                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md'
-                                                : 'bg-white/80 border-[#800020]/15 hover:border-[#800020] hover:shadow-md text-[#800020]'
-                                        }`}
-                                    >
-                                        <div className="w-14 h-14 rounded-xl bg-[#f0dfcd] flex items-center justify-center p-1 overflow-hidden shrink-0">
-                                            <img src={preset.imageUrl} alt={preset.name} className="w-full h-full object-contain" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
-                                                    isCurrent ? 'bg-amber-400 text-amber-950' : 'bg-[#800020]/10 text-[#800020]'
-                                                }`}>
-                                                    {preset.discount}
-                                                </span>
-                                                <span className="text-[11px] font-bold opacity-70 truncate">{preset.category}</span>
-                                            </div>
-                                            <h4 className="text-xs font-black truncate mt-0.5">{preset.productName}</h4>
-                                            <div className="flex items-center gap-2 mt-1 text-xs">
-                                                <span className="font-bold">{preset.salePrice} <RiyalIcon /></span>
-                                                <span className="line-through opacity-60 text-[11px]">{preset.originalPrice} <RiyalIcon /></span>
-                                            </div>
-                                        </div>
-                                        {isCurrent && (
-                                            <span className="w-6 h-6 rounded-full bg-emerald-400 text-[#800020] flex items-center justify-center shrink-0 shadow-xs">
-                                                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
 
                     {/* Catalog Search & Category Filters */}
                     <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 shadow-sm space-y-4">
@@ -653,44 +533,66 @@ export default function OfferManagementSection({
                             </div>
                         </div>
 
-                        {/* Category filter pills */}
+                        {/* Category filter pills (تأثير تغيير لون ونصف بزاوية 45) */}
                         <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-                            {categoriesList.map((cat, idx) => (
-                                <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => setSelectedCategory(cat)}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
-                                        selectedCategory === cat
-                                            ? 'bg-[#800020] text-[#F0DFCD]'
-                                            : 'bg-white/70 text-[#800020] hover:bg-white border border-[#800020]/10'
-                                    }`}
-                                >
-                                    {cat}
-                                </button>
-                            ))}
+                            {categoriesList.map((cat, idx) => {
+                                const isSelected = selectedCategory === cat;
+                                return (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => setSelectedCategory(cat)}
+                                        className={`relative overflow-hidden group px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer text-xs border transition-all duration-300 shrink-0 ${
+                                            isSelected
+                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-xs'
+                                                : 'bg-white/70 text-[#800020] border-[#800020]/15'
+                                        }`}
+                                    >
+                                        {!isSelected && (
+                                            <span className="absolute -inset-x-24 -inset-y-16 bg-[#800020] -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+                                        )}
+
+                                        {/* Base Layer */}
+                                        <span className={`relative z-10 transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+                                            isSelected ? 'text-[#F0DFCD]' : 'text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0'
+                                        }`}>
+                                            {cat}
+                                        </span>
+
+                                        {/* Hover Roll-in Layer (زاوية 45) */}
+                                        {!isSelected && (
+                                            <span className="absolute inset-0 z-20 flex items-center justify-center px-3 py-1.5 w-full h-full pointer-events-none text-[#F0DFCD] transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                                                {cat}
+                                            </span>
+                                        )}
+
+                                        <span className="shine-effect z-30" />
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* Products Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto p-1">
-                            {filteredProducts.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-[#800020]/70">
-                                    <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                                    <p className="text-sm font-bold">لم يتم العثور على منتجات مطابقة للبحث</p>
-                                </div>
-                            ) : (
-                                filteredProducts.map((prod) => {
-                                    const isSelected = offerForm.productId === prod.id;
-                                    return (
-                                        <div
-                                            key={prod.id}
-                                            onClick={() => handleSelectProduct(prod)}
-                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group relative ${
-                                                isSelected
-                                                    ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-lg ring-2 ring-[#800020]/30'
-                                                    : 'bg-white border-[#800020]/15 hover:border-[#800020] hover:shadow-md text-[#800020]'
-                                            }`}
-                                        >
+                        <div className="@container">
+                            <div className="grid grid-cols-1 @[420px]:grid-cols-2 @[680px]:grid-cols-3 @[900px]:grid-cols-4 gap-3 @[420px]:gap-4 max-h-[500px] overflow-y-auto p-1">
+                                {filteredProducts.length === 0 ? (
+                                    <div className="col-span-full py-12 text-center text-[#800020]/70">
+                                        <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                                        <p className="text-sm font-bold">لم يتم العثور على منتجات مطابقة للبحث</p>
+                                    </div>
+                                ) : (
+                                    filteredProducts.map((prod) => {
+                                        const isSelected = offerForm.productId === prod.id;
+                                        return (
+                                            <div
+                                                key={prod.id}
+                                                onClick={() => handleSelectProduct(prod)}
+                                                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group relative ${
+                                                    isSelected
+                                                        ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-lg ring-2 ring-[#800020]/30'
+                                                        : 'bg-white border-[#800020]/15 hover:border-[#800020] hover:shadow-md text-[#800020]'
+                                                }`}
+                                            >
                                             {isSelected && (
                                                 <span className="absolute top-2 left-2 bg-emerald-400 text-emerald-950 font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs z-10">
                                                     <Check className="w-3 h-3 stroke-[3]" />
@@ -741,6 +643,7 @@ export default function OfferManagementSection({
                                     );
                                 })
                             )}
+                        </div>
                         </div>
                     </div>
 
@@ -807,14 +710,23 @@ export default function OfferManagementSection({
 
                         {/* Original Price */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[#800020] block">
-                                السعر الأصلي قبل الخصم (ر.س)
+                            <label className="text-xs font-bold text-[#800020] flex items-center gap-1">
+                                <span>السعر الأصلي قبل الخصم</span>
+                                <span>(</span>
+                                <RiyalIcon size="0.85em" />
+                                <span>)</span>
                             </label>
                             <div className="relative">
                                 <input
                                     type="number"
                                     value={offerForm.originalPrice}
-                                    onChange={(e) => setOfferForm(prev => ({ ...prev, originalPrice: Number(e.target.value) }))}
+                                    onChange={(e) => {
+                                        const newOrig = Number(e.target.value);
+                                        const newDiscount = (newOrig > 0 && offerForm.salePrice > 0 && newOrig > offerForm.salePrice)
+                                            ? `${Math.round(((newOrig - offerForm.salePrice) / newOrig) * 100)}%`
+                                            : offerForm.discount;
+                                        setOfferForm(prev => ({ ...prev, originalPrice: newOrig, discount: newDiscount }));
+                                    }}
                                     placeholder="400"
                                     className="w-full bg-white pr-4 pl-12 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020]"
                                 />
@@ -826,14 +738,23 @@ export default function OfferManagementSection({
 
                         {/* Sale Price */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[#800020] block">
-                                سعر العرض المخفض (ر.س)
+                            <label className="text-xs font-bold text-[#800020] flex items-center gap-1">
+                                <span>سعر العرض المخفض</span>
+                                <span>(</span>
+                                <RiyalIcon size="0.85em" />
+                                <span>)</span>
                             </label>
                             <div className="relative">
                                 <input
                                     type="number"
                                     value={offerForm.salePrice}
-                                    onChange={(e) => setOfferForm(prev => ({ ...prev, salePrice: Number(e.target.value) }))}
+                                    onChange={(e) => {
+                                        const newSale = Number(e.target.value);
+                                        const newDiscount = (offerForm.originalPrice > 0 && newSale > 0 && offerForm.originalPrice > newSale)
+                                            ? `${Math.round(((offerForm.originalPrice - newSale) / offerForm.originalPrice) * 100)}%`
+                                            : offerForm.discount;
+                                        setOfferForm(prev => ({ ...prev, salePrice: newSale, discount: newDiscount }));
+                                    }}
                                     placeholder="150"
                                     className="w-full bg-white pr-4 pl-12 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020]"
                                 />
@@ -843,42 +764,45 @@ export default function OfferManagementSection({
                             </div>
                         </div>
 
-                        {/* Discount Percentage */}
+                        {/* Discount Percentage (محسوبة تلقائياً وغير قابلة للتعديل) */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[#800020] flex items-center justify-between">
-                                <span>نسبة الخصم المعروضة</span>
-                                <button
-                                    type="button"
-                                    onClick={handleAutoComputeDiscount}
-                                    className="text-[10px] text-[#800020] underline hover:opacity-80 cursor-pointer"
-                                >
-                                    حساب تلقائي
-                                </button>
+                            <label className="text-xs font-bold text-[#800020] block">
+                                نسبة الخصم المعروضة (حساب تلقائي)
                             </label>
                             <input
                                 type="text"
+                                readOnly
                                 value={offerForm.discount}
-                                onChange={(e) => setOfferForm(prev => ({ ...prev, discount: e.target.value }))}
-                                placeholder="مثال: 70%"
-                                className="w-full bg-white px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020]"
+                                placeholder="تحسب تلقائياً من السعرين"
+                                className="w-full bg-gray-100/80 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 text-[#800020] cursor-not-allowed select-none"
                             />
                         </div>
 
-                        {/* Target URL */}
+                        {/* Target URL - ربط تلقائي باختيار منتج من المتجر */}
                         <div className="space-y-2 lg:col-span-3">
                             <label className="text-xs font-bold text-[#800020] block">
-                                رابط التوجيه عند النقر على البانر
+                                رابط التوجيه: اختيار منتج من المتجر (ربط الرابط تلقائياً)
                             </label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <LinkIcon className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-[#800020]/50" />
-                                    <input
-                                        type="text"
-                                        value={offerForm.targetUrl}
-                                        onChange={(e) => setOfferForm(prev => ({ ...prev, targetUrl: e.target.value }))}
-                                        placeholder="/product/1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7"
-                                        className="w-full bg-white pr-10 pl-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020]"
-                                    />
+                                    <select
+                                        value={offerForm.productId || ''}
+                                        onChange={(e) => {
+                                            const prodId = e.target.value;
+                                            const selectedProd = productsList.find(p => String(p.id) === String(prodId));
+                                            if (selectedProd) {
+                                                handleSelectProduct(selectedProd);
+                                            }
+                                        }}
+                                        className="w-full bg-white pr-4 pl-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020] cursor-pointer"
+                                    >
+                                        <option value="">-- اختر منتجاً من المتجر لربط رابطه تلقائياً ({productsList.length} منتج) --</option>
+                                        {productsList.map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name} - ({p.price} ر.س)
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 {offerForm.targetUrl && (
                                     <Link
@@ -887,10 +811,15 @@ export default function OfferManagementSection({
                                         className="px-4 py-2.5 rounded-2xl bg-white border border-[#800020]/20 text-[#800020] hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold transition flex items-center gap-1.5 shrink-0"
                                     >
                                         <ExternalLink className="w-3.5 h-3.5" />
-                                        <span>اختبار الرابط</span>
+                                        <span>معاينة الرابط</span>
                                     </Link>
                                 )}
                             </div>
+                            {offerForm.targetUrl && (
+                                <span className="text-[11px] text-[#800020]/60 font-mono block">
+                                    الرابط المربوط تلقائياً: {offerForm.targetUrl}
+                                </span>
+                            )}
                         </div>
 
                     </div>
@@ -971,71 +900,6 @@ export default function OfferManagementSection({
                         </div>
                     </div>
 
-                    {/* Custom Image URL input */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-[#800020] block">
-                            أو أدخل رابط صورة مباشر (PNG شفاف موصى به)
-                        </label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={customImageUrl}
-                                onChange={(e) => setCustomImageUrl(e.target.value)}
-                                placeholder="مثال: /images/coat_transparent.png أو رابط ويب خارجي https://..."
-                                className="w-full bg-white px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border border-[#800020]/20 focus:outline-none focus:border-[#800020] text-[#800020]"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (customImageUrl.trim()) {
-                                        setOfferForm(prev => ({ ...prev, imageUrl: customImageUrl.trim() }));
-                                        if (showToast) showToast('تم تحديث مسار صورة العرض', 'success');
-                                    }
-                                }}
-                                className="px-5 py-2.5 rounded-2xl bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] text-xs font-bold transition shrink-0 cursor-pointer"
-                            >
-                                تطبيق الرابط
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Transparent images gallery */}
-                    <div className="space-y-3">
-                        <span className="text-xs font-black text-[#800020] block">
-                            مكتبة صور المتجر الشفافة المتاحة:
-                        </span>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                            {OFFER_IMAGES_GALLERY.map((imgItem, idx) => {
-                                const isCurrentImg = offerForm.imageUrl === imgItem.url;
-                                return (
-                                    <div
-                                        key={idx}
-                                        onClick={() => {
-                                            setOfferForm(prev => ({ ...prev, imageUrl: imgItem.url }));
-                                            if (showToast) showToast(`تم اختيار صورة: ${imgItem.label}`, 'info');
-                                        }}
-                                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-between text-center relative group ${
-                                            isCurrentImg
-                                                ? 'bg-[#800020] text-[#F0DFCD] border-[#800020] shadow-md ring-2 ring-[#800020]/30'
-                                                : 'bg-white border-[#800020]/15 hover:border-[#800020] hover:shadow-sm text-[#800020]'
-                                        }`}
-                                    >
-                                        <div className="w-full h-24 rounded-xl bg-[#f0dfcd] flex items-center justify-center p-2 mb-2 overflow-hidden group-hover:scale-105 transition-transform">
-                                            <img src={imgItem.url} alt={imgItem.label} className="w-full h-full object-contain" />
-                                        </div>
-                                        <span className="text-[11px] font-bold line-clamp-1">{imgItem.label}</span>
-                                        {isCurrentImg && (
-                                            <span className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-emerald-400 text-emerald-950 flex items-center justify-center shadow-xs">
-                                                <Check className="w-3 h-3 stroke-[3]" />
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
                 </div>
             )}
 
@@ -1046,7 +910,7 @@ export default function OfferManagementSection({
                 <div className="bg-white/60 border border-[#800020]/15 rounded-3xl p-6 sm:p-8 shadow-sm space-y-8">
                     
                     {/* Header */}
-                    <div className="border-b border-[#800020]/15 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="border-b border-[#800020]/15 pb-4">
                         <div>
                             <div className="flex items-center gap-2">
                                 <Clock className="w-5 h-5 text-[#800020]" />
@@ -1057,25 +921,6 @@ export default function OfferManagementSection({
                             <p className="text-xs font-semibold text-[#800020]/70 mt-1">
                                 هذا التوقيت مرتبط مباشرة بالبانر في الصفحة الرئيسية للمتجر ويتم تحديثه لحظياً.
                             </p>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 border shadow-xs ${
-                            (offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-rose-50 text-rose-800 border-rose-200'
-                        }`}>
-                            <span className={`w-2.5 h-2.5 rounded-full ${
-                                (offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
-                                    ? 'bg-emerald-500 animate-pulse'
-                                    : 'bg-rose-500'
-                            }`} />
-                            <span>
-                                {(offerForm.endTimestamp && Number(offerForm.endTimestamp) > Date.now())
-                                    ? 'العداد نشط ويعمل حالياً'
-                                    : 'انتهت مدة العرض'
-                                }
-                            </span>
                         </div>
                     </div>
 
@@ -1110,7 +955,7 @@ export default function OfferManagementSection({
                                 <span className="text-[11px] font-bold text-[#F0DFCD]">دقائق</span>
                             </div>
                             <div className="flex flex-col items-center gap-1.5">
-                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15 text-amber-300">
+                                <div className="w-[50px] h-[50px] sm:w-[58px] sm:h-[58px] flex items-center justify-center bg-black/35 text-xl sm:text-2xl font-black rounded-2xl shadow-inner border border-white/15 text-[#F0DFCD]">
                                     {previewTimer.seconds}
                                 </div>
                                 <span className="text-[11px] font-bold text-[#F0DFCD]">ثواني</span>
@@ -1127,37 +972,23 @@ export default function OfferManagementSection({
                         </button>
                     </div>
 
-                    {/* Method 1: Exact Date and Time Picker */}
-                    <div className="bg-white/80 border border-[#800020]/20 rounded-2xl p-5 space-y-4 shadow-xs">
+                    {/* Method 1: Exact Date and Time Picker (Luxury Store-Themed Calendar) */}
+                    <div className="bg-white/80 border border-[#800020]/20 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xs">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-[#800020]" />
                             <h4 className="text-sm font-black text-[#800020]">
-                                الخيار الأول: تحديد تاريخ ووقت انتهاء العرض بدقة (موصى به)
+                                تحديد تاريخ ووقت انتهاء العرض من التقويم
                             </h4>
                         </div>
                         <p className="text-xs text-[#800020]/70">
-                            حدد موعداً محدداً لانتهاء العرض (مثلاً: 25 أكتوبر 2026 الساعة 11:59 مساءً). سيتم احتساب الأيام والساعات المتبقية تلقائياً.
+                            اختر يوم وتوقيت انتهاء العرض مباشرة من التقويم المصمم بهوية وتصميم المتجر. يتم احتساب الأيام والساعات المتبقية تلقائياً وربطها فورياً بالعداد.
                         </p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-[#800020] block">
-                                    تاريخ ووقت انتهاء العرض:
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={formatToLocalDateTimeInput(offerForm.endTimestamp)}
-                                    min={formatToLocalDateTimeInput(Date.now())}
-                                    onChange={handleSetExactEndDateTime}
-                                    className="w-full bg-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-[#800020]/25 text-[#800020] focus:outline-none focus:border-[#800020] shadow-xs cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="p-3.5 rounded-xl bg-[#F0DFCD]/40 border border-[#800020]/15 text-xs text-[#800020]">
-                                <span className="font-bold block mb-1">الموعد المحدد حالياً:</span>
-                                <span className="font-black text-sm text-[#800020]">{formatEndDateArabic(offerForm.endTimestamp)}</span>
-                            </div>
-                        </div>
+                        <LuxuryArabicDatePicker
+                            endTimestamp={offerForm.endTimestamp}
+                            onSelectTimestamp={handleSetExactTimestamp}
+                            formatEndDateArabic={formatEndDateArabic}
+                        />
                     </div>
 
                     {/* Method 2: Manual Duration Inputs */}
@@ -1230,87 +1061,62 @@ export default function OfferManagementSection({
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => handleSetDurationPreset(0, 12)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
-                                >
-                                    ⚡ 12 ساعة (عرض خاطف)
-                                </button>
-                                <button
-                                    type="button"
                                     onClick={() => handleSetDurationPreset(1, 0)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    24 ساعة (يوم كامل)
+                                    يوم
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleSetDurationPreset(2, 0)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    48 ساعة (يومان)
+                                    يومين
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleSetDurationPreset(3, 23, 15)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    onClick={() => handleSetDurationPreset(3, 0)}
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    4 أيام (العرض القياسي)
+                                    ثلاث أيام
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleSetDurationPreset(4, 0)}
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                >
+                                    أربع أيام
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleSetDurationPreset(7, 0)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    أسبوع كامل (7 أيام)
+                                    أسبوع
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleSetDurationPreset(14, 0)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    أسبوعان (14 يوماً)
+                                    أسبوعين
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleSetDurationPreset(30, 0)}
-                                    className="px-3.5 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-xs font-bold text-[#800020] transition shadow-xs cursor-pointer"
                                 >
-                                    شهر كامل (30 يوماً)
+                                    شهر
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Dedicated Save Bar for Timer */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <Clock className="w-5 h-5 text-amber-700 shrink-0" />
-                            <div>
-                                <span className="font-bold text-xs text-amber-900 block">
-                                    تأكيد وحفظ توقيت العرض:
-                                </span>
-                                <span className="text-[11px] text-amber-800">
-                                    سيتم نشر هذا التوقيت فوراً على الصفحة الرئيسية لجميع زوار المتجر وتثبيت العداد التنازلي.
-                                </span>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleSaveOffer}
-                            disabled={isSaving}
-                            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#800020] text-[#F0DFCD] hover:bg-[#600018] text-xs sm:text-sm font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 shrink-0"
-                        >
-                            <Save className="w-4 h-4" />
-                            <span>{isSaving ? 'جاري الحفظ...' : 'حفظ التوقيت ونشره على المتجر الآن'}</span>
-                        </button>
                     </div>
 
                 </div>
             )}
 
-            {/* 5. Sticky Bottom Action Bar */}
-            <div className="sticky bottom-4 z-30 bg-[#800020] text-[#F0DFCD] rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-[#F0DFCD]/20 backdrop-blur-lg">
+            {/* 5. Bottom Action Bar (ثابت في نهاية الصفحة وليس متحركاً - تم إنزاله للأسفل) */}
+            <div className="mt-20 sm:mt-28 lg:mt-36 bg-[#800020] text-[#F0DFCD] rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-[#F0DFCD]/20 backdrop-blur-lg">
                 <div className="flex items-center gap-3">
                     <span className="w-10 h-10 rounded-2xl bg-[#F0DFCD] text-[#800020] flex items-center justify-center font-black">
                         <Tag className="w-5 h-5" />
@@ -1318,12 +1124,21 @@ export default function OfferManagementSection({
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-black text-white">العرض المحدد: {offerForm.productName}</span>
-                            <span className="text-xs font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-bold text-[#F0DFCD]">
                                 {offerForm.discount}
                             </span>
                         </div>
-                        <span className="text-xs text-[#F0DFCD]/80">
-                            السعر: {offerForm.salePrice} ر.س {offerForm.originalPrice && `(بدلاً من ${offerForm.originalPrice} ر.س)`}
+                        <span className="text-xs text-[#F0DFCD]/80 inline-flex items-center gap-1 flex-wrap">
+                            <span>السعر:</span>
+                            <span className="font-bold">{offerForm.salePrice}</span>
+                            <RiyalIcon size="0.85em" />
+                            {offerForm.originalPrice && (
+                                <span className="inline-flex items-center gap-1 opacity-80">
+                                    <span>(بدلاً من {offerForm.originalPrice}</span>
+                                    <RiyalIcon size="0.85em" />
+                                    <span>)</span>
+                                </span>
+                            )}
                         </span>
                     </div>
                 </div>
@@ -1331,24 +1146,265 @@ export default function OfferManagementSection({
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                     <button
                         type="button"
-                        onClick={handleReset}
-                        className="px-4 py-2.5 rounded-2xl border border-[#F0DFCD]/30 text-[#F0DFCD] hover:bg-white/10 text-xs font-bold transition cursor-pointer"
-                    >
-                        استعادة الافتراضي
-                    </button>
-
-                    <button
-                        type="button"
                         onClick={handleSaveOffer}
                         disabled={isSaving}
-                        className="px-6 py-2.5 rounded-2xl bg-[#F0DFCD] text-[#800020] hover:bg-white text-xs sm:text-sm font-black transition flex items-center gap-2 shadow-lg cursor-pointer active:scale-95"
+                        className="relative overflow-hidden group px-6 py-2.5 rounded-2xl bg-[#F0DFCD] text-[#800020] text-xs sm:text-sm font-black transition-all duration-300 flex items-center gap-2 shadow-lg cursor-pointer active:scale-95 border border-[#F0DFCD]/40"
                     >
-                        <Save className="w-4 h-4" />
-                        <span>{isSaving ? 'جاري الحفظ...' : 'حفظ وتطبيق العرض على المتجر'}</span>
+                        {/* 45-degree angle sliding background */}
+                        <span className="absolute -inset-x-24 -inset-y-16 bg-white -translate-x-[160%] skew-x-[45deg] transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-0 pointer-events-none z-0" />
+
+                        {/* Base Layer text that slides up on hover */}
+                        <span className="relative z-10 flex items-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] text-[#800020] group-hover:-translate-y-[150%] group-hover:opacity-0">
+                            <Save className="w-4 h-4" />
+                            <span>{isSaving ? 'جاري الحفظ...' : 'حفظ وتطبيق العرض على المتجر'}</span>
+                        </span>
+
+                        {/* Hover Roll-in Layer (Burgundy text on White bg) */}
+                        <span className="absolute inset-0 z-20 flex items-center justify-center gap-2 p-2.5 w-full h-full pointer-events-none text-[#800020] font-black transition-all duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] translate-y-[150%] opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
+                            <Save className="w-4 h-4" />
+                            <span>{isSaving ? 'جاري الحفظ...' : 'حفظ وتطبيق العرض على المتجر'}</span>
+                        </span>
                     </button>
                 </div>
             </div>
 
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Luxury Store-Themed Arabic Date & Time Calendar Component
+// ─────────────────────────────────────────────────────────────────────────────
+function LuxuryArabicDatePicker({ endTimestamp, onSelectTimestamp, formatEndDateArabic }) {
+    const activeDate = useMemo(() => {
+        return endTimestamp ? new Date(Number(endTimestamp)) : new Date(Date.now() + 3 * 86400000);
+    }, [endTimestamp]);
+
+    const [viewYear, setViewYear] = useState(() => activeDate.getFullYear());
+    const [viewMonth, setViewMonth] = useState(() => activeDate.getMonth()); // 0-11
+
+    // Sync view with activeDate when endTimestamp changes from outside
+    useEffect(() => {
+        if (endTimestamp) {
+            const d = new Date(Number(endTimestamp));
+            if (!isNaN(d.getTime())) {
+                setViewYear(d.getFullYear());
+                setViewMonth(d.getMonth());
+            }
+        }
+    }, [endTimestamp]);
+
+    const ARABIC_MONTHS = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+
+    const ARABIC_WEEKDAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    // JS: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    // Arab Sat-first: Sat=0, Sun=1, Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
+    const firstDayJs = new Date(viewYear, viewMonth, 1).getDay();
+    const firstDayOffset = (firstDayJs + 1) % 7;
+
+    const handlePrevMonth = () => {
+        if (viewMonth === 0) {
+            setViewMonth(11);
+            setViewYear(v => v - 1);
+        } else {
+            setViewMonth(v => v - 1);
+        }
+    };
+
+    const handleNextMonth = () => {
+        if (viewMonth === 11) {
+            setViewMonth(0);
+            setViewYear(v => v + 1);
+        } else {
+            setViewMonth(v => v + 1);
+        }
+    };
+
+    const handleSelectDay = (day) => {
+        const currentHours = activeDate.getHours();
+        const currentMins = activeDate.getMinutes();
+        const newD = new Date(viewYear, viewMonth, day, currentHours, currentMins, 0);
+        onSelectTimestamp(newD.getTime());
+    };
+
+    const handleTimeChange = (hour12, minute, period) => {
+        let h24 = Number(hour12) % 12;
+        if (period === 'PM') h24 += 12;
+        const newD = new Date(activeDate);
+        newD.setHours(h24, Number(minute), 0, 0);
+        onSelectTimestamp(newD.getTime());
+    };
+
+    const currentHour12 = activeDate.getHours() % 12 || 12;
+    const currentPeriod = activeDate.getHours() >= 12 ? 'PM' : 'AM';
+    const currentMinutes = activeDate.getMinutes();
+
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === viewYear && today.getMonth() === viewMonth;
+    const todayDate = today.getDate();
+
+    return (
+        <div className="bg-white/95 rounded-3xl p-4 sm:p-6 border border-[#800020]/15 shadow-sm space-y-4 max-w-xl">
+            {/* Header: Month & Year + Navigation */}
+            <div className="flex items-center justify-between border-b border-[#800020]/15 pb-3">
+                <div className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-xl bg-[#800020] text-[#F0DFCD] flex items-center justify-center font-bold shadow-xs">
+                        <Calendar className="w-4 h-4" />
+                    </span>
+                    <div>
+                        <h4 className="font-black text-sm sm:text-base text-[#800020]">
+                            {ARABIC_MONTHS[viewMonth]} {viewYear}
+                        </h4>
+                        <span className="text-[10px] text-[#800020]/60 block font-bold">
+                            جدول تقويم المتجر لاختيار موعد العرض
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-1.5" dir="ltr">
+                    <button
+                        type="button"
+                        onClick={handlePrevMonth}
+                        className="w-8 h-8 rounded-xl border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-[#800020] flex items-center justify-center transition cursor-pointer"
+                        title="الشهر السابق"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleNextMonth}
+                        className="w-8 h-8 rounded-xl border border-[#800020]/20 hover:bg-[#800020] hover:text-[#F0DFCD] text-[#800020] flex items-center justify-center transition cursor-pointer"
+                        title="الشهر القادم"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 gap-1 text-center">
+                {ARABIC_WEEKDAYS.map((dayName, idx) => (
+                    <span
+                        key={idx}
+                        className={`text-[11px] font-black py-1 ${
+                            dayName === 'الجمعة' ? 'text-[#800020]' : 'text-[#800020]/70'
+                        }`}
+                    >
+                        {dayName}
+                    </span>
+                ))}
+            </div>
+
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center">
+                {/* Empty leading cells */}
+                {Array.from({ length: firstDayOffset }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-9 sm:h-10" />
+                ))}
+
+                {/* Day cells */}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const isSelected =
+                        activeDate.getFullYear() === viewYear &&
+                        activeDate.getMonth() === viewMonth &&
+                        activeDate.getDate() === day;
+                    const isToday = isCurrentMonth && todayDate === day;
+
+                    return (
+                        <button
+                            key={day}
+                            type="button"
+                            onClick={() => handleSelectDay(day)}
+                            className={`h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center relative cursor-pointer ${
+                                isSelected
+                                    ? 'bg-[#800020] text-[#F0DFCD] font-black shadow-md scale-105 z-10'
+                                    : isToday
+                                    ? 'border-2 border-[#800020] text-[#800020] hover:bg-[#800020]/10 font-black'
+                                    : 'text-[#800020] hover:bg-[#800020]/10'
+                            }`}
+                        >
+                            <span>{day}</span>
+                            {isToday && !isSelected && (
+                                <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[#800020]" />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Time Picker Bar */}
+            <div className="p-3.5 rounded-2xl bg-[#F0DFCD]/40 border border-[#800020]/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#800020]" />
+                    <span className="font-bold text-[#800020]">وقت الانتهاء بالساعة والدقيقة:</span>
+                </div>
+
+                <div className="flex items-center gap-2" dir="ltr">
+                    {/* Hours */}
+                    <select
+                        value={currentHour12}
+                        onChange={(e) => handleTimeChange(e.target.value, currentMinutes, currentPeriod)}
+                        className="bg-white px-2.5 py-1.5 rounded-xl border border-[#800020]/25 font-bold text-xs text-[#800020] cursor-pointer focus:outline-none focus:border-[#800020]"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                            <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+                        ))}
+                    </select>
+
+                    <span className="font-black text-[#800020]">:</span>
+
+                    {/* Minutes */}
+                    <select
+                        value={Math.floor(currentMinutes / 5) * 5}
+                        onChange={(e) => handleTimeChange(currentHour12, e.target.value, currentPeriod)}
+                        className="bg-white px-2.5 py-1.5 rounded-xl border border-[#800020]/25 font-bold text-xs text-[#800020] cursor-pointer focus:outline-none focus:border-[#800020]"
+                    >
+                        {Array.from({ length: 12 }, (_, i) => i * 5).map(m => (
+                            <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                        ))}
+                    </select>
+
+                    {/* Period: AM / PM */}
+                    <div className="flex rounded-xl border border-[#800020]/25 overflow-hidden bg-white">
+                        <button
+                            type="button"
+                            onClick={() => handleTimeChange(currentHour12, currentMinutes, 'AM')}
+                            className={`px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                                currentPeriod === 'AM'
+                                    ? 'bg-[#800020] text-[#F0DFCD]'
+                                    : 'text-[#800020] hover:bg-[#800020]/10'
+                            }`}
+                        >
+                            ص
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleTimeChange(currentHour12, currentMinutes, 'PM')}
+                            className={`px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                                currentPeriod === 'PM'
+                                    ? 'bg-[#800020] text-[#F0DFCD]'
+                                    : 'text-[#800020] hover:bg-[#800020]/10'
+                            }`}
+                        >
+                            م
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Currently Selected Summary */}
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-[#800020]/10">
+                <span className="text-[#800020]/70 font-semibold">الموعد المحدد في العداد حالياً:</span>
+                <span className="font-black text-sm text-[#800020]">
+                    {formatEndDateArabic ? formatEndDateArabic(endTimestamp) : new Date(Number(endTimestamp)).toLocaleString('ar-SA')}
+                </span>
+            </div>
         </div>
     );
 }

@@ -18,7 +18,7 @@ export default function Navbar() {
     ];
 
     return (
-        <header className="w-full px-2.5 min-[390px]:px-3.5 sm:px-8 lg:px-12 py-2.5 sm:py-5 flex items-center justify-between relative z-50 bg-[#F0DFCD] border-b border-[#800020]/10">
+        <header className="sticky top-0 z-50 w-full px-2.5 min-[390px]:px-3.5 sm:px-8 lg:px-12 py-2.5 sm:py-5 flex items-center justify-between relative bg-[#F0DFCD] border-b border-[#800020]/10">
             {/* Navigation Links (Visible on Mobile, Tablet, and Desktop) */}
             <nav className="flex items-center gap-1.5 min-[390px]:gap-2 sm:gap-4 md:gap-6 lg:gap-8 z-10 shrink-0">
                 {navLinks.map(l => (
@@ -60,8 +60,7 @@ export default function Navbar() {
                         title="لوحة الإدارة التنفيذية"
                     >
                         <span className="hidden lg:inline text-xs">الإدارة</span>
-                        <ShieldCheck className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" title="مشرف مسجل" />
+                        <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Link>
                 )}
 
@@ -73,8 +72,8 @@ export default function Navbar() {
                     title="المفضلة"
                 >
                     <span className="hidden lg:inline text-xs">المفضلة</span>
-                    <div className="relative">
-                        <Heart className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+                    <div className="relative flex items-center justify-center">
+                        <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
                         {wishlistCount > 0 && (
                             <motion.span 
                                 key={`wish-${wishlistCount}`}
@@ -97,8 +96,8 @@ export default function Navbar() {
                     title="سلة التسوق"
                 >
                     <span className="hidden lg:inline text-xs">السلة</span>
-                    <div className="relative">
-                        <ShoppingBag className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+                    <div className="relative flex items-center justify-center">
+                        <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
                         {cartCount > 0 && (
                             <motion.span 
                                 key={`cart-${cartCount}`}
@@ -124,7 +123,7 @@ export default function Navbar() {
                         <span className="hidden lg:inline max-w-[100px] truncate text-xs">
                             {profile?.full_name || 'حسابي'}
                         </span>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#800020]/15 flex items-center justify-center border border-[#800020]/30 text-[#800020] font-bold text-xs">
+                        <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-[#800020]/15 flex items-center justify-center border border-[#800020]/30 text-[#800020] font-bold text-[9px] sm:text-xs">
                             {(profile?.full_name || user.email || 'U')[0].toUpperCase()}
                         </div>
                     </Link>
@@ -137,7 +136,7 @@ export default function Navbar() {
                         title="تسجيل الدخول"
                     >
                         <span className="hidden sm:inline text-xs">دخول</span>
-                        <LogIn className="w-5 h-5" />
+                        <LogIn className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Link>
                 )}
             </div>

@@ -115,7 +115,7 @@ export default function LoginPage() {
 
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD] flex" dir="rtl">
+        <div className="min-h-[100dvh] bg-[#F0DFCD] flex w-full overflow-x-clip" dir="rtl">
             {/* Left: Decorative Panel */}
             <div className="hidden lg:flex lg:w-1/2 bg-[#800020] relative overflow-hidden flex-col items-center justify-center p-16">
                 <div className="absolute inset-0 opacity-10"
@@ -130,7 +130,7 @@ export default function LoginPage() {
                         أناقتك هويتك — اكتشف تشكيلات حصرية لا تُضاهى
                     </p>
                     <img src="/images/hero_model_transparent_v2.png" alt="مودل"
-                        className="h-[50vh] object-contain drop-shadow-2xl" />
+                        className="h-[50dvh] object-contain drop-shadow-2xl" />
                 </motion.div>
             </div>
 

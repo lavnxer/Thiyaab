@@ -148,8 +148,8 @@ function mapOrderData(data) {
     };
 
     const statusMap = {
-        'new': { text: 'تم تأكيد الطلب', step: 1, color: 'text-[#800020]', bg: 'bg-[#800020]/10 border-[#800020]/30' },
-        'confirmed': { text: 'تم تأكيد الطلب', step: 1, color: 'text-[#800020]', bg: 'bg-[#800020]/10 border-[#800020]/30' },
+        'new': { text: 'طلب جديد', step: 1, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-300' },
+        'confirmed': { text: 'طلب جديد', step: 1, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-300' },
         'processing': { text: 'تجهيز الشحنة', step: 2, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-300' },
         'shipping': { text: 'في الطريق مع شركة الشحن', step: 3, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-300' },
         'delivered': { text: 'تم التوصيل بنجاح', step: 5, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-300' },
@@ -348,7 +348,7 @@ export default function TrackOrderPage() {
     // Order Not Found State
     if (!order) {
         return (
-            <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-32 pb-20 px-6 font-arabic flex flex-col items-center justify-center">
+            <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/30 text-[#800020] pt-28 pb-20 px-4 sm:px-6 font-arabic flex flex-col items-center justify-center w-full overflow-x-clip">
                 <div className="w-20 h-20 rounded-3xl bg-[#800020]/10 flex items-center justify-center mb-6 text-[#800020]">
                     <AlertCircle className="w-10 h-10" />
                 </div>
@@ -394,7 +394,7 @@ export default function TrackOrderPage() {
     }
 
     return (
-        <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-2.5 sm:px-6 lg:px-8 font-arabic">
+        <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-3 sm:px-6 lg:px-8 font-arabic w-full overflow-x-clip">
 
             <div className="max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6 lg:gap-8">
                 

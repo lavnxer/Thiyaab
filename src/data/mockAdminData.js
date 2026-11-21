@@ -83,11 +83,11 @@ export const initialOrdersList = [];
 
 export const orderStatusMeta = {
     all: { label: 'جميع الطلبات', badgeColor: 'bg-neutral-800 text-white', dotColor: 'bg-neutral-400', textColor: 'text-neutral-800' },
-    new: { label: 'تم تأكيد الطلب', badgeColor: 'bg-emerald-100 text-emerald-900 border border-emerald-300', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' },
+    new: { label: 'طلب جديد', badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300', dotColor: 'bg-[#FBBF24]', textColor: 'text-amber-500' },
     processing: { label: 'قيد التجهيز', badgeColor: 'bg-blue-100 text-blue-900 border border-blue-300', dotColor: 'bg-blue-500', textColor: 'text-blue-700' },
     shipping: { label: 'جاري التوصيل', badgeColor: 'bg-purple-100 text-purple-900 border border-purple-300', dotColor: 'bg-purple-500', textColor: 'text-purple-700' },
     delivered: { label: 'تم التوصيل', badgeColor: 'bg-emerald-100 text-emerald-900 border border-emerald-300', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' },
-    cancelled: { label: 'ملغاة', badgeColor: 'bg-rose-100 text-rose-900 border border-rose-300', dotColor: 'bg-rose-500', textColor: 'text-rose-700' },
+    cancelled: { label: 'ملغي', badgeColor: 'bg-rose-100 text-rose-900 border border-rose-300', dotColor: 'bg-rose-500', textColor: 'text-rose-700' },
 };
 
 export const storeQuickImages = [

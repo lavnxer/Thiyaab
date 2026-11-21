@@ -364,15 +364,15 @@ export default function CartPage() {
     }, [activeDropdown]);
 
     return (
-        <div className="min-h-screen bg-brand-cream/20 pt-28 pb-20 text-brand-burgundy font-arabic" dir="rtl">
-            <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16">
+        <div className="min-h-[100dvh] bg-brand-cream/20 pt-20 sm:pt-28 pb-16 sm:pb-20 text-brand-burgundy font-arabic w-full overflow-x-clip" dir="rtl">
+            <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-12 xl:px-16">
                 {cartItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-6 py-20 opacity-60">
                         <ShoppingBag className="w-24 h-24" />
                         <p className="text-2xl font-bold">سلتك فارغة</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
+                    <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
                         {/* Unified Items Table Container */}
                         <div className="flex-1 w-full bg-white/25 backdrop-blur-xs rounded-2xl border border-brand-burgundy/15 shadow-sm flex flex-col">
                             <AnimatePresence>
@@ -391,7 +391,7 @@ export default function CartPage() {
                                             exit={{ opacity: 0, scale: 0.95 }}
                                             key={item.id ? `${item.id}-${i}` : i}
                                             style={{ zIndex: (isColorOpen || isSizeOpen) ? 40 : cartItems.length - i }}
-                                            className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-5 relative border-b border-brand-burgundy/15 last:border-b-0"
+                                            className="@container flex flex-col sm:flex-row gap-3.5 sm:gap-6 p-3.5 sm:p-5 relative border-b border-brand-burgundy/15 last:border-b-0"
                                         >
                                             <AnimatedSadX
                                                 onClick={() => {

@@ -391,10 +391,10 @@ export default function ProductPage() {
     const discount = product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0;
 
     return (
-        <div className="min-h-screen bg-brand-cream/20 text-brand-burgundy pt-20 sm:pt-28 pb-16 sm:pb-20 font-arabic" dir="rtl">
+        <div className="min-h-[100dvh] bg-brand-cream/20 text-brand-burgundy pt-20 sm:pt-28 pb-16 sm:pb-20 font-arabic w-full overflow-x-clip" dir="rtl">
 
             {/* ─── Top Section: Gallery & Info ─── */}
-            <div className="container mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
+            <div className="container mx-auto px-3 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
 
                 {/* Gallery: Responsive flex */}
                 <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 h-auto sm:h-[480px] lg:h-[580px]">
@@ -457,8 +457,7 @@ export default function ProductPage() {
                 <div className="flex flex-col py-4">
                     {isAdmin && (
                         <div className="mb-4 p-3 rounded-2xl bg-[#800020]/10 border border-[#800020]/25 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#800020]">
-                                <Sparkles className="w-4 h-4 shrink-0" />
+                            <div className="text-xs font-bold text-[#800020]">
                                 <span>صلاحية المسؤول: يمكنك تعديل كافة بيانات هذا المنتج مباشرة</span>
                             </div>
                             <button
@@ -735,7 +734,7 @@ export default function ProductPage() {
                                         <StarRating rating={5} />
                                     </div>
                                     <p className="text-brand-burgundy/80 text-sm leading-relaxed">منتج رائع جداً والخامة ممتازة، أنصح به بشدة! الجودة تفوق السعر بصراحة.</p>
-                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-500/15 border border-emerald-600/30 px-3 py-1 rounded-lg">
+                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                                         <span>مشتري موثق</span>
                                     </div>
@@ -747,7 +746,7 @@ export default function ProductPage() {
                                         <StarRating rating={4} />
                                     </div>
                                     <p className="text-brand-burgundy/80 text-sm leading-relaxed">مقاس ممتاز ومريح في اللبس ولكن التوصيل تأخر يومين.</p>
-                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-500/15 border border-emerald-600/30 px-3 py-1 rounded-lg">
+                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                                         <span>مشتري موثق</span>
                                     </div>

@@ -814,7 +814,7 @@ const defaultGuestCards = [
     // If cart is empty and no order just completed
     if (cartItems.length === 0 && !completedOrder) {
         return (
-            <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-32 pb-20 px-6 font-arabic flex flex-col items-center justify-center">
+            <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/30 text-[#800020] pt-28 pb-20 px-4 sm:px-6 font-arabic flex flex-col items-center justify-center w-full overflow-x-clip">
                 <div className="w-20 h-20 rounded-3xl bg-[#800020]/10 flex items-center justify-center mb-6 text-[#800020]">
                     <ShoppingBag className="w-10 h-10" />
                 </div>
@@ -834,7 +834,7 @@ const defaultGuestCards = [
     }
 
     return (
-        <div dir="rtl" className="min-h-screen bg-brand-cream/30 text-[#800020] pt-28 pb-20 px-4 sm:px-8 lg:px-12 xl:px-16 font-arabic">
+        <div dir="rtl" className="min-h-[100dvh] bg-brand-cream/30 text-[#800020] pt-20 sm:pt-28 pb-16 sm:pb-20 px-3 sm:px-8 lg:px-12 xl:px-16 font-arabic w-full overflow-x-clip">
             <div className="w-full max-w-[1720px] mx-auto flex flex-col gap-8">
 
                 {/* Header & Breadcrumb */}

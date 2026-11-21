@@ -93,9 +93,9 @@ export default function MenPage() {
     }, [products, activeCategory, sideFilters]);
 
     return (
-        <div className="min-h-screen bg-[#F0DFCD]" dir="rtl">
+        <div className="min-h-[100dvh] bg-[#F0DFCD] w-full overflow-x-clip" dir="rtl">
             {/* Hero Banner */}
-            <div className="relative w-full h-[36vh] sm:h-[45vh] lg:h-[50vh] overflow-hidden flex items-center px-3 sm:px-8 md:px-16">
+            <div className="relative w-full h-[36dvh] sm:h-[45dvh] lg:h-[50dvh] overflow-hidden flex items-center px-3 sm:px-8 md:px-16">
                 <div className="absolute inset-0 bg-[#4a0015]" />
 
                 <div className="absolute left-0 bottom-0 right-0 h-1/2"
@@ -113,11 +113,11 @@ export default function MenPage() {
                     <source src="/Vids/Men Page.webm" type="video/webm" />
                 </motion.video>
 
-                <div className="relative z-20 flex flex-col gap-1.5 sm:gap-3 max-w-[68%] sm:max-w-2xl">
+                <div className="relative z-20 flex flex-col gap-1.5 sm:gap-3 max-w-[65%] sm:max-w-2xl">
                     <motion.span initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
                         className="text-[#F0DFCD]/60 font-bold tracking-widest text-[11px] sm:text-sm">الرئيسية / الرجال</motion.span>
                     <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-                        className="text-3xl sm:text-6xl lg:text-7xl font-black text-[#F0DFCD] leading-tight tracking-tight">الرجال</motion.h1>
+                        className="text-[clamp(1.75rem,5vw,4.5rem)] font-black text-[#F0DFCD] leading-tight tracking-tight">الرجال</motion.h1>
                     <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
                         className="text-[#F0DFCD]/80 text-[11px] sm:text-base lg:text-xl font-medium leading-snug sm:leading-relaxed">أناقة لا تُضاهى — مجموعة ملابس رجالية بأعلى معايير الجودة</motion.p>
                 </div>
@@ -125,20 +125,21 @@ export default function MenPage() {
 
             {/* Category Filters row - Original Luxury Style & Responsive Flow */}
             <div className="bg-[#F0DFCD] relative">
-                <div className="container mx-auto px-2.5 sm:px-8 py-2.5 sm:py-10 flex items-center justify-center relative">
+                <div className="container mx-auto px-2.5 sm:px-8 py-2.5 sm:py-6 flex items-center justify-between lg:justify-center relative gap-2 sm:gap-4">
                     
-                    {/* Category Buttons & Filter Button */}
-                    <div className="flex gap-1.5 sm:gap-4 overflow-x-auto no-scrollbar sm:flex-wrap justify-start sm:justify-center py-1 items-center w-full">
-                        
-                        {/* Filter Button (Original design: rounded-sm, burgundy, shadow) */}
-                        <button 
-                            onClick={() => setIsFilterOpen(true)} 
-                            className="lg:absolute lg:right-8 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2.5 rounded-sm bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 shadow-md sm:shadow-lg font-bold text-xs sm:text-sm transition-all duration-300 z-10 shrink-0 cursor-pointer sticky right-0 sm:static"
-                        >
-                            <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span>الفلاتر</span>
-                        </button>
+                    {/* Filter Button (Desktop: absolute right; Mobile: docked at start of bar) */}
+                    <button 
+                        onClick={() => setIsFilterOpen(true)} 
+                        className="lg:absolute lg:right-8 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2.5 rounded-sm bg-[#800020] text-[#F0DFCD] hover:bg-[#800020]/90 shadow-md sm:shadow-lg font-bold text-xs sm:text-sm transition-all duration-300 z-10 shrink-0 cursor-pointer"
+                    >
+                        <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span>الفلاتر</span>
+                    </button>
 
+                    <div className="h-5 w-[1px] bg-[#800020]/20 shrink-0 lg:hidden" />
+
+                    {/* Scrollable Categories List */}
+                    <div className="flex gap-1.5 sm:gap-4 overflow-x-auto no-scrollbar sm:flex-wrap justify-start sm:justify-center py-1 items-center flex-1">
                         {categoryFilters.map(f => (
                             <button 
                                 key={f} 
@@ -167,6 +168,7 @@ export default function MenPage() {
                     isMen={true}
                     isOpen={isFilterOpen}
                     onClose={() => setIsFilterOpen(false)}
+                    products={products}
                 />
 
                 {/* Products Grid */}
