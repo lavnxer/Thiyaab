@@ -1,181 +1,223 @@
-// بيانات مراجعات المنتجات مع تأكيد الشراء الفعلي لكل عميل
-export const MOCK_REVIEWS = [
-    {
-        id: 101,
-        productId: 1,
-        userName: 'سعود فهد الهذلي',
-        rating: 5,
-        date: 'قبل يومين',
-        purchasedSize: 'M',
-        purchasedColor: 'عنابي',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'جودة استثنائية تفوق التوقعات',
-        comment: 'منتج رائع جداً والخامة ممتازة، أنصح به بشدة! الجودة تفوق السعر بصراحة والقماش ثقيل وناعم في نفس الوقت وتفصيل الخياطة متقن لأبعد حد.',
-        helpfulCount: 24,
-    },
-    {
-        id: 102,
-        productId: 1,
-        userName: 'خالد عبد الله التميمي',
-        rating: 4,
-        date: 'قبل 4 أيام',
-        purchasedSize: 'L',
-        purchasedColor: 'أسود',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'مقاس متناسق وراحة تامة',
-        comment: 'مقاس ممتاز ومريح جداً في اللبس وتطريز الحواف راقٍ جداً، لكن شركة الشحن تأخرت يومين بالتوصيل، عموماً يستاهل 4 نجوم بجدارة.',
-        helpfulCount: 16,
-    },
-    {
-        id: 103,
-        productId: 1,
-        userName: 'نورة بنت سلطان',
-        rating: 5,
-        date: 'قبل أسبوع',
-        purchasedSize: 'S',
-        purchasedColor: 'بيج',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'اللون والتفصيل مطابق للصور تماماً',
-        comment: 'طلبت الفستان لمناسبة قريبة، ووصلني مغلف بعناية فائقة مع كيس حماية فاخر. القماش ناعم ولا يتجعد بسهولة والمقاس جاء مطابق لدليل المقاسات.',
-        helpfulCount: 31,
-    },
-    {
-        id: 104,
-        productId: 1,
-        userName: 'عبد العزيز بن فيصل',
-        rating: 5,
-        date: 'قبل 10 أيام',
-        purchasedSize: 'XL',
-        purchasedColor: 'عنابي',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'هدية راقية جداً',
-        comment: 'أخذته كهدية وكانت ردة الفعل مذهلة! الفخامة واضحة من أول لمسة والتطريز متماسك بدون أي خيوط زائدة. شكراً لاهتمامكم بأدق التفاصيل.',
-        helpfulCount: 19,
-    },
-    {
-        id: 105,
-        productId: 1,
-        userName: 'سارة محمد الشمري',
-        rating: 5,
-        date: 'قبل أسبوعين',
-        purchasedSize: 'M',
-        purchasedColor: 'أسود',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'أفضل قطعة اقتنيتها هذا الموسم',
-        comment: 'التصميم انسيابي وفخم جداً، يعطي هيبة وأناقة غير طبيعية في اللبس. خدمة العملاء ساعدوني في اختيار المقاس المناسب عبر الواتساب وكان الاختيار موفقاً جداً.',
-        helpfulCount: 12,
-    },
-    {
-        id: 106,
-        productId: 1,
-        userName: 'فيصل مبارك الدوسري',
-        rating: 4,
-        date: 'قبل 3 أسابيع',
-        purchasedSize: 'M',
-        purchasedColor: 'عنابي',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'خامة صيفية/شتوية متوازنة',
-        comment: 'وزن القماش معتدل ومناسب لجميع الأجواء داخل القاعات والمناسبات. التغليف فخم جداً وريحته جميلة.',
-        helpfulCount: 8,
-    },
-    {
-        id: 107,
-        productId: 1,
-        userName: 'منى القحطاني',
-        rating: 5,
-        date: 'قبل شهر',
-        purchasedSize: 'XS',
-        purchasedColor: 'بيج',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'قصة مبتكرة ونظيفة',
-        comment: 'أعجبني جداً دقة القص وتناسق الأكمام. استلمت الطلب خلال 24 ساعة فقط في الرياض. تجربة شراء ممتازة وسأكررها بكل تأكيد.',
-        helpfulCount: 15,
-    },
-    {
-        id: 108,
-        productId: 1,
-        userName: 'عمر ياسين الجابري',
-        rating: 5,
-        date: 'قبل شهر',
-        purchasedSize: 'L',
-        purchasedColor: 'أسود',
-        verifiedPurchase: true,
-        verifiedText: 'مشتري موثق',
-        title: 'فخامة لا تضاهى',
-        comment: 'جودة الخياطة تدل على مهارة عالية، ولا تبهت بعد الغسيل والتنظيف الجاف. يستحق كل ريال.',
-        helpfulCount: 22,
+// بيانات مراجعات المنتجات المفصلة والمطابقة لعنوان ونوع كل منتج وأسماء العملاء الموثقين
+export const PRODUCT_REVIEWS_CATALOG = {
+    "090c1d2f-0558-428a-8242-3cf7ec690f4b": [
+        {"id": "rev_090c1d_9492", "productId": "090c1d2f-0558-428a-8242-3cf7ec690f4b", "userName": "نورة بنت سلطان العتيبي", "rating": 5, "date": "قبل يومين", "purchasedSize": "M", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "إطلالة متكاملة خطفت الأنظار", "comment": "طلبت الإطلالة كاملة لحفل استقبال رسمي وكانت النتيجة مبهرة! تناسق القماش بين البلوزة والبنطال والوشاح يعطي فخامة استثنائية دون أي مجهود في التنسيق. شكراً ثياب على هذه الدقة.", "helpfulCount": 34},
+        {"id": "rev_090c1d_1171", "productId": "090c1d2f-0558-428a-8242-3cf7ec690f4b", "userName": "سارة محمد القحطاني", "rating": 5, "date": "قبل 4 أيام", "purchasedSize": "L", "purchasedColor": "بيج", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قصة انسيابية وأقمشة باردة وراقية", "comment": "القماش ناعم جداً ومريح لساعات طويلة، واللون البيج على الواقع أجمل وأفخم بكثير من الصور. المقاس جاء مطابقاً تماماً لدليل المقاسات.", "helpfulCount": 28},
+        {"id": "rev_090c1d_9274", "productId": "090c1d2f-0558-428a-8242-3cf7ec690f4b", "userName": "مها عبد الله التميمي", "rating": 4, "date": "قبل أسبوع", "purchasedSize": "S", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أناقة عصرية وتغليف فاخر", "comment": "القطع منسقة بذكاء فائق وخامتها ممتازة جداً. التوصيل استغرق يومين إضافيين لكن جودة القطع تستحق كل دقيقة انتظار.", "helpfulCount": 19},
+        {"id": "rev_090c1d_2849", "productId": "090c1d2f-0558-428a-8242-3cf7ec690f4b", "userName": "الجوهرة بنت فهد", "rating": 5, "date": "قبل أسبوعين", "purchasedSize": "M", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "وفرت علي وقت التنسيق بنتيجة مبهرة", "comment": "أفضل قرار اتخذته بشراء إطلالة متكاملة. الجودة تفوق السعر وخياطة الحواف نظيفة جداً وخالية من أي عيوب.", "helpfulCount": 22},
+        {"id": "rev_090c1d_1515", "productId": "090c1d2f-0558-428a-8242-3cf7ec690f4b", "userName": "هيفاء آل سعود", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "بيج", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "حضور ملكي واحترافية عالية", "comment": "اللبس مريح ويعطي هيبة وثقة، خامة لا تتجعد أبداً حتى مع الجلوس المطول. خدمة العملاء راقية جداً.", "helpfulCount": 15},
+    ],
+    "0ea47449-0088-48df-8bf4-fcef6942cdf8": [
+        {"id": "rev_0ea474_8770", "productId": "0ea47449-0088-48df-8bf4-fcef6942cdf8", "userName": "سعود فهد الهذلي", "rating": 5, "date": "قبل يومين", "purchasedSize": "L", "purchasedColor": "بيج فاتح", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "دفء فاخر وأناقة شتوية لا تضاهى", "comment": "المعطف ثقيل وفخم جداً والبلوفر ناعم على البشرة بدون أي وخز. درجات الألوان الفاتحة نادرة التنسيق بهذا الإتقان وتلفت الأنظار في كل مجلس.", "helpfulCount": 42},
+        {"id": "rev_0ea474_7850", "productId": "0ea47449-0088-48df-8bf4-fcef6942cdf8", "userName": "فيصل مبارك الدوسري", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "XL", "purchasedColor": "أوف وايت", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تنسيق متناسق جداً للمناسبات الشتوية", "comment": "التناسق بين المعطف والبنطال يعطيك مظهر كلاسيكي حديث. القطع خياطتها متينة وتدفئتها ممتازة جداً في الأيام الباردة.", "helpfulCount": 29},
+        {"id": "rev_0ea474_6923", "productId": "0ea47449-0088-48df-8bf4-fcef6942cdf8", "userName": "عبد العزيز بن فيصل", "rating": 4, "date": "قبل أسبوع", "purchasedSize": "M", "purchasedColor": "بيج فاتح", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامات الصوف والكشمير أصلية", "comment": "جودة أقمشة الصوف ممتازة وتستحق كل ريال. مقاس البنطال يحتاج حزام خفيف لكن الإطلالة كاملة متكاملة ومرتبة.", "helpfulCount": 18},
+        {"id": "rev_0ea474_385", "productId": "0ea47449-0088-48df-8bf4-fcef6942cdf8", "userName": "تركي بن نايف الشمري", "rating": 5, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "رمادي فاتح", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "فخامة ورقي في أدق التفاصيل", "comment": "استلمت الطلب مغلفاً بكيس حماية مخصص للمعاطف وعلبة فاخرة. تجربة تسوق راقية بكل المقاييس.", "helpfulCount": 25},
+    ],
+    "160da50a-823c-474f-bcbf-5570b14ee320": [
+        {"id": "rev_160da5_2603", "productId": "160da50a-823c-474f-bcbf-5570b14ee320", "userName": "أروى السليمان", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "38", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مريح جداً ومبطن بإتقان", "comment": "عادة أتعب من الكعب العالي في السهرات، لكن هذا الحذاء مبطن بـ ميموري فوم ناعم جداً مريح للقدم حتى بعد 5 ساعات وقوف! لونه العنابي الملكي فخم جداً.", "helpfulCount": 38},
+        {"id": "rev_160da5_3820", "productId": "160da50a-823c-474f-bcbf-5570b14ee320", "userName": "خلود المطيري", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "39", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "ثبات عالي وتصميم أنيق يرفع الإطلالة", "comment": "الكعب متزن جداً ولا يسبب أي انزلاق، ولمعة الجلد اللامع راقية بدون مبالغة. أخذت مقاسي المعتاد وجاء مضبوطاً بالسنتيمتر.", "helpfulCount": 27},
+        {"id": "rev_160da5_4775", "productId": "160da50a-823c-474f-bcbf-5570b14ee320", "userName": "عبير الشريف", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "37", "purchasedColor": "نيود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "كلاسيكي رائع للمناسبات والعمل", "comment": "الحذاء أنيق جداً وقصته مدببة برقة لا تضغط على الأصابع. أنصح به لأي سيدة تبحث عن الراحة والأناقة معاً.", "helpfulCount": 16},
+        {"id": "rev_160da5_3260", "productId": "160da50a-823c-474f-bcbf-5570b14ee320", "userName": "نادية العجمي", "rating": 5, "date": "قبل شهر", "purchasedSize": "38", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامات إيطالية تدوم طويلاً", "comment": "الجلد مرن ونظيف جداً والخياطة متقنة، العلبة والكيس المرفق للحماية أضافت لمسة من الفخامة.", "helpfulCount": 21},
+    ],
+    "1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7": [
+        {"id": "rev_1f0f07_4816", "productId": "1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7", "userName": "خالد عبد الله التميمي", "rating": 5, "date": "قبل يومين", "purchasedSize": "42", "purchasedColor": "بني محروق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "جلد طبيعي 100% وطراوة لا توصف", "comment": "من أفضل الأحذية الجلدية التي اقتنيتها، طري جداً من أول لبسة ولا يسبب أي احتكاك في الكعب. النعل الطبي الداخلي مريح جداً للدوام المكتبي.", "helpfulCount": 35},
+        {"id": "rev_1f0f07_1297", "productId": "1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7", "userName": "عمر ياسين الجابري", "rating": 5, "date": "قبل 6 أيام", "purchasedSize": "43", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هيبة وأناقة مع الثوب والبدلة", "comment": "النقوش الكلاسيكية على مقدمة الحذاء دقيقة جداً وتعكس شغل يدوي محترف. اللمعان طبيعي ومريح في المشي.", "helpfulCount": 24},
+        {"id": "rev_1f0f07_8938", "productId": "1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7", "userName": "ماجد العنزي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "41", "purchasedColor": "بني محروق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "متين جداً وتفصيل ممتاز", "comment": "الحذاء جودته ممتازة ويعيش معك سنوات، وزنه خفيف مقارنة بالأحذية الرسمية الأخرى في السوق.", "helpfulCount": 17},
+        {"id": "rev_1f0f07_1936", "productId": "1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7", "userName": "نايف الحربي", "rating": 5, "date": "قبل 3 أسابيع", "purchasedSize": "42", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أكسفورد كلاسيكي راقٍ", "comment": "العلبة وصلت مع قالب أحذية خفيف وشمع تلميع، اهتمامكم بتجربة العميل استثنائي.", "helpfulCount": 20},
+    ],
+    "1fe2999b-3b5f-4e89-a994-f6b5fb9ea961": [
+        {"id": "rev_1fe299_4011", "productId": "1fe2999b-3b5f-4e89-a994-f6b5fb9ea961", "userName": "فهد بن سلطان السبيعي", "rating": 5, "date": "قبل يومين", "purchasedSize": "L", "purchasedColor": "رمادي غامق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قطعة استثمارية في خزانة الشتاء", "comment": "ثقل الجوخ ونعومته تدل على صوف طبيعي فاخر، القصة المزدوجة مع الحزام تمنحك إطلالة مهيبة ودفء تام في أقسى ليالي الشتاء. يستحق كل هللة.", "helpfulCount": 48},
+        {"id": "rev_1fe299_2367", "productId": "1fe2999b-3b5f-4e89-a994-f6b5fb9ea961", "userName": "سلطان المقرن", "rating": 5, "date": "قبل 4 أيام", "purchasedSize": "XL", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خياطة احترافية وأزرار قرنية فخمة", "comment": "تفاصيل الأكتاف والياقة مفصلة بحرفية دار أزياء عالمية. الحزام يعطي إمكانية تضييق أو ارتداء المعطف مفتوحاً بأناقة.", "helpfulCount": 31},
+        {"id": "rev_1fe299_6328", "productId": "1fe2999b-3b5f-4e89-a994-f6b5fb9ea961", "userName": "نايف الشمري", "rating": 4, "date": "قبل أسبوع", "purchasedSize": "M", "purchasedColor": "رمادي غامق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "دفء حقيقي وخامة ممتازة", "comment": "المعطف ممتاز جداً ويحمي من الرياح الباردة بشكل كامل. الوزن معتدل ومناسب ومريح عند ارتدائه فوق الثوب.", "helpfulCount": 22},
+        {"id": "rev_1fe299_7068", "productId": "1fe2999b-3b5f-4e89-a994-f6b5fb9ea961", "userName": "فيصل الدوسري", "rating": 5, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "فخامة تفوق التوقعات", "comment": "طلبته قبل رحلة إلى الشمال وكان المنقذ في الأجواء الباردة! بطانة الساتان الداخلية انسيابية جداً وتسهل اللبس والخلع.", "helpfulCount": 26},
+    ],
+    "3863c784-b876-4ec5-8333-eabc066d0226": [
+        {"id": "rev_3863c7_1917", "productId": "3863c784-b876-4ec5-8333-eabc066d0226", "userName": "سارة محمد العتيبي", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "54", "purchasedColor": "أسود فاحم", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "سواد فاحم وانسيابية ملكية", "comment": "القماش كريب كوري من أروع ما يكون، سواده عميق جداً ولا يبهت بالغسيل. القصة المموجة تعطي هيبة وسترة جميلة جداً في المشي.", "helpfulCount": 40},
+        {"id": "rev_3863c7_4524", "productId": "3863c784-b876-4ec5-8333-eabc066d0226", "userName": "منيرة بنت خالد الدوسري", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "56", "purchasedColor": "أسود فاحم", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أفضل عباية للمناسبات والزيارات", "comment": "العباية باردة وخفيفة على الكتف بدون ما تشف، والتطريز الخفيف مع الطرحة المتناسقة زادها جمالاً وفخامة.", "helpfulCount": 33},
+        {"id": "rev_3863c7_7006", "productId": "3863c784-b876-4ec5-8333-eabc066d0226", "userName": "مها القحطاني", "rating": 4, "date": "قبل 10 أيام", "purchasedSize": "52", "purchasedColor": "أسود فاحم", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامة لا تتجعد وسهلة العناية", "comment": "ما تحتاج كوي مستمر، القماش يرجع انسيابي بمجرد التعليق. المقاس مضبوط بالإنش تماماً كما في الجدول.", "helpfulCount": 21},
+        {"id": "rev_3863c7_9569", "productId": "3863c784-b876-4ec5-8333-eabc066d0226", "userName": "شهد عبد الله", "rating": 5, "date": "قبل أسبوعين", "purchasedSize": "54", "purchasedColor": "أسود فاحم", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف مميز ورائحة عطرية جميلة", "comment": "وصلتني العباية مبخرة ومعطرة بعناية فائقة مع كيس قماشي فاخر، اهتمام لا يضاهى.", "helpfulCount": 27},
+    ],
+    "49019d80-ac68-4ad2-a0c2-163836819f41": [
+        {"id": "rev_49019d_4667", "productId": "49019d80-ac68-4ad2-a0c2-163836819f41", "userName": "لطيفة الفايز", "rating": 5, "date": "قبل يومين", "purchasedSize": "قياس موحد", "purchasedColor": "ذهب وردي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مينا صدفية وبريق زركون يخطف القلب", "comment": "الساعة تحفة فنية في المعصم! مينا عرق اللؤلؤ تتغير لمعتها مع الإضاءة، والسوار الشبكي ناعم جداً على الجلد وسهل التعديل.", "helpfulCount": 45},
+        {"id": "rev_49019d_8080", "productId": "49019d80-ac68-4ad2-a0c2-163836819f41", "userName": "رغد السبيعي", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "قياس موحد", "purchasedColor": "فضي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "دقة سويسرية ومقاومة للماء ممتازة", "comment": "تصلح للسهرات والدوام اليومي في نفس الوقت. الكريستال مقاوم للخدش وحركتها دقيقة بدون أي تقديم أو تأخير.", "helpfulCount": 31},
+        {"id": "rev_49019d_8758", "productId": "49019d80-ac68-4ad2-a0c2-163836819f41", "userName": "ديما الجبر", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "قياس موحد", "purchasedColor": "ذهب وردي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هدية راقية جداً بتغليف مخملي", "comment": "أهديتها لأختي في تخرجها وانبهرت بفخامتها، علبة خشبية فاخرة مع بطاقة ضمان مختومة.", "helpfulCount": 23},
+        {"id": "rev_49019d_2919", "productId": "49019d80-ac68-4ad2-a0c2-163836819f41", "userName": "سميرة الحربي", "rating": 5, "date": "قبل 3 أسابيع", "purchasedSize": "قياس موحد", "purchasedColor": "ذهب وردي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "ثبات اللون ومقاومة الصدأ", "comment": "أستخدمها بشكل شبه يومي واللون الروز جولد لم يتغير أو يبهت إطلاقاً. تستحق 5 نجوم بجدارة.", "helpfulCount": 19},
+    ],
+    "53714b1b-735c-4847-ab9f-a0e8cf7787c8": [
+        {"id": "rev_53714b_2915", "productId": "53714b1b-735c-4847-ab9f-a0e8cf7787c8", "userName": "لجين البقمي", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "M", "purchasedColor": "عاجي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "حرير توت نقي وملمس بارد ناعم", "comment": "البلوزة تصرخ فخامة! ملمس الحرير بارد على الجسم ووزنه يمنحه هدلة وانسيابية راقية جداً. الأزرار الصدفية المخفية تفصيل ذكي وأنيق.", "helpfulCount": 36},
+        {"id": "rev_53714b_5168", "productId": "53714b1b-735c-4847-ab9f-a0e8cf7787c8", "userName": "شهد العبد الله", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "S", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "لون ملكي وتطابق تام مع الصور", "comment": "اللون العنابي الحريري غني جداً ويبان فاخر في الإضاءة المسائية. لبسته مع تنورة وبنطال وكان التنسيق في غاية الروعة.", "helpfulCount": 29},
+        {"id": "rev_53714b_6284", "productId": "53714b1b-735c-4847-ab9f-a0e8cf7787c8", "userName": "مرام الدخيل", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قصة كلاسيكية راقية للدوام الرسمي", "comment": "ممتاز جداً للاجتماعات والعمل المكتبي، القماش يتنفس وما يكتم ومقاس الصدر والأكتاف مرتاح جداً.", "helpfulCount": 18},
+        {"id": "rev_53714b_1725", "productId": "53714b1b-735c-4847-ab9f-a0e8cf7787c8", "userName": "أثير الزهراني", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "عاجي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "جودة خياطة لا غبار عليها", "comment": "الغرز ناعمة وخفية وما تسبب أي احتكاك، غسلته غسيل يدوي بارد وحافظ على لمعانه ونعومته كاملة.", "helpfulCount": 22},
+    ],
+    "64138ef4-558c-45bb-9f62-047fe016d383": [
+        {"id": "rev_64138e_175", "productId": "64138ef4-558c-45bb-9f62-047fe016d383", "userName": "هدى السعدون", "rating": 5, "date": "قبل يومين", "purchasedSize": "7", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "بريق لا يوصف وتصميم عصري ملفت", "comment": "الخاتم فخم وأنيق في اليد، التصميم الهندسي يعطيه مظهر مميز يختلف عن الخواتم التقليدية. لمعة الذهب عيار 18 واضحة ونقية.", "helpfulCount": 39},
+        {"id": "rev_64138e_2963", "productId": "64138ef4-558c-45bb-9f62-047fe016d383", "userName": "بدور القحطاني", "rating": 5, "date": "قبل 6 أيام", "purchasedSize": "6", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مرصع بدقة وأحجار ثابتة جداً", "comment": "فصوص الزركون تلمع مثل الألماس الحقيقي وتثبيتها محكم. المقاس جاء مضبوط بالملي في إصبعي.", "helpfulCount": 25},
+        {"id": "rev_64138e_408", "productId": "64138ef4-558c-45bb-9f62-047fe016d383", "userName": "سمر العلي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "8", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خفيف ومريح للبس اليومي", "comment": "ما يضايق في الاستخدام اليومي أو شغل البيت، ملمسه ناعم ولا يشبك في العبايات والملابس.", "helpfulCount": 17},
+        {"id": "rev_64138e_2123", "productId": "64138ef4-558c-45bb-9f62-047fe016d383", "userName": "غيداء المطيري", "rating": 5, "date": "قبل شهر", "purchasedSize": "7", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "علبة مخملية فاخرة مناسبة للإهداء", "comment": "التقديم راقٍ جداً، وصلني في كيس وعلبة مخملية بشعار ذهبي مع شهادة الجودة.", "helpfulCount": 20},
+    ],
+    "6fa9f0ac-5cd8-4480-bcbc-c6df16b032ae": [
+        {"id": "rev_6fa9f0_661", "productId": "6fa9f0ac-5cd8-4480-bcbc-c6df16b032ae", "userName": "جود المعجل", "rating": 5, "date": "قبل 4 أيام", "purchasedSize": "M", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أفضل بنطال دوام اشتريته على الإطلاق", "comment": "القصة المستقيمة تجلس بشكل مرتب على الجسم، الخصر المرتفع مريح وما يضغط على البطن، وخامته تقاوم التجعد طول ساعات الدوام.", "helpfulCount": 37},
+        {"id": "rev_6fa9f0_3382", "productId": "6fa9f0ac-5cd8-4480-bcbc-c6df16b032ae", "userName": "بشاير الهاجري", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "L", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قماش ثقيل ومتماسك لا يشف", "comment": "القماش من أجود الأنواع ويحافظ على شكله المستقيم بعد الغسيل والكوي. مناسب جداً للبس مع الكعب أو الأحذية المسطحة.", "helpfulCount": 26},
+        {"id": "rev_6fa9f0_3744", "productId": "6fa9f0ac-5cd8-4480-bcbc-c6df16b032ae", "userName": "وفاء السبيعي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "S", "purchasedColor": "بيج", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أنيق وقصته تبرز الطول", "comment": "اللون البيج حيادي وسهل التنسيق، الجيوب عميقة ومفصلة بشكل خفي لا يفسد شكل البنطال من الجوانب.", "helpfulCount": 15},
+        {"id": "rev_6fa9f0_8331", "productId": "6fa9f0ac-5cd8-4480-bcbc-c6df16b032ae", "userName": "ريم التميمي", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "راحة تامة في الحركة والمشي", "comment": "مرونة القماش ممتازة ومريح جداً في الحركة والجلوس الطويل بالسيارة والمكتب.", "helpfulCount": 21},
+    ],
+    "72baf1c5-045e-4b01-9c0f-f7a26342dfc9": [
+        {"id": "rev_72baf1_3796", "productId": "72baf1c5-045e-4b01-9c0f-f7a26342dfc9", "userName": "متعب بن حمد الدوسري", "rating": 5, "date": "قبل يومين", "purchasedSize": "XL", "purchasedColor": "رمادي وأسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هيبة متكاملة وتوفير ملحوظ بالسعر", "comment": "شراء التنسيق كامل وفر علي كثير وريحني من البحث عن قطع متطابقة. الجوخ الرمادي فخم جداً ويتكامل مع البلوفر الأسود والبنطال.", "helpfulCount": 44},
+        {"id": "rev_72baf1_628", "productId": "72baf1c5-045e-4b01-9c0f-f7a26342dfc9", "userName": "طلال العسيري", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "L", "purchasedColor": "رمادي وأسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامات أصلية صوفية دافئة جداً", "comment": "اللبس يعطيك ثقة وهيبة في أي مجلس أو اجتماع عمل. دفء الصوف حقيقي وخفيف على الكتف بدون ثقل مزعج.", "helpfulCount": 30},
+        {"id": "rev_72baf1_2884", "productId": "72baf1c5-045e-4b01-9c0f-f7a26342dfc9", "userName": "عبد الله الحربي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "M", "purchasedColor": "رمادي وأسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تنسيق شتوي نخب أول", "comment": "كل قطعة في هذا الطقم ذات جودة مستقلة عالية، الحزام والأزرار والقصة كلها تدل على اهتمام فائق بالجودة.", "helpfulCount": 20},
+        {"id": "rev_72baf1_5781", "productId": "72baf1c5-045e-4b01-9c0f-f7a26342dfc9", "userName": "منصور الغامدي", "rating": 5, "date": "قبل شهر", "purchasedSize": "L", "purchasedColor": "رمادي وأسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف وتوصيل سريع في الرياض", "comment": "استلمت البكج خلال يوم واحد فقط، كل قطعة في كيس مخصص مع شماعة خشبية فاخرة.", "helpfulCount": 24},
+    ],
+    "82255044-7297-4680-adc7-f7b76d59cf67": [
+        {"id": "rev_822550_4007", "productId": "82255044-7297-4680-adc7-f7b76d59cf67", "userName": "دانة بنت فهد الحربي", "rating": 5, "date": "قبل يومين", "purchasedSize": "S", "purchasedColor": "أبيض لؤلؤي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "فستان أحلامي في مناسبتي الكبرى", "comment": "لبسته في حفل خطوبة وكان حديث الجميع! القماش شيفون فاخر مع بطانة ناعمة وساترة، وتطريز الخصر ناعم ويزيد القوام رشاقة وأنوثة.", "helpfulCount": 52},
+        {"id": "rev_822550_1572", "productId": "82255044-7297-4680-adc7-f7b76d59cf67", "userName": "لمى الخالدي", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "M", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "اللون العنابي على الطبيعة يسرق الأنظار", "comment": "اللون العنابي غني وعميق جداً، والقصة الملوكية منسدلة بشكل يغني عن أي إكسسوارات معقدة. المقاس مطابق لدليل القياس بدقة.", "helpfulCount": 36},
+        {"id": "rev_822550_6531", "productId": "82255044-7297-4680-adc7-f7b76d59cf67", "userName": "شوق الغامدي", "rating": 4, "date": "قبل 12 يوماً", "purchasedSize": "L", "purchasedColor": "أسود ملكي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خياطة ممتازة وبطانة غير شفافة", "comment": "فستان سهرة متكامل بمواصفات دور الأزياء الراقية، السحاب مخفي بانسيابية بدون أي تعليق.", "helpfulCount": 24},
+        {"id": "rev_822550_9734", "productId": "82255044-7297-4680-adc7-f7b76d59cf67", "userName": "فوزية الشمري", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "أبيض لؤلؤي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أناقة هادئة وفخامة مطلقة", "comment": "التغليف فاخر ومعطر، الفستان وصل بدون أي تجاعيد وجاهز للبس فوراً.", "helpfulCount": 31},
+    ],
+    "a24387e1-aca8-46e0-9480-129e1784674f": [
+        {"id": "rev_a24387_3807", "productId": "a24387e1-aca8-46e0-9480-129e1784674f", "userName": "عبد الرحمن الراجحي", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "34", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قصة إيطالية متقنة وخامة لا تتجعد", "comment": "البنطال مريح جداً في الجلوس والحركة، القماش مزيج قطن وكتان معالج ومقاوم للتجعد. خيار مثالي للدوام المكتبي واللقاءات الرسمية.", "helpfulCount": 33},
+        {"id": "rev_a24387_5885", "productId": "a24387e1-aca8-46e0-9480-129e1784674f", "userName": "ماجد التميمي", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "32", "purchasedColor": "رمادي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أفضل بنطال قماشي في السوق السعودي", "comment": "الخياطة الداخلية نظيفة والأزرار مخفية بإتقان، لونه الرمادي فخم وسهل التنسيق مع القمصان والبلوفرات.", "helpfulCount": 27},
+        {"id": "rev_a24387_8600", "productId": "a24387e1-aca8-46e0-9480-129e1784674f", "userName": "وليد السهلي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "36", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "متانة القماش وثبات لونه بعد الغسيل", "comment": "غسلته عدة مرات ولونه الأسود ثابت بدون أي بهتان أو ظهور حبيبات على القماش.", "helpfulCount": 18},
+        {"id": "rev_a24387_169", "productId": "a24387e1-aca8-46e0-9480-129e1784674f", "userName": "سلمان بن خالد", "rating": 5, "date": "قبل شهر", "purchasedSize": "34", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مقاس مريح ومرن على الخصر", "comment": "البطانة الداخلية عند الجيوب ناعمة وما تضايق، تجربة شراء سأكررها بكل تأكيد.", "helpfulCount": 21},
+    ],
+    "ab95cb95-53d1-400c-8e0d-ca4e5610df6a": [
+        {"id": "rev_ab95cb_8033", "productId": "ab95cb95-53d1-400c-8e0d-ca4e5610df6a", "userName": "أمل بنت عبد العزيز", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "7", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "سولتير كلاسيكي ناعم وأزلي", "comment": "الخاتم في منتهى الرقة والأناقة! الفص نقاوته عالية ويبرق بقوة، الذهب عيار 18 لمعته دافئة ومميزة تليق بكل الإطلالات.", "helpfulCount": 41},
+        {"id": "rev_ab95cb_7506", "productId": "ab95cb95-53d1-400c-8e0d-ca4e5610df6a", "userName": "نوف المطوع", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "6", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هدية ذكرى زواج فاخرة ومبهجة", "comment": "زوجي أهداني الخاتم وكان اختياره رائعاً، علبة تقديم فاخرة وشكل أنثوي ناعم جداً على الأصبع.", "helpfulCount": 32},
+        {"id": "rev_ab95cb_1822", "productId": "ab95cb95-53d1-400c-8e0d-ca4e5610df6a", "userName": "تهاني الشهري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "8", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "صياغة نظيفة ومتقنة للغاية", "comment": "حواف الخاتم ملساء جداً وما تعلق في الملابس، مقاس 8 جاء مطابقاً لقياس إصبعي تماماً.", "helpfulCount": 19},
+        {"id": "rev_ab95cb_7468", "productId": "ab95cb95-53d1-400c-8e0d-ca4e5610df6a", "userName": "منال الخالدي", "rating": 5, "date": "قبل شهر", "purchasedSize": "7", "purchasedColor": "ذهب أصفر عيار 18", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "بريق لا ينطفئ حتى مع اللبس اليومي", "comment": "ألبسه يومياً من شهر ولم يفقد بريقه أو يتعرض لأي خدش، ذهب نقي وصياغة محترفة.", "helpfulCount": 23},
+    ],
+    "af4bc8e6-2fc1-46b2-93f3-109d1286dd04": [
+        {"id": "rev_af4bc8_149", "productId": "af4bc8e6-2fc1-46b2-93f3-109d1286dd04", "userName": "الجوهرة بنت ناصر التميمي", "rating": 5, "date": "قبل يومين", "purchasedSize": "56", "purchasedColor": "أسود فاحم وتطريز ذهبي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تطريز يدوي متقن وخامة ندى ملكية", "comment": "العباية قطعة فنية بكل معنى الكلمة! خيوط التطريز الذهبية متماسكة جداً ولا تتسل أو تبهت، وسواد قماش ندى الحريري يمنحك هيبة ساحرة في المناسبات.", "helpfulCount": 49},
+        {"id": "rev_af4bc8_3491", "productId": "af4bc8e6-2fc1-46b2-93f3-109d1286dd04", "userName": "هند السديري", "rating": 5, "date": "قبل 6 أيام", "purchasedSize": "54", "purchasedColor": "أسود فاحم وتطريز ذهبي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أجمل عباية اقتنيتها لعيد هذا العام", "comment": "القصة مريحة جداً والطرحة المرفقة مطرزة بنفس الدقة والجمال. حصلت على إطراءات كثيرة عليها في كل مكان.", "helpfulCount": 38},
+        {"id": "rev_af4bc8_6344", "productId": "af4bc8e6-2fc1-46b2-93f3-109d1286dd04", "userName": "عهود القحطاني", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "52", "purchasedColor": "أسود فاحم وتطريز ذهبي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "فخامة وأصالة سعودية متألقة", "comment": "تستحق ثمنها بجدارة، القماش بارد وانسيابي وخفيف على الجسم مع الحفاظ على سترته التامة.", "helpfulCount": 26},
+        {"id": "rev_af4bc8_1003", "productId": "af4bc8e6-2fc1-46b2-93f3-109d1286dd04", "userName": "أميرة البواردي", "rating": 5, "date": "قبل شهر", "purchasedSize": "54", "purchasedColor": "أسود فاحم وتطريز ذهبي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "توصيل سريع واهتمام فائق بالتغليف", "comment": "وصلتني مكوية ومعطرة داخل شنطة عبايات فاخرة ومريحة للسفر، شكراً لاهتمامكم بأدق التفاصيل.", "helpfulCount": 30},
+    ],
+    "c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5": [
+        {"id": "rev_c0d3ae_1625", "productId": "c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5", "userName": "فهد بن عبد الله العتيبي", "rating": 5, "date": "قبل يومين", "purchasedSize": "9", "purchasedColor": "فضة 925 مع حجر أونيكس أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "وقار وهيبة شرقية أصيلة", "comment": "خاتم صلب وثقيل بوزن الفضة 925 الحقيقية. حجر الأونيكس الأسود نقي جداً ومصقول بعناية، والنقوش الجانبية تعكس صياغة يدوية محترفة.", "helpfulCount": 43},
+        {"id": "rev_c0d3ae_4731", "productId": "c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5", "userName": "بدر بن ناصر الشهراني", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "10", "purchasedColor": "فضة 925 مع حجر أونيكس أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "صياغة فضة ممتازة لا تسود", "comment": "مضى على لبسي له أسبوعين والفضة لامعة وما تغير لونها بفضل طلاء الروديوم. مقاس الخاتم مضبوط تماماً.", "helpfulCount": 28},
+        {"id": "rev_c0d3ae_7713", "productId": "c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5", "userName": "رياض الشمري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "8", "purchasedColor": "فضة 925 مع حجر أونيكس أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "حجر ثابت وتصميم رجالي فخم", "comment": "الخاتم مريح على الأصبع ولا يضايق في الكتابة أو قيادة السيارة، وصل مع علبة جلدية أنيقة كهدية.", "helpfulCount": 19},
+        {"id": "rev_c0d3ae_8654", "productId": "c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5", "userName": "سعد بن إبراهيم", "rating": 5, "date": "قبل شهر", "purchasedSize": "9", "purchasedColor": "فضة 925 مع حجر أونيكس أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هدية تذكارية رائعة للأب أو الأخ", "comment": "أهديته لوالدي وأعجبه جداً ثقله وبريق حجره الملكي، يستحق 5 نجوم بكل جدارة.", "helpfulCount": 25},
+    ],
+    "c480b1a5-c02e-4022-b747-5234ecbbe1f6": [
+        {"id": "rev_c480b1_3942", "productId": "c480b1a5-c02e-4022-b747-5234ecbbe1f6", "userName": "أسماء بنت عبد العزيز المري", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "قياس موحد", "purchasedColor": "عنابي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "جلد سافيانو متين ومقاوم للخدش", "comment": "الحقيبة تجمع بين الحجم العملي والفخامة المطلقة. الجلد متين جداً ولا يتقشر أو يتخدش، والإكسسوارات الذهبية لامعة ومحمية من تغير اللون.", "helpfulCount": 46},
+        {"id": "rev_c480b1_4355", "productId": "c480b1a5-c02e-4022-b747-5234ecbbe1f6", "userName": "ليلى الدوسري", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "قياس موحد", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تقسيمات داخلية ذكية ومريحة", "comment": "تتسع للجوال والمحفظة والنظارة والمفاتيح بدون ما تنتفخ أو يتغير شكلها، حزام الكتف المرفق عملي جداً للتنقل.", "helpfulCount": 34},
+        {"id": "rev_c480b1_9411", "productId": "c480b1a5-c02e-4022-b747-5234ecbbe1f6", "userName": "رزان الشهري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "قياس موحد", "purchasedColor": "بيج", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "اللون البيج يتماشى مع كل الإطلالات", "comment": "حقيبة أنيقة تنفع للدوام والمناسبات والطلعات الخفيفة، قفلها المغناطيسي محكم وسهل الفتح.", "helpfulCount": 22},
+        {"id": "rev_c480b1_420", "productId": "c480b1a5-c02e-4022-b747-5234ecbbe1f6", "userName": "مريم العبد العزيز", "rating": 5, "date": "قبل شهر", "purchasedSize": "قياس موحد", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف ديوكس فاخر وحقيبة غبار قطنية", "comment": "استلمتها بكيس الحماية الأصلي وعلبة فاخرة، الجودة تضاهي الماركات العالمية بأسعار مضاعفة.", "helpfulCount": 29},
+    ],
+    "e32a23ba-137d-4667-85fd-d86627e01b19": [
+        {"id": "rev_e32a23_2825", "productId": "e32a23ba-137d-4667-85fd-d86627e01b19", "userName": "خلود بنت إبراهيم المطيري", "rating": 5, "date": "قبل يومين", "purchasedSize": "38", "purchasedColor": "ذهبي ميتاليك", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أنوثة ورشاقة وراحة غير مسبوقة", "comment": "السيور الرفيعة على الكاحل تمنح القدم مظهراً ناعماً وجذاباً، والكعب متزن للغاية بالرغم من ارتفاعه. النعل المبطن ساعدني على الرقص والتحرك طوال الحفل بدون ألم.", "helpfulCount": 47},
+        {"id": "rev_e32a23_4775", "productId": "e32a23ba-137d-4667-85fd-d86627e01b19", "userName": "عبير الشريف", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "37", "purchasedColor": "فضي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "بريق ميتاليك ساحر مع فساتين السهرة", "comment": "لون الفضي يعكس الإضاءة بشكل رائع في الحفلات، جودة الجلد ممتازة ومطاط السيور مريح وما يترك علامات على الجلد.", "helpfulCount": 31},
+        {"id": "rev_e32a23_3260", "productId": "e32a23ba-137d-4667-85fd-d86627e01b19", "userName": "نادية العجمي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "39", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "حذاء سهرة لا غنى عنه في الخزانة", "comment": "الحذاء كلاسيكي وجميل جداً، أخذت مقاسي المعتاد وجاء مريحاً ومناسباً تماماً لدليل المقاسات المعتمد بالموقع.", "helpfulCount": 20},
+        {"id": "rev_e32a23_4414", "productId": "e32a23ba-137d-4667-85fd-d86627e01b19", "userName": "غادة السلطان", "rating": 5, "date": "قبل شهر", "purchasedSize": "38", "purchasedColor": "ذهبي ميتاليك", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف مميز مع أكياس فردية لكل فردة", "comment": "اهتمام عالي بالتفاصيل يمنع احتكاك الحذاء أثناء النقل، تجربة تسوق راقية سأكررها بكل تأكيد.", "helpfulCount": 25},
+    ],
+    "e7f1e11a-87cf-400e-9065-6310125af369": [
+        {"id": "rev_e7f1e1_8155", "productId": "e7f1e11a-87cf-400e-9065-6310125af369", "userName": "سلمان بن خالد التميمي", "rating": 5, "date": "قبل يومين", "purchasedSize": "10", "purchasedColor": "فضة 925 مع فص ياقوتي أزرق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "لون الفص الأزرق الملكي يخطف الأنظار", "comment": "لون الحجر أزرق ياقوتي عميق ونقي جداً، صياغة الفضة الإسترلينية متينة ومريحة على المفصل. خاتم يرفع من قيمة أي إطلالة بالثوب.", "helpfulCount": 45},
+        {"id": "rev_e7f1e1_6703", "productId": "e7f1e11a-87cf-400e-9065-6310125af369", "userName": "بدر الشهراني", "rating": 5, "date": "قبل 6 أيام", "purchasedSize": "9", "purchasedColor": "فضة 925 مع فص ياقوتي أزرق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "جودة فضة عالية لا تتأثر بالماء", "comment": "أتوضأ به يومياً ولم يتأثر بريقه أو يخف لونه بفضل جودة الفضة والروديوم. مقاس 9 جاء ممتازاً.", "helpfulCount": 30},
+        {"id": "rev_e7f1e1_7713", "productId": "e7f1e11a-87cf-400e-9065-6310125af369", "userName": "رياض الشمري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "11", "purchasedColor": "فضة 925 مع فص ياقوتي أزرق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خاتم ثقيل بتصميم رجالي متزن", "comment": "ثقل الخاتم على الإصبع يمنحك شعوراً بالفخامة والوقار، التغليف في علبة خشبية مبطنة كان رائعاً.", "helpfulCount": 21},
+        {"id": "rev_e7f1e1_2710", "productId": "e7f1e11a-87cf-400e-9065-6310125af369", "userName": "فيصل المعيوف", "rating": 5, "date": "قبل شهر", "purchasedSize": "10", "purchasedColor": "فضة 925 مع فص ياقوتي أزرق", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "هدية استثنائية لأعز الأصدقاء", "comment": "أهديته لصديقي في يوم زواجه وكان في قمة السعادة بفخامته وجمال لونه الملكي.", "helpfulCount": 27},
+    ],
+    "f203ea74-16d8-4527-9f95-f27665996f5f": [
+        {"id": "rev_f203ea_385", "productId": "f203ea74-16d8-4527-9f95-f27665996f5f", "userName": "تركي بن نايف الشمري", "rating": 5, "date": "قبل يومين", "purchasedSize": "L", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "صوف ميرينو فائق النعومة وبدون حكة", "comment": "أهم ميزة في هذا البلوفر أنه ناعم جداً على الرقبة ولا يسبب أي وخز أو حكة أبداً! الياقة العالية ماسكة شكلها بدون ترهل حتى بعد اللبس والغسيل.", "helpfulCount": 43},
+        {"id": "rev_f203ea_1546", "productId": "f203ea74-16d8-4527-9f95-f27665996f5f", "userName": "مشعل العتيبي", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "XL", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "دفء ممتاز وقصة ممتازة تحت المعاطف", "comment": "يناسب جداً الارتداء تحت معاطف الجوخ أو الجاكيتات الجلدية. وزنه خفيف ويدفئ بشكل طبيعي ومريح.", "helpfulCount": 31},
+        {"id": "rev_f203ea_9497", "productId": "f203ea74-16d8-4527-9f95-f27665996f5f", "userName": "ياسر الحربي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "M", "purchasedColor": "بيج", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "لون بيج كلاسيكي راقٍ وخامة متماسكة", "comment": "حياكة الصوف دقيقة ومحكمة وما تطلع خيوط أو تتنسل، مريح جداً في السفر والأجواء الباردة.", "helpfulCount": 22},
+        {"id": "rev_f203ea_648", "productId": "f203ea74-16d8-4527-9f95-f27665996f5f", "userName": "ريان القحطاني", "rating": 5, "date": "قبل 3 أسابيع", "purchasedSize": "L", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامة لا تكش بالغسيل إطلاقاً", "comment": "غسلته على برنامج الصوف البارد وطلع كما هو بدون أي انكماش أو تغير في القياس. أنصح به بشدة.", "helpfulCount": 26},
+    ],
+    "f3335d50-60b9-4d7a-ae4e-004fadbe0786": [
+        {"id": "rev_f3335d_9159", "productId": "f3335d50-60b9-4d7a-ae4e-004fadbe0786", "userName": "وليد بن عبد العزيز السهلي", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "42", "purchasedColor": "بني هادئ", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "لوفر خفيف ومريح كالريشة في القدم", "comment": "حذاء يومي عملي وأنيق لأبعد حد! الجلد السويدي ناعم ومرن للغاية، والنعل المطاطي يمنع أي انزلاق ويمتص الصدمات أثناء المشي في المجمعات والعمل.", "helpfulCount": 39},
+        {"id": "rev_f3335d_5781", "productId": "f3335d50-60b9-4d7a-ae4e-004fadbe0786", "userName": "منصور الغامدي", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "43", "purchasedColor": "كحلي سويدي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "سهل اللبس والخلع وأناقة فورية", "comment": "بدون أربطة وعملي جداً مع الثوب الأبيض أو الكاجوال. لونه الكحلي السويدي فخم جداً ونظيف.", "helpfulCount": 28},
+        {"id": "rev_f3335d_8614", "productId": "f3335d50-60b9-4d7a-ae4e-004fadbe0786", "userName": "هتان باوزير", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "41", "purchasedColor": "أسود", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "راحة تامة بعد ساعات عمل طويلة", "comment": "رجلي ما تعرّق فيه بفضل المسامات الطبيعية للجلد، نعل مبطن طبي يوفر راحة لقوس القدم.", "helpfulCount": 19},
+        {"id": "rev_f3335d_8601", "productId": "f3335d50-60b9-4d7a-ae4e-004fadbe0786", "userName": "عادل الشريف", "rating": 5, "date": "قبل شهر", "purchasedSize": "42", "purchasedColor": "بني هادئ", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف فخم وخدمة توصيل سريعة", "comment": "وصلني خلال 24 ساعة في جدة مغلفاً بعناية مع أكياس قماشية مخصصة، يستحق 5 نجوم.", "helpfulCount": 22},
+    ],
+    "f7103a4c-ed7d-40ea-a754-d2091d18733e": [
+        {"id": "rev_f7103a_5938", "productId": "f7103a4c-ed7d-40ea-a754-d2091d18733e", "userName": "شوق بنت عبد الله الغامدي", "rating": 5, "date": "قبل يومين", "purchasedSize": "M", "purchasedColor": "أبيض مطرز", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تنسيق ملوكي يوفر عناء التسوق", "comment": "الفستان الأبيض بتطريزه الناعم مع الحقيبة المتناسقة والكعب الأنيق جعلني أبدو كأميرة في حفل التخرج! كل قطعة تكمل الأخرى بمنتهى التناغم والرقي.", "helpfulCount": 50},
+        {"id": "rev_f7103a_9734", "productId": "f7103a4c-ed7d-40ea-a754-d2091d18733e", "userName": "فوزية الشمري", "rating": 5, "date": "قبل 5 أيام", "purchasedSize": "S", "purchasedColor": "أبيض مطرز", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "خامة قماش فاخرة وتطريز دقيق جداً", "comment": "القماش لا يشف ومريح على البشرة، التنسيق كامل متكامل ويستحق كل ريال. وفر علي ساعات طويلة من البحث عن إكسسوارات مطابقة.", "helpfulCount": 35},
+        {"id": "rev_f7103a_4901", "productId": "f7103a4c-ed7d-40ea-a754-d2091d18733e", "userName": "أميرة الشهري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "أبيض مطرز", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مقاسات متطابقة وجودة تفوق التوقعات", "comment": "مقاس الفستان والكعب جاء مضبوطاً تماماً بالملي كما هو موضح في جدول المقاسات. توصيل سريع وتغليف فاخر.", "helpfulCount": 23},
+        {"id": "rev_f7103a_4355", "productId": "f7103a4c-ed7d-40ea-a754-d2091d18733e", "userName": "لمياء الراجحي", "rating": 5, "date": "قبل 3 أسابيع", "purchasedSize": "M", "purchasedColor": "أبيض مطرز", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "إطلالة الصيف والمناسبات الراقية الأولى", "comment": "فستان خفيف وبارد ومطرز بأناقة تفيض أنوثة وجمال، شكراً متجر ثياب على هذا الذوق الرفيع.", "helpfulCount": 28},
+    ],
+    "f87b89c3-45df-4175-ad16-7a204b01e38f": [
+        {"id": "rev_f87b89_1556", "productId": "f87b89c3-45df-4175-ad16-7a204b01e38f", "userName": "أثير بنت خالد الزهراني", "rating": 5, "date": "قبل يومين", "purchasedSize": "M", "purchasedColor": "بيج رملي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "قصة واسعة انسيابية وخامة كتان باردة", "comment": "البنطال الواسع مريح جداً في الصيف والحرارة! خامة الكتان والقطن الطبيعي باردة على الجسم وقصته الـ Wide-leg تمنحك إطلالة عصرية ومريحة طوال اليوم.", "helpfulCount": 41},
+        {"id": "rev_f87b89_661", "productId": "f87b89c3-45df-4175-ad16-7a204b01e38f", "userName": "جود المعجل", "rating": 5, "date": "قبل 6 أيام", "purchasedSize": "S", "purchasedColor": "أبيض عاجي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "أناقة هادئة وسهولة فائقة في التنسيق", "comment": "البنطال مبطن من الداخل بخفة حتى لا يشف في اللون العاجي، أنيق جداً مع القمصان الحريرية والصنادل الصيفية.", "helpfulCount": 30},
+        {"id": "rev_f87b89_3382", "productId": "f87b89c3-45df-4175-ad16-7a204b01e38f", "userName": "بشاير الهاجري", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "كحلي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "مطاط خلفي مريح جداً عند الخصر", "comment": "الخصر مريح جداً وما يضايق بعد الأكل أو مع الجلوس الطويل، قماش ثقيل ومتماسك لا يتجعد بسرعة.", "helpfulCount": 19},
+        {"id": "rev_f87b89_6472", "productId": "f87b89c3-45df-4175-ad16-7a204b01e38f", "userName": "ريم العبد العزيز", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "بيج رملي", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "جودة خياطة ممتازة وثبات اللون", "comment": "غسلته عدة مرات وحافظ على نعومته ولونه بدون انكماش، بنطال عملي وجميل جداً.", "helpfulCount": 25},
+    ],
+    "fe099db4-5ba3-4442-abe8-9f4515635f2d": [
+        {"id": "rev_fe099d_8743", "productId": "fe099db4-5ba3-4442-abe8-9f4515635f2d", "userName": "لمياء بنت سعود الراجحي", "rating": 5, "date": "قبل 3 أيام", "purchasedSize": "M", "purchasedColor": "أبيض منقوش", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "فستان صيفي مبهج ومنعش كالنسيم", "comment": "القماش قطني خفيف يتنفس في حرارة الصيف ونقوشه رقيقة جداً وغير صاخبة. القصة مريحة وفضفاضة تلائم السفر والجمعات العائلية.", "helpfulCount": 44},
+        {"id": "rev_fe099d_6531", "productId": "fe099db4-5ba3-4442-abe8-9f4515635f2d", "userName": "شوق الغامدي", "rating": 5, "date": "قبل أسبوع", "purchasedSize": "S", "purchasedColor": "سماوي ناعم", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "ألوان زاهية وراحة مطلقة في اللبس", "comment": "اللون السماوي هادئ وجميل جداً على الطبيعة، الفستان فيه بطانة ناعمة تمنع الشفافية وتوفر راحة تامة.", "helpfulCount": 32},
+        {"id": "rev_fe099d_2584", "productId": "fe099db4-5ba3-4442-abe8-9f4515635f2d", "userName": "دانة الحربي", "rating": 4, "date": "قبل أسبوعين", "purchasedSize": "L", "purchasedColor": "أبيض منقوش", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "طول مناسب وقصة أنثوية رقيقة", "comment": "طول الفستان أنيق ومناسب جداً، الأكمام خفيفة وما تكتم، حزام الخصر يعطي إمكانية لتعديل المقاس حسب الرغبة.", "helpfulCount": 21},
+        {"id": "rev_fe099d_9734", "productId": "fe099db4-5ba3-4442-abe8-9f4515635f2d", "userName": "فوزية الشمري", "rating": 5, "date": "قبل شهر", "purchasedSize": "M", "purchasedColor": "أبيض منقوش", "verifiedPurchase": true, "verifiedText": "مشتري موثق", "title": "تغليف مميز ومعطر بعناية فائقة", "comment": "تجربة شراء مبهجة من استلام الصندوق الفاخر إلى فتح الفستان ورائحته العطرة الجميلة.", "helpfulCount": 27},
+    ],
+};
+
+
+// البحث عن مراجعات المنتج بالمعرف، أو توليد مراجعات مطابقة تلقائياً لعنوان ونوع المنتج
+export function getProductReviews(productId, product = {}) {
+    if (!productId) return [];
+    const pid = String(productId);
+
+    // 1. Direct match by UUID
+    if (PRODUCT_REVIEWS_CATALOG[pid]) {
+        return PRODUCT_REVIEWS_CATALOG[pid];
     }
-];
 
-export function getProductReviews(productId) {
-    const id = Number(productId);
-    const specific = MOCK_REVIEWS.filter(r => r.productId === id);
-    if (specific.length > 0) return specific;
+    // 2. Direct match by product name or keywords
+    const prodName = (product?.name || '').trim();
+    const prodCat = (product?.category || '').trim();
+    const isWomen = product?.gender === 'women' || /نسائي|نساء|فستان|كعب|عباءة|عبايه|شنطة|حقيبة|بلوزة/i.test(prodName + ' ' + prodCat);
+    const isAccessories = product?.gender === 'unisex' || /ساعة|خاتم|نظارة|عطر|محفظة|حزام|إكسسوار/i.test(prodName + ' ' + prodCat);
 
-    // Default dynamic reviews if another product is accessed
-    return [
-        {
-            id: 201,
-            productId: id,
-            userName: 'سعود فهد الهذلي',
-            rating: 5,
-            date: 'قبل يومين',
-            purchasedSize: 'L',
-            purchasedColor: 'أسود',
-            verifiedPurchase: true,
-            verifiedText: 'مشتري موثق',
-            title: 'منتج ممتاز وفخم للغاية',
-            comment: 'منتج رائع جداً والخامة ممتازة، أنصح به بشدة! الجودة تفوق السعر بصراحة وتفاصيل الخياطة لا غبار عليها.',
-            helpfulCount: 19,
-        },
-        {
-            id: 202,
-            productId: id,
-            userName: 'خالد عبد الله التميمي',
-            rating: 4,
-            date: 'قبل 4 أيام',
-            purchasedSize: 'M',
-            purchasedColor: 'رمادي غامق',
-            verifiedPurchase: true,
-            verifiedText: 'مشتري موثق',
-            title: 'مقاس مريح وخامة راقية',
-            comment: 'مقاس ممتاز ومريح في اللبس والقصة أنيقة ومتقنة، يستحق التجربة والاقتناء.',
-            helpfulCount: 14,
-        },
-        {
-            id: 203,
-            productId: id,
-            userName: 'نواف بن راشد',
-            rating: 5,
-            date: 'قبل أسبوع',
-            purchasedSize: 'XL',
-            purchasedColor: 'كحلي',
-            verifiedPurchase: true,
-            verifiedText: 'مشتري موثق',
-            title: 'تغليف راقٍ وخامة فاخرة',
-            comment: 'وصلني في وقت قياسي وبأفضل حالة، جودة الصوف والنسيج تشعرك بالفخامة بمجرد لمسها.',
-            helpfulCount: 27,
-        },
-        {
-            id: 204,
-            productId: id,
-            userName: 'ريما الصالح',
-            rating: 5,
-            date: 'قبل أسبوعين',
-            purchasedSize: 'S',
-            purchasedColor: 'بيج',
-            verifiedPurchase: true,
-            verifiedText: 'مشتري موثق',
-            title: 'مطابق للوصف والدليل تماماً',
-            comment: 'اعتمدت على دليل المقاسات وطلع المقاس مضبوط بالسنتيمتر. شكراً لخدمة العملاء على الاحترافية.',
-            helpfulCount: 11,
+    // Look for product in catalog by matching title
+    for (const [key, revs] of Object.entries(PRODUCT_REVIEWS_CATALOG)) {
+        if (prodName && revs.length > 0) {
+            // Check if matches key
+            const sample = revs[0];
+            if (sample && (prodName.includes(sample.title) || (sample.comment && sample.comment.includes(prodName)))) {
+                return revs;
+            }
         }
-    ];
+    }
+
+    // 3. Fallback customized by Gender and Category
+    if (isWomen) {
+        if (/فستان/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["82255044-7297-4680-adc7-f7b76d59cf67"] || [];
+        }
+        if (/عباءة|عبايه/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["3863c784-b876-4ec5-8333-eabc066d0226"] || [];
+        }
+        if (/كعب|حذاء/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["160da50a-823c-474f-bcbf-5570b14ee320"] || [];
+        }
+        if (/حقيبة|شنطة/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["c480b1a5-c02e-4022-b747-5234ecbbe1f6"] || [];
+        }
+        if (/ساعة/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["49019d80-ac68-4ad2-a0c2-163836819f41"] || [];
+        }
+        if (/خاتم/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["64138ef4-558c-45bb-9f62-047fe016d383"] || [];
+        }
+        return PRODUCT_REVIEWS_CATALOG["090c1d2f-0558-428a-8242-3cf7ec690f4b"] || [];
+    } else if (isAccessories) {
+        if (/خاتم/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["c0d3ae2a-8fa5-48e0-b028-fa04468dc1f5"] || [];
+        }
+        if (/ساعة/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["49019d80-ac68-4ad2-a0c2-163836819f41"] || [];
+        }
+        return PRODUCT_REVIEWS_CATALOG["e7f1e11a-87cf-400e-9065-6310125af369"] || [];
+    } else {
+        // Men fallback
+        if (/معطف|جاكيت/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["1fe2999b-3b5f-4e89-a994-f6b5fb9ea961"] || [];
+        }
+        if (/حذاء|شوز|لوفر/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["1f0f07fe-e66d-44b1-98eb-006b9ce3c3d7"] || [];
+        }
+        if (/بلوفر|قميص|كنزة/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["f203ea74-16d8-4527-9f95-f27665996f5f"] || [];
+        }
+        if (/بنطال|بانتس/i.test(prodName + ' ' + prodCat)) {
+            return PRODUCT_REVIEWS_CATALOG["a24387e1-aca8-46e0-9480-129e1784674f"] || [];
+        }
+        return PRODUCT_REVIEWS_CATALOG["72baf1c5-045e-4b01-9c0f-f7a26342dfc9"] || [];
+    }
 }

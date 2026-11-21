@@ -114,13 +114,19 @@ export default function ProductReviewsPage() {
         return dbProduct;
     }, [stateProduct, dbProduct]);
 
-    const initialReviews = useMemo(() => product?.id ? getProductReviews(product.id) : [], [product?.id]);
+    const initialReviews = useMemo(() => product?.id ? getProductReviews(product.id, product) : [], [product?.id, product]);
 
     const { user } = useAuth();
     const [reviews, setReviews] = useState(initialReviews);
     const [selectedStarFilter, setSelectedStarFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'highest' | 'helpful'
     const [helpfulVotes, setHelpfulVotes] = useState({});
+
+    useEffect(() => {
+        if (initialReviews && initialReviews.length > 0) {
+            setReviews(initialReviews);
+        }
+    }, [initialReviews]);
 
     useEffect(() => {
         let isMounted = true;

@@ -4330,12 +4330,19 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between text-xs text-[#800020]">
+                                                <div className="flex items-start justify-between text-xs text-[#800020] gap-2">
                                                     <span className="font-bold text-[#800020] text-sm">{ord.customerName}</span>
-                                                    <div className="flex items-center gap-1.5 text-[11px] text-[#800020]/70">
-                                                        <span>{ord.city}</span>
-                                                        <span>•</span>
-                                                        <span>{ord.phone}</span>
+                                                    <div className="flex flex-col items-end gap-0.5">
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-[#800020]/70">
+                                                            <span>{ord.city}</span>
+                                                            <span>•</span>
+                                                            <span>{ord.phone}</span>
+                                                        </div>
+                                                        {ord.paymentMethod && (
+                                                            <span className="text-[10px] font-medium text-[#800020]/60 whitespace-nowrap">
+                                                                {ord.paymentMethod}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -4366,7 +4373,6 @@ export default function AdminDashboardPage({ initialTab = 'overview' }) {
                                                     <div className="flex items-center gap-1 font-black text-xs sm:text-sm text-[#800020] shrink-0 whitespace-nowrap">
                                                         <span>{ord.total ? ord.total.toFixed(2) : '0.00'}</span>
                                                         <RiyalIcon size="0.85em" />
-                                                        <span className="text-[10px] font-normal text-[#800020]/60 mr-1 whitespace-nowrap">({ord.paymentMethod})</span>
                                                     </div>
 
                                                     <div className="flex items-center gap-2 shrink-0 flex-nowrap">

@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
 import { productsApi } from '../lib/api';
+import { getProductReviews } from '../data/productReviews';
 
 function StarRating({ rating }) {
     return (
@@ -229,6 +230,10 @@ export default function ProductPage() {
         return cat.includes('ساعات') || cat.includes('ساعة') ||
                subCat.includes('ساعات') || subCat.includes('ساعة') ||
                name.includes('ساعة') || name.includes('ساعات');
+    }, [product]);
+
+    const productReviewsList = useMemo(() => {
+        return product ? getProductReviews(product.id, product) : [];
     }, [product]);
 
     const handleAddToCart = () => {
@@ -719,7 +724,7 @@ export default function ProductPage() {
                                         <span className="text-xs font-bold opacity-60">({product.reviews || 128} تقييم)</span>
                                     </div>
                                     <button
-                                        onClick={() => navigate(`/product/${product.id}/reviews`)}
+                                        onClick={() => navigate(`/product/${product.id}/reviews`, { state: { product } })}
                                         className="shine-button relative overflow-hidden group text-sm font-bold flex items-center gap-2 text-[#F0DFCD] bg-[#800020] hover:bg-[#600018] px-4 py-2 rounded-xl shadow-md transition-all duration-300 cursor-pointer active:scale-95"
                                     >
                                         <span className="shine-effect" />
@@ -728,29 +733,22 @@ export default function ProductPage() {
                                     </button>
                                 </div>
 
-                                <div className="border-b border-brand-burgundy/10 pb-5">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="font-bold">سعود فهد</span>
-                                        <StarRating rating={5} />
+                                {productReviewsList.slice(0, 3).map((rev) => (
+                                    <div key={rev.id} className="border-b border-brand-burgundy/10 pb-5">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="font-bold">{rev.userName}</span>
+                                            <StarRating rating={rev.rating} />
+                                        </div>
+                                        {rev.title && <h5 className="font-bold text-xs text-[#800020] mb-1">{rev.title}</h5>}
+                                        <p className="text-brand-burgundy/80 text-sm leading-relaxed">{rev.comment}</p>
+                                        <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                            <span>{rev.verifiedText || 'مشتري موثق'}</span>
+                                            {rev.purchasedSize && <span className="text-[11px] font-medium text-brand-burgundy/60 mr-2">| المقاس: {rev.purchasedSize}</span>}
+                                            {rev.purchasedColor && <span className="text-[11px] font-medium text-brand-burgundy/60 mr-1">| اللون: {rev.purchasedColor}</span>}
+                                        </div>
                                     </div>
-                                    <p className="text-brand-burgundy/80 text-sm leading-relaxed">منتج رائع جداً والخامة ممتازة، أنصح به بشدة! الجودة تفوق السعر بصراحة.</p>
-                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                        <span>مشتري موثق</span>
-                                    </div>
-                                </div>
-
-                                <div className="border-b border-brand-burgundy/10 pb-5">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="font-bold">خالد عبد الله</span>
-                                        <StarRating rating={4} />
-                                    </div>
-                                    <p className="text-brand-burgundy/80 text-sm leading-relaxed">مقاس ممتاز ومريح في اللبس ولكن التوصيل تأخر يومين.</p>
-                                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                        <span>مشتري موثق</span>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="flex flex-col gap-6">
